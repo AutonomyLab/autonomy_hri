@@ -1,0 +1,14 @@
+<package>
+  <description brief="autonomy_human">
+
+     autonomy_human
+
+  </description>
+  <author></author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/autonomy_human</url>
+
+</package>
+
+
