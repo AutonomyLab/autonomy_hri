@@ -60,6 +60,13 @@ private:
 	
 	string strStates[4];
 	
+	/*
+	 * Bit 0: Original Image
+	 * Bit 1: Face Image
+	 * Bit 2: Skin Image
+	 */
+	unsigned short int debugLevel;
+	bool skinEnabled;
 	CvHaarClassifierCascade* cascade; // C API is needed for score
 	vector<Rect> faces;
 	
@@ -73,17 +80,20 @@ private:
 	void draw();
 	
 public:
-	CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames);
+	CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, bool _skinEnabled, unsigned short int _debugLevel);
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
 };
 
-CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames)
+CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, bool _skinEnabled, unsigned short int _debugLevel)
 {
 	isInited = false;
+	
 	stateCounter = 0;
 	
+	skinEnabled = _skinEnabled;
+	debugLevel = _debugLevel;	
 	initialScoreMin = _initialScoreMin;
 	minDetectFrames = _initialDetectFrames;
 	minRejectFrames = _initialRejectFrames;
@@ -145,8 +155,6 @@ void CHumanTracker::reset()
 	initMats();
 	resetMats();
 	resetKalmanFilter();
-	ROS_INFO("Frame4");
-
 }
 
 void CHumanTracker::initMats()
@@ -210,7 +218,7 @@ void CHumanTracker::generateRegionHistogram(Mat& region, MatND &hist, bool vis)
 	{
 		for (int c = 0; c < region.cols; c++)
 		{
-			unsigned int v = hsv.at<cv::Vec3b>(r,c)[2];
+			unsigned int v = hsv.at<Vec3b>(r,c)[2];
 			// TODO: Make me parameters
 			if (( v > 50) && (v < 150))
 			{
@@ -219,8 +227,8 @@ void CHumanTracker::generateRegionHistogram(Mat& region, MatND &hist, bool vis)
 		}
 	}
 	
-	namedWindow( "Face Mask", 1 );
-	imshow( "Face Mask", mask * 255 );
+//	namedWindow( "Face Mask", 1 );
+//	imshow( "Face Mask", mask * 255 );
 	
 	int histSize[] = {hbins, sbins};
 	float hranges[] = {0, 180};
@@ -300,8 +308,8 @@ void CHumanTracker::histFilter(Mat& region, Mat& post, Mat& prior, MatND& hist, 
 void CHumanTracker::detect()
 {
 	// Do ROI 	
-	debugFrame = rawFrame;
-	cv::Mat img =  this->rawFrame(searchROI);
+	debugFrame = rawFrame.clone();
+	Mat img =  this->rawFrame(searchROI);
 	
     double t = 0;
 	faces.clear();
@@ -326,7 +334,7 @@ void CHumanTracker::detect()
 	MemStorage storage(cvCreateMemStorage(0));
 	CvMat _image = frame;
 	CvSeq* _objects = cvHaarDetectObjects(&_image, cascade, storage, 
-			1.1, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING|CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
+			1.2, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING|CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
 	
 	vector<CvAvgComp> vecAvgComp;
 	Seq<CvAvgComp>(_objects).copyTo(vecAvgComp);
@@ -401,18 +409,12 @@ void CHumanTracker::detect()
 		KFTracker->transitionMatrix.at<float>(0,2) = dt;
 		KFTracker->transitionMatrix.at<float>(1,3) = dt;
 
-		cout << KFTracker->transitionMatrix << endl;
-
 		Mat pred = KFTracker->predict();      
 
 		if (vecAvgComp.size() > 0 )
 		{
-
-			cout << "Number of faces: " << vecAvgComp.size() << endl;
-
 			CvAvgComp MLFace;
 			float minCovNorm = 1e24;
-			float minDist = 1e24;
 			int i = 0;
 			for( vector<CvAvgComp>::const_iterator rr = vecAvgComp.begin(); rr != vecAvgComp.end(); rr++, i++ )
 			{
@@ -423,13 +425,11 @@ void CHumanTracker::detect()
 				double nr = rr->neighbors;
 				Point center;
 				Scalar color = colors[i%8];
-				int radius;
 
 				float normFaceScore = 1.0 - (nr / 40.0);
 				if (normFaceScore > 1.0) normFaceScore = 1.0;
 				if (normFaceScore < 0.0) normFaceScore = 0.0;
 				setIdentity(MLSearch->measurementNoiseCov, Scalar_<float>::all(normFaceScore));
-
 
 				center.x = cvRound(r.x + r.width*0.5);
 				center.y = cvRound(r.y + r.height*0.5);
@@ -446,17 +446,11 @@ void CHumanTracker::detect()
 					pow(MLSearch->errorCovPost.at<float>(1,1), 2) 
 				);
 
-				float distx = MLSearch->statePost.at<float>(0) - pred.at<float>(0);
-				float disty = MLSearch->statePost.at<float>(1) - pred.at<float>(1);
-				double dist = sqrt( (distx*distx) + (disty*disty));
-
 				if (covNorm < minCovNorm) 
 				{
 					minCovNorm = covNorm;
 					MLFace = *rr;
 				}
-
-				radius = (int)(cvRound(r.width + r.height)*0.25);
 				
 				rectangle(debugFrame, center - Point(r.width*0.5, r.height*0.5), center + Point(r.width*0.5, r.height * 0.5), color);
 
@@ -467,7 +461,7 @@ void CHumanTracker::detect()
 			}
 
 			// TODO: I'll fix this shit
-			CvRect r = MLFace.rect;
+			Rect r = MLFace.rect;
 			r.x += searchROI.x;
 			r.y += searchROI.y;
 			double nr = MLFace.neighbors;
@@ -500,7 +494,7 @@ void CHumanTracker::detect()
 
 		double belRad = sqrt(pow(beleif.width,2) + pow(beleif.height,2)) * 0.5;
 
-		double faceUnc = norm(KFTracker->errorCovPost, NORM_L2);
+//		double faceUnc = norm(KFTracker->errorCovPost, NORM_L2);
 		double faceUncPos = sqrt(
 				pow(KFTracker->errorCovPost.at<float>(0,0), 2) +
 				pow(KFTracker->errorCovPost.at<float>(1,1), 2) +
@@ -528,15 +522,18 @@ void CHumanTracker::detect()
 		samplingWindow.width = beleif.width * 0.5;
 		samplingWindow.height = beleif.height * 0.9;
 			
-		if (updateFaceHist)
+		if ((updateFaceHist) && (skinEnabled))
 		{
 			rectangle(debugFrame, samplingWindow, CV_RGB(255,0,0));
 			Mat _face = rawFrame(samplingWindow);
 			generateRegionHistogram(_face, faceHist);
 		}
 		
-		histFilter(rawFrame, skin, skinPrior, faceHist, false);
-		skinPrior = skin.clone();
+		if (skinEnabled)
+		{
+			histFilter(rawFrame, skin, skinPrior, faceHist, false);
+			skinPrior = skin.clone();
+		}
 	}
 
 	rectangle(debugFrame, searchROI, CV_RGB(0,0,0));
@@ -550,20 +547,33 @@ void CHumanTracker::detect()
 	visSkin.convertTo(skinFrame, CV_8UC1, 255.0, 0.0);
 
 	
-	double dt =  ((double) getTickCount() - t) / ((double) getTickFrequency()); // In Seconds	
+	dt =  ((double) getTickCount() - t) / ((double) getTickFrequency()); // In Seconds	
 }
 
 
 void CHumanTracker::draw()
 {
-	namedWindow("Input Image", 1);
-	namedWindow("Face Image", 1);
-	namedWindow("Skin Image", 1);
+	if ((debugLevel & 0x01) == 0x01)
+	{
+		namedWindow("Input Image", 1);
+		imshow("Input Image", rawFrame);
+	}
 	
-	imshow("Input Image", rawFrame);
-	imshow("Face Image", debugFrame);
-	imshow("Skin Image", skinFrame);
+	if ((debugLevel & 0x02) == 0x02)
+	{
+		namedWindow("Face Image", 1);
+		imshow("Face Image", debugFrame);
+	}
+	
+	if ((debugLevel & 0x04) == 0x04)
+	{
+		namedWindow("Skin Image", 1);
+		imshow("Skin Image", skinFrame);
+	}
+	
+	waitKey(1);
 }
+
 void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 {
 	cv_bridge::CvImagePtr cv_ptr;    
@@ -590,10 +600,7 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 	this->rawFrame = cv_ptr->image;
 
 	detect();
-	draw();
-//	namedWindow("test");
-//	imshow("test",cv_ptr->image);
-//	waitKey(3);
+	if (debugLevel > 0) draw();
 }
 
 int main(int argc, char **argv)
@@ -603,15 +610,21 @@ int main(int argc, char **argv)
 	image_transport::ImageTransport it(n);
 		
 	//TODO: Get from rosparam
-	string xmlFile = "./cascades/haarcascade_frontalface_default.xml";
-	CHumanTracker* faceTracker = new CHumanTracker(xmlFile, 5, 6, 6);
-
-	//image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 100, &CHumanTracker::visionCallback, faceTracker);
-	image_transport::Subscriber visionSub = it.subscribe("ardrone/image_raw", 100, &CHumanTracker::visionCallback, faceTracker);
+	string xmlFile = "../cascades/haarcascade_frontalface_default.xml";
+	CHumanTracker* faceTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
+	
+	/**
+	 * The queue size seems to be very important in this project
+	 * If we can not complete the calculation in the 1/fps time slot, we either 
+	 * drop the packet (low queue size) or process all frames which will lead to
+	 * additive delays.
+	 */ 
+	
+	image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 5, &CHumanTracker::visionCallback, faceTracker);
 	
 	ROS_INFO("Starting Autonomy Human ...");
 	
-	ros::Rate loopRate(25);
+	ros::Rate loopRate(200);
 	while (ros::ok()){
 		ros::spinOnce();
 		loopRate.sleep();
