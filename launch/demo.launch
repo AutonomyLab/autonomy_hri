@@ -1,5 +1,5 @@
 <launch>
-  <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen">
+  <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node">
     <remap from="input_rgb_image" to="/ardrone/image_raw" />
   </node>
 </launch>
