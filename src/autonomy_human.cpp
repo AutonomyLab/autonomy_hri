@@ -90,6 +90,19 @@ void CFaceTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 
 int main(int argc, char **argv)
 {
+	ros::init(argc, argv, "autonomy_human");
+	ros::NodeHandle n;
+	image_transport::ImageTransport it(n);
+	
+	CFaceTracker* faceTracker = new CFaceTracker(5, 6, 6);
+
+	image_transport::Subscriber visionSub = it.subscribe("/ardrone/image_raw", 100, &CFaceTracker::visionCallback, faceTracker);
+	
+	while (ros::ok()){
+		;
+	}
+	
+	delete faceTracker;
 	return 0;
 }
 
