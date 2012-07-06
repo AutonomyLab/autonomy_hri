@@ -12,8 +12,6 @@
 
 using namespace cv;
 
-
-
 class CFaceTracker
 {
 public:
@@ -25,7 +23,7 @@ public:
 	};
 	
 private:
-	ros::NodeHandle node;
+	//ros::NodeHandle node;
 	Mat rawFrame;
 	Rect searchROI;
 	
@@ -70,6 +68,7 @@ CFaceTracker::CFaceTracker(int _initialScoreMin, int _initialDetectFrames, int _
 	hbins = 15;
 	sbins = 16;
 }
+
 void CFaceTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 {
 	cv_bridge::CvImagePtr cv_ptr;    
@@ -96,10 +95,14 @@ int main(int argc, char **argv)
 	
 	CFaceTracker* faceTracker = new CFaceTracker(5, 6, 6);
 
-	image_transport::Subscriber visionSub = it.subscribe("/ardrone/image_raw", 100, &CFaceTracker::visionCallback, faceTracker);
+	image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 100, &CFaceTracker::visionCallback, faceTracker);
 	
+	ROS_INFO("Starting Autonomy Human ...");
+	
+	ros::Rate loopRate(25);
 	while (ros::ok()){
-		;
+		ros::spinOnce();
+		loopRate.sleep();
 	}
 	
 	delete faceTracker;
