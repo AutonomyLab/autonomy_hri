@@ -1,14 +1,19 @@
 <package>
   <description brief="autonomy_human">
 
-     autonomy_human
+     Autonomy lab, human features (face, skin) extraction package.
 
   </description>
-  <author></author>
+  <author>Mani Monajjemi (mmonajje@cs.sfu.ca)</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/autonomy_human</url>
-
+  <url>TBA</url>
+  <depend package="std_msgs"/>
+  <depend package="geometry_msgs"/>
+  <depend package="roscpp"/>
+  <depend package="image_transport"/>
+  <depend package="cv_bridge"/>
+  <rosdep name="opencv2.3" />
 </package>
 
 
