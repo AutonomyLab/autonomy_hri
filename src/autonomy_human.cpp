@@ -74,6 +74,7 @@ private:
 	
 public:
 	CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames);
+	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
 };
@@ -105,6 +106,15 @@ CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _ini
 	{
 		ROS_ERROR("Problem loading cascade file %s", cascadeFile.c_str());
 	}
+	
+	KFTracker = new KalmanFilter(6, 4, 0);
+	MLSearch = new KalmanFilter(6, 4, 0);
+}
+
+CHumanTracker::~CHumanTracker()
+{
+	delete KFTracker;
+	delete MLSearch;
 }
 
 void CHumanTracker::copyKalman(KalmanFilter* src, KalmanFilter* dest)
@@ -135,6 +145,8 @@ void CHumanTracker::reset()
 	initMats();
 	resetMats();
 	resetKalmanFilter();
+	ROS_INFO("Frame4");
+
 }
 
 void CHumanTracker::initMats()
@@ -576,7 +588,7 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 	
 	//TODO: Check clone
 	this->rawFrame = cv_ptr->image;
-	
+
 	detect();
 	draw();
 //	namedWindow("test");
@@ -591,10 +603,11 @@ int main(int argc, char **argv)
 	image_transport::ImageTransport it(n);
 		
 	//TODO: Get from rosparam
-	string xmlFile = "../cascades/haarcascade_frontalface_default.xml";
+	string xmlFile = "./cascades/haarcascade_frontalface_default.xml";
 	CHumanTracker* faceTracker = new CHumanTracker(xmlFile, 5, 6, 6);
 
-	image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 100, &CHumanTracker::visionCallback, faceTracker);
+	//image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 100, &CHumanTracker::visionCallback, faceTracker);
+	image_transport::Subscriber visionSub = it.subscribe("ardrone/image_raw", 100, &CHumanTracker::visionCallback, faceTracker);
 	
 	ROS_INFO("Starting Autonomy Human ...");
 	
