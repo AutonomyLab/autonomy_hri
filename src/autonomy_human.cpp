@@ -41,8 +41,7 @@ private:
 	Mat state; // x,y,xdot,ydot,w,h
 	Mat measurement;
 	
-	// State Machine
-	_trackingState trackingState;
+	// State Machine	
 	int stateCounter;
 	int initialScoreMin;
 	int minDetectFrames;
@@ -70,7 +69,6 @@ private:
 	unsigned short int debugLevel;
 	bool skinEnabled;
 	CvHaarClassifierCascade* cascade; // C API is needed for score
-	vector<Rect> faces;
 	
 	void copyKalman(KalmanFilter* src, KalmanFilter* dest);
 	void resetKalmanFilter();
@@ -86,6 +84,11 @@ public:
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
+	
+	vector<Rect> faces;
+	int faceScore;
+	Rect beleif;
+	_trackingState trackingState;	
 };
 
 CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, bool _skinEnabled, unsigned short int _debugLevel)
@@ -467,6 +470,7 @@ void CHumanTracker::detect()
 			r.x += searchROI.x;
 			r.y += searchROI.y;
 			double nr = MLFace.neighbors;
+			faceScore = nr;
 			float normFaceScore = 1.0 - (nr / 40.0);
 			if (normFaceScore > 1.0) normFaceScore = 1.0;
 			if (normFaceScore < 0.0) normFaceScore = 0.0;
@@ -484,7 +488,6 @@ void CHumanTracker::detect()
 			KFTracker->errorCovPost = KFTracker->errorCovPre;
 		}
 		
-		Rect beleif;
 		beleif.x = max<int>(KFTracker->statePost.at<float>(0), 0);
 		beleif.y = max<int>(KFTracker->statePost.at<float>(1), 0);
 		beleif.width = min<int>(KFTracker->statePost.at<float>(4), iWidth);
@@ -613,7 +616,7 @@ int main(int argc, char **argv)
 		
 	//TODO: Get from rosparam
 	string xmlFile = "../cascades/haarcascade_frontalface_default.xml";
-	CHumanTracker* faceTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
+	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
 	
 	/**
 	 * The queue size seems to be very important in this project
@@ -622,17 +625,33 @@ int main(int argc, char **argv)
 	 * additive delays.
 	 */ 
 	
-	image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 5, &CHumanTracker::visionCallback, faceTracker);
+	image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 5, &CHumanTracker::visionCallback, humanTracker);
+	ros::Publisher facePub = n.advertise<autonomy_human::human>("human", 5);
 	
 	ROS_INFO("Starting Autonomy Human ...");
 	
-	ros::Rate loopRate(200);
+	ros::Rate loopRate(50);
+	autonomy_human::human msg;
 	while (ros::ok()){
+		
+		if (
+				(humanTracker->trackingState == CHumanTracker::STATE_TRACK) ||
+				(humanTracker->trackingState == CHumanTracker::STATE_REJECT)
+			)
+		{
+			msg.numFaces = humanTracker->faces.size();
+			msg.faceScore = humanTracker->faceScore;
+			msg.faceROI.x_offset = humanTracker->beleif.x;
+			msg.faceROI.y_offset = humanTracker->beleif.y;
+			msg.faceROI.width = humanTracker->beleif.width;
+			msg.faceROI.height = humanTracker->beleif.height;
+			facePub.publish(msg);
+		}
 		ros::spinOnce();
 		loopRate.sleep();
 	}
 	
-	delete faceTracker;
+	delete humanTracker;
 	return 0;
 }
 
