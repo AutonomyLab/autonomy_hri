@@ -403,7 +403,8 @@ void CHumanTracker::detect()
 		{
 			trackingState = STATE_LOST;
 			stateCounter = 0;
-			resetKalmanFilter();			
+			resetKalmanFilter();	
+            reset();
 		}
 	}
 		
@@ -480,6 +481,8 @@ void CHumanTracker::detect()
 			measurement.at<float>(2) = r.width;
 			measurement.at<float>(3) = r.height;
 			KFTracker->correct(measurement);
+            
+            // We see a face
 			updateFaceHist = true;
 		}
 		else
@@ -490,8 +493,8 @@ void CHumanTracker::detect()
 		
 		beleif.x = max<int>(KFTracker->statePost.at<float>(0), 0);
 		beleif.y = max<int>(KFTracker->statePost.at<float>(1), 0);
-		beleif.width = min<int>(KFTracker->statePost.at<float>(4), iWidth);
-		beleif.height = min<int>(KFTracker->statePost.at<float>(5), iHeight);
+		beleif.width = min<int>(KFTracker->statePost.at<float>(4), iWidth - beleif.x);
+		beleif.height = min<int>(KFTracker->statePost.at<float>(5), iHeight - beleif.y);
 		
 		Point belCenter;
 		belCenter.x = beleif.x + (beleif.width * 0.5);
@@ -517,18 +520,24 @@ void CHumanTracker::detect()
 			
 		searchROI.x = max<int>(belCenter.x - KFTracker->statePost.at<float>(4) * 2, 0);
 		searchROI.y = max<int>(belCenter.y - KFTracker->statePost.at<float>(5) * 2, 0);
-		searchROI.width = min<int>(KFTracker->statePost.at<float>(4) * 4, iWidth);
-		searchROI.height = min<int>(KFTracker->statePost.at<float>(5) * 4, iHeight);
-
-			
-		Rect samplingWindow;
-		samplingWindow.x = beleif.x + (0.25 * beleif.width);
-		samplingWindow.y = beleif.y + (0.1 * beleif.height);
-		samplingWindow.width = beleif.width * 0.5;
-		samplingWindow.height = beleif.height * 0.9;
-			
+        int x2 = min<int>(belCenter.x + KFTracker->statePost.at<float>(4) * 2, iWidth);
+        int y2 = min<int>(belCenter.y + KFTracker->statePost.at<float>(4) * 2, iHeight);
+		searchROI.width = x2 - searchROI.x;
+		searchROI.height = y2 - searchROI.y;
+	
+        
 		if ((updateFaceHist) && (skinEnabled))
 		{
+            //updateFaceHist is true when we see a real face (not all the times)
+            Rect samplingWindow;
+//            samplingWindow.x = beleif.x + (0.25 * beleif.width);
+//            samplingWindow.y = beleif.y + (0.1 * beleif.height);
+//            samplingWindow.width = beleif.width * 0.5;
+//            samplingWindow.height = beleif.height * 0.9;
+            samplingWindow.x = measurement.at<float>(0) + (0.25 * measurement.at<float>(2));
+            samplingWindow.y = measurement.at<float>(1) + (0.10 * measurement.at<float>(3));
+            samplingWindow.width = measurement.at<float>(2) * 0.5;
+            samplingWindow.height = measurement.at<float>(3) * 0.9;
 			rectangle(debugFrame, samplingWindow, CV_RGB(255,0,0));
 			Mat _face = rawFrame(samplingWindow);
 			generateRegionHistogram(_face, faceHist);
@@ -598,6 +607,7 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 		isInited = true;
 		iWidth = cv_ptr->image.cols;
 		iHeight = cv_ptr->image.rows;
+        ROS_INFO("Image size is %d x %d", iWidth, iHeight);
 		reset();
 	}
 	
