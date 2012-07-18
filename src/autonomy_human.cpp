@@ -274,9 +274,12 @@ void CHumanTracker::generateRegionHistogram(Mat& region, MatND &hist, bool vis)
 			}
 		}
 
-		namedWindow( "H-S Histogram", 1 );
-		imshow( "H-S Histogram", histImg );
-		waitKey(1);
+        if ((debugLevel & 0x04) == 0x04)
+        {
+            namedWindow( "H-S Histogram", 1 );
+            imshow( "H-S Histogram", histImg );
+            waitKey(1);
+        }
 	}
 }
 
@@ -458,12 +461,15 @@ void CHumanTracker::detect()
 					MLFace = *rr;
 				}
 				
-				rectangle(debugFrame, center - Point(r.width*0.5, r.height*0.5), center + Point(r.width*0.5, r.height * 0.5), color);
+                if ((debugLevel & 0x02) == 0x02)
+                {
+                    rectangle(debugFrame, center - Point(r.width*0.5, r.height*0.5), center + Point(r.width*0.5, r.height * 0.5), color);
 
-				txtstr.str("");
-				txtstr << "   N:" << rr->neighbors << " S:" << r.width << "x" << r.height;
+                    txtstr.str("");
+                    txtstr << "   N:" << rr->neighbors << " S:" << r.width << "x" << r.height;
 
-				putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, color);
+                    putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, color);
+                }
 			}
 
 			// TODO: I'll fix this shit
@@ -510,13 +516,16 @@ void CHumanTracker::detect()
 				pow(KFTracker->errorCovPost.at<float>(5,5), 2) 
 				);
 		
-		txtstr.str("");
-		txtstr << "P:" << std::setprecision(3) << faceUncPos << " S:" << beleif.width << "x" << beleif.height;
-		putText(debugFrame, txtstr.str(), belCenter + Point(0, 50), FONT_HERSHEY_PLAIN, 2, CV_RGB(255,0,0));
+        if ((debugLevel & 0x02) == 0x02)
+        {
+            txtstr.str("");
+            txtstr << "P:" << std::setprecision(3) << faceUncPos << " S:" << beleif.width << "x" << beleif.height;
+            putText(debugFrame, txtstr.str(), belCenter + Point(0, 50), FONT_HERSHEY_PLAIN, 2, CV_RGB(255,0,0));
 
-		circle(debugFrame, belCenter, belRad, CV_RGB(255,0,0));
-		circle(debugFrame, belCenter, (belRad - faceUncPos < 0) ? 0 : (belRad - faceUncPos), CV_RGB(255,255,0));
-		circle(debugFrame, belCenter, belRad + faceUncPos, CV_RGB(255,0,255));
+            circle(debugFrame, belCenter, belRad, CV_RGB(255,0,0));
+            circle(debugFrame, belCenter, (belRad - faceUncPos < 0) ? 0 : (belRad - faceUncPos), CV_RGB(255,255,0));
+            circle(debugFrame, belCenter, belRad + faceUncPos, CV_RGB(255,0,255));
+        }
 			
 		searchROI.x = max<int>(belCenter.x - KFTracker->statePost.at<float>(4) * 2, 0);
 		searchROI.y = max<int>(belCenter.y - KFTracker->statePost.at<float>(5) * 2, 0);
@@ -550,16 +559,13 @@ void CHumanTracker::detect()
 		}
 	}
 
-	rectangle(debugFrame, searchROI, CV_RGB(0,0,0));
-	txtstr.str("");
-	txtstr << strStates[trackingState] << "(" << std::setprecision(3) << (dt * 1e3) << "ms )";
-	putText(debugFrame, txtstr.str() , Point(30,300), FONT_HERSHEY_PLAIN, 2, CV_RGB(255,255,255));
-
-	Mat visSkin;
-	normalize(skin, visSkin, 1.0, 0.0, NORM_MINMAX);
-		
-	visSkin.convertTo(skinFrame, CV_8UC1, 255.0, 0.0);
-
+    if ((debugLevel & 0x02) == 0x02)
+    {
+        rectangle(debugFrame, searchROI, CV_RGB(0,0,0));
+        txtstr.str("");
+        txtstr << strStates[trackingState] << "(" << std::setprecision(3) << (dt * 1e3) << "ms )";
+        putText(debugFrame, txtstr.str() , Point(30,300), FONT_HERSHEY_PLAIN, 2, CV_RGB(255,255,255));
+    }
 	
 	dt =  ((double) getTickCount() - t) / ((double) getTickFrequency()); // In Seconds	
 }
@@ -579,8 +585,11 @@ void CHumanTracker::draw()
 		imshow("Face Image", debugFrame);
 	}
 	
-	if ((debugLevel & 0x04) == 0x04)
+	if ((skinEnabled) && ((debugLevel & 0x04) == 0x04))
 	{
+        Mat visSkin;
+        normalize(skin, visSkin, 1.0, 0.0, NORM_MINMAX);
+        visSkin.convertTo(skinFrame, CV_8UC1, 255.0, 0.0);
 		namedWindow("Skin Image", 1);
 		imshow("Skin Image", skinFrame);
 	}
@@ -626,7 +635,9 @@ int main(int argc, char **argv)
 		
 	//TODO: Get from rosparam
 	string xmlFile = "../cascades/haarcascade_frontalface_default.xml";
-	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
+    
+    //CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
+	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, false, 0x0);
 	
 	/**
 	 * The queue size seems to be very important in this project
