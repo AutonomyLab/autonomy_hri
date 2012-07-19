@@ -76,7 +76,8 @@ private:
 	void resetMats();
 	void generateRegionHistogram(Mat& region, MatND &hist, bool vis = true);
 	void histFilter(Mat& region, Mat& post, Mat& prior, MatND& hist,  bool vis = true);
-	void detect();
+	void detectAndTrackFace();
+    void trackSkin();
 	void draw();
 	
 public:
@@ -167,6 +168,7 @@ void CHumanTracker::initMats()
 	skin = Mat::zeros(iHeight, iWidth, CV_32F);
 	skinPrior = Mat::zeros(iHeight, iWidth, CV_32F);
 	faceHist = Mat::zeros(hbins, sbins, CV_32F);
+    skinFrame = Mat::zeros(iHeight, iWidth, CV_8UC1);
 }
 
 void CHumanTracker::resetMats()
@@ -313,7 +315,7 @@ void CHumanTracker::histFilter(Mat& region, Mat& post, Mat& prior, MatND& hist, 
 	//prior = post.clone();
 }
 
-void CHumanTracker::detect()
+void CHumanTracker::detectAndTrackFace()
 {
 	// Do ROI 	
 	debugFrame = rawFrame.clone();
@@ -547,16 +549,15 @@ void CHumanTracker::detect()
             samplingWindow.y = measurement.at<float>(1) + (0.10 * measurement.at<float>(3));
             samplingWindow.width = measurement.at<float>(2) * 0.5;
             samplingWindow.height = measurement.at<float>(3) * 0.9;
-			rectangle(debugFrame, samplingWindow, CV_RGB(255,0,0));
+            if ((debugLevel & 0x04) == 0x04)
+            {
+                rectangle(debugFrame, samplingWindow, CV_RGB(255,0,0));
+            }
 			Mat _face = rawFrame(samplingWindow);
 			generateRegionHistogram(_face, faceHist);
 		}
 		
-		if (skinEnabled)
-		{
-			histFilter(rawFrame, skin, skinPrior, faceHist, false);
-			skinPrior = skin.clone();
-		}
+		
 	}
 
     if ((debugLevel & 0x02) == 0x02)
@@ -570,6 +571,20 @@ void CHumanTracker::detect()
 	dt =  ((double) getTickCount() - t) / ((double) getTickFrequency()); // In Seconds	
 }
 
+void CHumanTracker::trackSkin()
+{
+    if (skinEnabled)
+    {
+        histFilter(rawFrame, skin, skinPrior, faceHist, false);
+        skinPrior = skin.clone();
+        if ((debugLevel & 0x04) == 0x04)
+        {
+            Mat visSkin;
+            normalize(skin, visSkin, 1.0, 0.0, NORM_MINMAX);
+            visSkin.convertTo(skinFrame, CV_8UC1, 255.0, 0.0);
+        }
+    }
+}
 
 void CHumanTracker::draw()
 {
@@ -587,9 +602,6 @@ void CHumanTracker::draw()
 	
 	if ((skinEnabled) && ((debugLevel & 0x04) == 0x04))
 	{
-        Mat visSkin;
-        normalize(skin, visSkin, 1.0, 0.0, NORM_MINMAX);
-        visSkin.convertTo(skinFrame, CV_8UC1, 255.0, 0.0);
 		namedWindow("Skin Image", 1);
 		imshow("Skin Image", skinFrame);
 	}
@@ -623,7 +635,8 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 	//TODO: Check clone
 	this->rawFrame = cv_ptr->image;
 
-	detect();
+	detectAndTrackFace();
+    trackSkin();
 	if (debugLevel > 0) draw();
 }
 
@@ -636,8 +649,8 @@ int main(int argc, char **argv)
 	//TODO: Get from rosparam
 	string xmlFile = "../cascades/haarcascade_frontalface_default.xml";
     
-    //CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
-	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, false, 0x0);
+    CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
+	//CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, false, 0x0);
 	
 	/**
 	 * The queue size seems to be very important in this project
