@@ -573,7 +573,15 @@ void CHumanTracker::detectAndTrackFace()
 
 void CHumanTracker::trackSkin()
 {
-    if (skinEnabled)
+    
+    bool perform = 
+        (skinEnabled) &&
+        (
+            (trackingState == STATE_TRACK) || 
+            (trackingState == STATE_REJECT)
+        );
+    
+    if (perform)
     {
         histFilter(rawFrame, skin, skinPrior, faceHist, false);
         skinPrior = skin.clone();
