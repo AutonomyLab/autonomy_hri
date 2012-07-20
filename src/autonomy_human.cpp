@@ -596,24 +596,27 @@ void CHumanTracker::trackSkin()
 
 void CHumanTracker::draw()
 {
+    static bool firstTime = true;
+    
 	if ((debugLevel & 0x01) == 0x01)
 	{
-		namedWindow("Input Image", 1);
+		if (firstTime) namedWindow("Input Image", 1);
 		imshow("Input Image", rawFrame);
 	}
 	
 	if ((debugLevel & 0x02) == 0x02)
 	{
-		namedWindow("Face Image", 1);
+		if (firstTime) namedWindow("Face Image", 1);
 		imshow("Face Image", debugFrame);
 	}
 	
 	if ((skinEnabled) && ((debugLevel & 0x04) == 0x04))
 	{
-		namedWindow("Skin Image", 1);
+		if (firstTime) namedWindow("Skin Image", 1);
 		imshow("Skin Image", skinFrame);
 	}
 	
+    if (firstTime) firstTime = false;
 	waitKey(1);
 }
 
@@ -657,8 +660,8 @@ int main(int argc, char **argv)
 	//TODO: Get from rosparam
 	string xmlFile = "../cascades/haarcascade_frontalface_default.xml";
     
-    CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
-	//CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, false, 0x0);
+    //CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
+	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, false, 0x0);
 	
 	/**
 	 * The queue size seems to be very important in this project
