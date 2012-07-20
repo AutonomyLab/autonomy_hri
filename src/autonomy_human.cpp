@@ -671,8 +671,18 @@ int main(int argc, char **argv)
     
     //CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
     
-    bool skinEnabled = true;
-    int  debugMode = 0x06;
+    std::string paramName;
+    
+    paramName.assign("~skin_enabled");
+    bool skinEnabled;
+    if (false == ros::param::get( paramName, skinEnabled))
+        skinEnabled = false;
+    
+    paramName.assign("~debug_mode");
+    int  debugMode;
+    if (false == ros::param::get( paramName, debugMode))
+        debugMode = 0x02;
+    
 	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, skinEnabled, debugMode);
 	
 	/**
