@@ -2,7 +2,16 @@
   <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node">
     <remap from="input_rgb_image" to="/ardrone/image_raw" />
   </node>
-  <node pkg="image_view" name="image_view" type="image_view">
+  <node pkg="image_view" name="rawimage" type="image_view">
+    <param name="autosize" value="true" />
     <remap from="image" to="/ardrone/image_raw" />
+  </node>
+  <node pkg="image_view" name="debugimage" type="image_view">
+    <param name="autosize" value="true" />
+    <remap from="image" to="/output_rgb_debug" />
+  </node>
+  <node pkg="image_view" name="skinimage" type="image_view">
+    <param name="autosize" value="true" />
+    <remap from="image" to="/output_rgb_skin" />
   </node>
 </launch>

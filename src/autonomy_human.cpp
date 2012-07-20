@@ -10,6 +10,8 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/video/tracking.hpp"
 
+#include <boost/thread.hpp>
+
 #include "autonomy_human/human.h"
 
 using namespace cv;
@@ -30,9 +32,7 @@ private:
 	int iWidth;
 	int iHeight;
 	//ros::NodeHandle node;
-	Mat rawFrame;
-	Mat debugFrame;
-	Mat skinFrame;
+	Mat rawFrame;	
 	Rect searchROI;
 	
 	// Face Tracker
@@ -65,6 +65,7 @@ private:
 	 * Bit 0: Original Image
 	 * Bit 1: Face Image
 	 * Bit 2: Skin Image
+     * Bit 3: Histogram
 	 */
 	unsigned short int debugLevel;
 	bool skinEnabled;
@@ -79,6 +80,9 @@ private:
 	void detectAndTrackFace();
     void trackSkin();
 	void draw();
+    
+    // Threading
+    boost::thread displayThread;
 	
 public:
 	CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, bool _skinEnabled, unsigned short int _debugLevel);
@@ -86,6 +90,8 @@ public:
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
 	
+    Mat debugFrame;
+	Mat skinFrame;
 	vector<Rect> faces;
 	int faceScore;
 	Rect beleif;
@@ -125,6 +131,7 @@ CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _ini
 	
 	KFTracker = new KalmanFilter(6, 4, 0);
 	MLSearch = new KalmanFilter(6, 4, 0);
+    
 }
 
 CHumanTracker::~CHumanTracker()
@@ -276,7 +283,7 @@ void CHumanTracker::generateRegionHistogram(Mat& region, MatND &hist, bool vis)
 			}
 		}
 
-        if ((debugLevel & 0x04) == 0x04)
+        if ((debugLevel & 0x08) == 0x08)
         {
             namedWindow( "H-S Histogram", 1 );
             imshow( "H-S Histogram", histImg );
@@ -596,28 +603,30 @@ void CHumanTracker::trackSkin()
 
 void CHumanTracker::draw()
 {
-    static bool firstTime = true;
+    return ;
     
-	if ((debugLevel & 0x01) == 0x01)
-	{
-		if (firstTime) namedWindow("Input Image", 1);
-		imshow("Input Image", rawFrame);
-	}
-	
-	if ((debugLevel & 0x02) == 0x02)
-	{
-		if (firstTime) namedWindow("Face Image", 1);
-		imshow("Face Image", debugFrame);
-	}
-	
-	if ((skinEnabled) && ((debugLevel & 0x04) == 0x04))
-	{
-		if (firstTime) namedWindow("Skin Image", 1);
-		imshow("Skin Image", skinFrame);
-	}
-	
-    if (firstTime) firstTime = false;
-	waitKey(1);
+//    static bool firstTime = true;
+//    
+//	if ((debugLevel & 0x01) == 0x01)
+//	{
+//		if (firstTime) namedWindow("Input Image", 1);
+//		imshow("Input Image", rawFrame);
+//	}
+//	
+//	if ((debugLevel & 0x02) == 0x02)
+//	{
+//		if (firstTime) namedWindow("Face Image", 1);
+//		imshow("Face Image", debugFrame);
+//	}
+//	
+//	if ((skinEnabled) && ((debugLevel & 0x04) == 0x04))
+//	{
+//		if (firstTime) namedWindow("Skin Image", 1);
+//		imshow("Skin Image", skinFrame);
+//	}
+//	
+//    if (firstTime) firstTime = false;
+//	waitKey(1);
 }
 
 void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
@@ -648,7 +657,7 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 
 	detectAndTrackFace();
     trackSkin();
-	if (debugLevel > 0) draw();
+//	if (debugLevel > 0) draw();
 }
 
 int main(int argc, char **argv)
@@ -661,7 +670,10 @@ int main(int argc, char **argv)
 	string xmlFile = "../cascades/haarcascade_frontalface_default.xml";
     
     //CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
-	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, false, 0x0);
+    
+    bool skinEnabled = true;
+    int  debugMode = 0x06;
+	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, skinEnabled, debugMode);
 	
 	/**
 	 * The queue size seems to be very important in this project
@@ -670,13 +682,21 @@ int main(int argc, char **argv)
 	 * additive delays.
 	 */ 
 	
-	image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 5, &CHumanTracker::visionCallback, humanTracker);
-	ros::Publisher facePub = n.advertise<autonomy_human::human>("human", 5);
+	image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 1, &CHumanTracker::visionCallback, humanTracker);
+	ros::Publisher facePub = n.advertise<autonomy_human::human>("human", 5);  
+    image_transport::Publisher debugPub = it.advertise("output_rgb_debug", 1);
+    image_transport::Publisher skinPub = it.advertise("output_rgb_skin", 1);
+
 	
 	ROS_INFO("Starting Autonomy Human ...");
 	
 	ros::Rate loopRate(50);
 	autonomy_human::human msg;
+    
+    cv_bridge::CvImage cvi;
+    sensor_msgs::Image im;
+    cvi.header.frame_id = "image";
+    
 	while (ros::ok()){
 		
 		if (
@@ -692,6 +712,32 @@ int main(int argc, char **argv)
 			msg.faceROI.height = humanTracker->beleif.height;
 			facePub.publish(msg);
 		}
+        
+        if (
+//                (debugPub.getNumSubscribers() > 0) && 
+                ((debugMode & 0x02) == 0x02)
+           )
+        {
+            cvi.header.stamp = ros::Time::now();
+            cvi.encoding = "bgr8";
+            cvi.image = humanTracker->debugFrame;
+            cvi.toImageMsg(im);
+            debugPub.publish(im);
+        }
+        
+        if (
+//                (skinPub.getNumSubscribers() > 0) && 
+                ((debugMode & 0x04) == 0x04) &&
+                (skinEnabled)
+           )
+        {
+            cvi.header.stamp = ros::Time::now();
+            cvi.encoding = "mono8";
+            cvi.image = humanTracker->skinFrame;
+            cvi.toImageMsg(im);
+            skinPub.publish(im);
+        }
+        
 		ros::spinOnce();
 		loopRate.sleep();
 	}
