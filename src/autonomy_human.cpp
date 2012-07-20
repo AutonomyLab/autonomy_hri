@@ -28,7 +28,6 @@ public:
 	};
 	
 private:
-	bool isInited;
 	int iWidth;
 	int iHeight;
 	//ros::NodeHandle node;
@@ -90,6 +89,7 @@ public:
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
 	
+    bool isInited;
     Mat debugFrame;
 	Mat skinFrame;
 	vector<Rect> faces;
@@ -715,7 +715,8 @@ int main(int argc, char **argv)
         
         if (
 //                (debugPub.getNumSubscribers() > 0) && 
-                ((debugMode & 0x02) == 0x02)
+                ((debugMode & 0x02) == 0x02) &&
+                (humanTracker->isInited)
            )
         {
             cvi.header.stamp = ros::Time::now();
@@ -728,6 +729,7 @@ int main(int argc, char **argv)
         if (
 //                (skinPub.getNumSubscribers() > 0) && 
                 ((debugMode & 0x04) == 0x04) &&
+                (humanTracker->isInited) &&
                 (skinEnabled)
            )
         {
