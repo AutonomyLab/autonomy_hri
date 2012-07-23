@@ -33,6 +33,8 @@ private:
 	//ros::NodeHandle node;
 	Mat rawFrame;	
 	Rect searchROI;
+	Mat rawFramGray;
+	Mat prevRawFrameGray;
 	
 	// Face Tracker
 	KalmanFilter* KFTracker; 
@@ -55,6 +57,7 @@ private:
 	int sbins;
 	Mat skin;
 	Mat skinPrior;
+	Mat flow;
 	
 	double dt; // Loop length in seconds
 	
@@ -65,6 +68,7 @@ private:
 	 * Bit 1: Face Image
 	 * Bit 2: Skin Image
      * Bit 3: Histogram
+	 * Bit 4: Optical Flow
 	 */
 	unsigned short int debugLevel;
 	bool skinEnabled;
@@ -78,6 +82,7 @@ private:
 	void histFilter(Mat& region, Mat& post, Mat& prior, MatND& hist,  bool vis = true);
 	void detectAndTrackFace();
     void trackSkin();
+	void calcOpticalFlow();
 	void draw();
     
     // Threading
@@ -92,6 +97,8 @@ public:
     bool isInited;
     Mat debugFrame;
 	Mat skinFrame;
+	Mat opticalFrame;
+	
 	vector<Rect> faces;
 	int faceScore;
 	Rect beleif;
@@ -176,6 +183,8 @@ void CHumanTracker::initMats()
 	skinPrior = Mat::zeros(iHeight, iWidth, CV_32F);
 	faceHist = Mat::zeros(hbins, sbins, CV_32F);
     skinFrame = Mat::zeros(iHeight, iWidth, CV_8UC1);
+	opticalFrame = Mat::zeros(iHeight, iWidth, CV_8UC3);
+	flow = Mat::zeros(iHeight, iWidth, CV_32FC2);
 }
 
 void CHumanTracker::resetMats()
@@ -601,6 +610,40 @@ void CHumanTracker::trackSkin()
     }
 }
 
+void CHumanTracker::calcOpticalFlow()
+{
+	static bool first = true;
+	
+	if (first)
+	{
+		first = false;
+		cvtColor(rawFrame, prevRawFrameGray, CV_BGR2RGB);
+		return;
+	}
+	
+	cvtColor(rawFrame, rawFramGray, CV_BGR2RGB);
+	calcOpticalFlowFarneback(prevRawFrameGray, rawFramGray, flow, 0.5, 3, 15, 3, 5, 1.2, 0);	
+	prevRawFrameGray = rawFramGray;
+	
+	// Visulization	
+	if ((debugLevel && 0x10) == 0x10)
+	{
+		opticalFrame = rawFrame.clone();
+		int step = 8;
+		for(int y = 0; y < opticalFrame.rows; y += step)
+		{
+			for(int x = 0; x < opticalFrame.cols; x += step)
+			{
+				const Point2f& fxy = flow.at<Point2f>(y, x);
+				line(opticalFrame, Point(x,y), Point(cvRound(x+fxy.x), cvRound(y+fxy.y)),
+					CV_RGB(0, 255, 0));
+				circle(opticalFrame, Point(x,y), 2, CV_RGB(0, 255, 0), -1);
+			}
+		}
+	}
+	
+}
+
 void CHumanTracker::draw()
 {
     return ;
@@ -657,6 +700,7 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 
 	detectAndTrackFace();
     trackSkin();
+	calcOpticalFlow();
 //	if (debugLevel > 0) draw();
 }
 
@@ -696,6 +740,7 @@ int main(int argc, char **argv)
 	ros::Publisher facePub = n.advertise<autonomy_human::human>("human", 5);  
     image_transport::Publisher debugPub = it.advertise("output_rgb_debug", 1);
     image_transport::Publisher skinPub = it.advertise("output_rgb_skin", 1);
+	image_transport::Publisher opticalPub = it.advertise("output_rgb_optical", 1);
 
 	
 	ROS_INFO("Starting Autonomy Human ...");
@@ -749,6 +794,19 @@ int main(int argc, char **argv)
             cvi.toImageMsg(im);
             skinPub.publish(im);
         }
+		
+		if (
+                ((debugMode & 0x10) == 0x10) &&
+                (humanTracker->isInited)
+           )
+        {
+            cvi.header.stamp = ros::Time::now();
+            cvi.encoding = "bgr8";
+            cvi.image = humanTracker->opticalFrame;
+            cvi.toImageMsg(im);
+            debugPub.publish(im);
+        }
+		
         
 		ros::spinOnce();
 		loopRate.sleep();
