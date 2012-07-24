@@ -102,7 +102,8 @@ public:
 	vector<Rect> faces;
 	int faceScore;
 	Rect beleif;
-	_trackingState trackingState;	
+	_trackingState trackingState;
+	bool isFaceInCurrentFrame;
 };
 
 CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, bool _skinEnabled, unsigned short int _debugLevel)
@@ -366,9 +367,11 @@ void CHumanTracker::detectAndTrackFace()
 	Seq<CvAvgComp>(_objects).copyTo(vecAvgComp);
 	// End of using C API
 	
+	isFaceInCurrentFrame = (vecAvgComp.size() > 0);
+	
 	if (trackingState == STATE_LOST)
 	{
-		if (vecAvgComp.size() > 0)
+		if (isFaceInCurrentFrame)
 		{
 			stateCounter++;
 			trackingState = STATE_DETECT;
@@ -377,7 +380,7 @@ void CHumanTracker::detectAndTrackFace()
 	
 	if (trackingState == STATE_DETECT)
 	{
-		if (vecAvgComp.size() > 0)
+		if (isFaceInCurrentFrame)
 		{
 			stateCounter++;			
 		}
@@ -397,7 +400,7 @@ void CHumanTracker::detectAndTrackFace()
 	
 	if (trackingState == STATE_TRACK)
 	{
-		if (vecAvgComp.size() == 0)
+		if (!isFaceInCurrentFrame)
 		{
 			trackingState = STATE_REJECT;
 		}
@@ -410,7 +413,7 @@ void CHumanTracker::detectAndTrackFace()
 						pow(KFTracker->errorCovPost.at<float>(1,1), 2) 
 						);
 		
-		if (vecAvgComp.size() == 0)
+		if (!isFaceInCurrentFrame)
 		{
 			stateCounter++;
 		}
@@ -438,7 +441,7 @@ void CHumanTracker::detectAndTrackFace()
 
 		Mat pred = KFTracker->predict();      
 
-		if (vecAvgComp.size() > 0 )
+		if (isFaceInCurrentFrame)
 		{
 			CvAvgComp MLFace;
 			float minCovNorm = 1e24;
@@ -622,7 +625,36 @@ void CHumanTracker::calcOpticalFlow()
 	}
 	
 	cvtColor(rawFrame, rawFramGray, CV_BGR2GRAY);
-	calcOpticalFlowFarneback(prevRawFrameGray, rawFramGray, flow, 0.5, 3, 15, 3, 5, 1.2, 0);	
+	
+	bool cancelCameraMovement = (trackingState == STATE_TRACK);	
+
+	
+	
+	// TODO: Optimization here
+	calcOpticalFlowFarneback(prevRawFrameGray, rawFramGray, flow, 0.5, 3, 15, 3, 7, 1.5, OPTFLOW_USE_INITIAL_FLOW);	
+	
+	Point2f biasInFlow(0.0, 0.0);
+	if (cancelCameraMovement)
+	{
+		Rect samplingWindow;
+		samplingWindow.x = measurement.at<float>(0) + (0.10 * measurement.at<float>(2));
+		samplingWindow.y = measurement.at<float>(1) + (0.10 * measurement.at<float>(3));
+		samplingWindow.width = measurement.at<float>(2) * 0.9;
+		samplingWindow.height = measurement.at<float>(3) * 0.9;
+		Mat windowFlow = flow(samplingWindow);
+		for (int y = 0; y < samplingWindow.height; y++)
+		{
+			for (int x = 0; x < samplingWindow.width; x++)
+			{
+				biasInFlow += windowFlow.at<Point2f>(y,x);
+			}
+		}
+		
+		biasInFlow.x = biasInFlow.x / (samplingWindow.height * samplingWindow.width);
+		biasInFlow.y = biasInFlow.y / (samplingWindow.height * samplingWindow.width);
+		ROS_INFO("Bias is %4.2f %4.2f", biasInFlow.x, biasInFlow.y);
+	}
+	
 	std::swap(prevRawFrameGray, rawFramGray);
 	
 	// Visulization	
@@ -631,7 +663,6 @@ void CHumanTracker::calcOpticalFlow()
 		std::vector<Mat> channels;		
 		split(rawFrame, channels);
 		
-		//Put the grayscale image in blue
 		channels[0] = Mat::zeros(iHeight, iWidth, channels[0].type());//rawFramGray;
 		channels[2] = Mat::zeros(iHeight, iWidth, channels[0].type());//rawFramGray;
 		int step = 1;
@@ -639,7 +670,13 @@ void CHumanTracker::calcOpticalFlow()
 		{
 			for(int x = 0; x < opticalFrame.cols; x += step)
 			{
-				const Point2f& fxy = flow.at<Point2f>(y, x);
+				Point2f fxy = flow.at<Point2f>(y, x);
+				
+				// Hack
+				if ( (fabs(fxy.x) > 0.01) && (fabs(fxy.y) > 0.01))
+				{
+					fxy -= biasInFlow;
+				}
 				
 //				float rr = min<float>(255.0, (fxy.x / 25.0) * 255.0);
 //				float gg = min<float>(255.0, (fxy.y / 25.0) * 255.0);
@@ -648,15 +685,11 @@ void CHumanTracker::calcOpticalFlow()
 //				channels[2].at<unsigned char>(y,x) = (unsigned char) rr;
 				
 				float ff = sqrt(pow(fxy.x, 2.0) + pow(fxy.y, 2.0));
-				ff = min<float>(255.0, (ff / 25.0) * 255.0);
+				ff = min<float>(255.0, ff);//(ff / 25.0) * 255.0);
 				channels[1].at<unsigned char>(y,x) = (unsigned char) ff;
-				/*
-				line(opticalFrame, Point(x,y), Point(cvRound(x+fxy.x), cvRound(y+fxy.y)),
-					CV_RGB(0, 255, 0));
-				circle(opticalFrame, Point(x,y), 2, CV_RGB(0, 255, 0), -1);
-				 */
 			}
 		}
+		//normalize(channels[1], channels[1], 0.0, 255.0, NORM_MINMAX);
 		merge(channels, opticalFrame);
 	}
 	
