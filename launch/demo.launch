@@ -1,7 +1,7 @@
 <launch>
   <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node">
-    <param name="debug_mode" value="22" />
-    <param name="skin_enabled" value="true" />
+    <param name="debug_mode" value="18" />
+    <param name="skin_enabled" value="false" />
     <remap from="input_rgb_image" to="/ardrone/image_raw" />
   </node>
   <node pkg="image_view" name="rawimage" type="image_view">

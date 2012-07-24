@@ -58,6 +58,7 @@ private:
 	Mat skin;
 	Mat skinPrior;
 	Mat flow;
+	Mat flowMag;
 	
 	double dt; // Loop length in seconds
 	
@@ -186,6 +187,7 @@ void CHumanTracker::initMats()
     skinFrame = Mat::zeros(iHeight, iWidth, CV_8UC1);
 	opticalFrame = Mat::zeros(iHeight, iWidth, CV_8UC3);
 	flow = Mat::zeros(iHeight, iWidth, CV_32FC2);
+	flowMag = Mat::zeros(iHeight, iWidth, CV_32F);
 }
 
 void CHumanTracker::resetMats()
@@ -628,33 +630,54 @@ void CHumanTracker::calcOpticalFlow()
 	
 	bool cancelCameraMovement = (trackingState == STATE_TRACK);	
 
-	
-	
 	// TODO: Optimization here
-	calcOpticalFlowFarneback(prevRawFrameGray, rawFramGray, flow, 0.5, 3, 15, 3, 7, 1.5, OPTFLOW_USE_INITIAL_FLOW);	
+	calcOpticalFlowFarneback(prevRawFrameGray, rawFramGray, flow, 0.5, 3, 5, 3, 5, 1.1, 
+	OPTFLOW_USE_INITIAL_FLOW);		
+	std::vector<Mat> flowChannels;
+	split(flow, flowChannels);
+	magnitude(flowChannels[0], flowChannels[1], flowMag);
+	threshold(flowMag, flowMag, 6, 0.0, THRESH_TOZERO);
+	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
+	//threshold(flowMag, flowMag, 0.25, 0.0, THRESH_TOZERO);
 	
-	Point2f biasInFlow(0.0, 0.0);
-	if (cancelCameraMovement)
-	{
-		Rect samplingWindow;
-		samplingWindow.x = measurement.at<float>(0) + (0.10 * measurement.at<float>(2));
-		samplingWindow.y = measurement.at<float>(1) + (0.10 * measurement.at<float>(3));
-		samplingWindow.width = measurement.at<float>(2) * 0.9;
-		samplingWindow.height = measurement.at<float>(3) * 0.9;
-		Mat windowFlow = flow(samplingWindow);
-		for (int y = 0; y < samplingWindow.height; y++)
-		{
-			for (int x = 0; x < samplingWindow.width; x++)
-			{
-				biasInFlow += windowFlow.at<Point2f>(y,x);
-			}
-		}
-		
-		biasInFlow.x = biasInFlow.x / (samplingWindow.height * samplingWindow.width);
-		biasInFlow.y = biasInFlow.y / (samplingWindow.height * samplingWindow.width);
-		ROS_INFO("Bias is %4.2f %4.2f", biasInFlow.x, biasInFlow.y);
-	}
-	
+//	Point2f biasInFlow(0.0, 0.0);
+//	if (false) //(cancelCameraMovement)
+//	{
+//		Rect samplingWindow;
+//		samplingWindow.x = measurement.at<float>(0) + (0.10 * measurement.at<float>(2));
+//		samplingWindow.y = measurement.at<float>(1) + (0.10 * measurement.at<float>(3));
+//		samplingWindow.width = measurement.at<float>(2) * 0.9;
+//		samplingWindow.height = measurement.at<float>(3) * 0.9;
+//		Mat windowFlow = flow(samplingWindow);
+//		for (int y = 0; y < samplingWindow.height; y++)
+//		{
+//			for (int x = 0; x < samplingWindow.width; x++)
+//			{
+//				biasInFlow += windowFlow.at<Point2f>(y,x);
+//			}
+//		}
+//		
+//		biasInFlow.x = biasInFlow.x / (samplingWindow.height * samplingWindow.width);
+//		biasInFlow.y = biasInFlow.y / (samplingWindow.height * samplingWindow.width);
+//		ROS_INFO("Bias is %4.2f %4.2f", biasInFlow.x, biasInFlow.y);
+//	}
+//	
+//	int step = 1;
+//	for(int y = 0; y < opticalFrame.rows; y += step)
+//	{
+//		for(int x = 0; x < opticalFrame.cols; x += step)
+//		{
+//			Point2f fxy = flow.at<Point2f>(y, x);
+//
+//			// Hack
+//			if ( (fabs(fxy.x) > 0.01) && (fabs(fxy.y) > 0.01))
+//			{
+//				fxy -= biasInFlow;
+//			}
+//		}
+//	}
+
+
 	std::swap(prevRawFrameGray, rawFramGray);
 	
 	// Visulization	
@@ -663,34 +686,42 @@ void CHumanTracker::calcOpticalFlow()
 		std::vector<Mat> channels;		
 		split(rawFrame, channels);
 		
-		channels[0] = Mat::zeros(iHeight, iWidth, channels[0].type());//rawFramGray;
-		channels[2] = Mat::zeros(iHeight, iWidth, channels[0].type());//rawFramGray;
-		int step = 1;
-		for(int y = 0; y < opticalFrame.rows; y += step)
-		{
-			for(int x = 0; x < opticalFrame.cols; x += step)
-			{
-				Point2f fxy = flow.at<Point2f>(y, x);
-				
-				// Hack
-				if ( (fabs(fxy.x) > 0.01) && (fabs(fxy.y) > 0.01))
-				{
-					fxy -= biasInFlow;
-				}
-				
-//				float rr = min<float>(255.0, (fxy.x / 25.0) * 255.0);
-//				float gg = min<float>(255.0, (fxy.y / 25.0) * 255.0);
+		// HSV Color Space
+		// Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)
+		flowMag.convertTo(channels[0], CV_8UC1, 120);
+		channels[0] = Scalar::all(120) - channels[0];
+		//flowMag = 120 - flowMag;
+		channels[1] = Scalar::all(255.0);
+		channels[2] = rawFramGray;//Scalar::all(255.0);
+//		int step = 1;
+//		for(int y = 0; y < opticalFrame.rows; y += step)
+//		{
+//			for(int x = 0; x < opticalFrame.cols; x += step)
+//			{
+//				Point2f fxy = flow.at<Point2f>(y, x);
 //				
-//				channels[1].at<unsigned char>(y,x) = (unsigned char) gg;
-//				channels[2].at<unsigned char>(y,x) = (unsigned char) rr;
-				
-				float ff = sqrt(pow(fxy.x, 2.0) + pow(fxy.y, 2.0));
-				ff = min<float>(255.0, ff);//(ff / 25.0) * 255.0);
-				channels[1].at<unsigned char>(y,x) = (unsigned char) ff;
-			}
-		}
-		//normalize(channels[1], channels[1], 0.0, 255.0, NORM_MINMAX);
+//				// Hack
+//				if ( (fabs(fxy.x) > 0.01) && (fabs(fxy.y) > 0.01))
+//				{
+//					fxy -= biasInFlow;
+//				}
+//				
+////				float rr = min<float>(255.0, (fxy.x / 25.0) * 255.0);
+////				float gg = min<float>(255.0, (fxy.y / 25.0) * 255.0);
+////				
+////				channels[1].at<unsigned char>(y,x) = (unsigned char) gg;
+////				channels[2].at<unsigned char>(y,x) = (unsigned char) rr;
+//				
+//				 
+//				// Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)				
+//				float ff = 120.0 * sqrt(pow(fxy.x, 2.0) + pow(fxy.y, 2.0));
+//				channels[0].at<unsigned char>(y,x) = (unsigned char) ff;
+//			}
+//		}
+//		normalize(channels[0], channels[0], 0.0, 120.0, NORM_MINMAX);
+//		threshold(channels[0], channels[0], 40, 0, THRESH_TOZERO);
 		merge(channels, opticalFrame);
+		cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);
 	}
 	
 }
