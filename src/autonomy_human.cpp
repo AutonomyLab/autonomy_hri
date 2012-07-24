@@ -617,29 +617,47 @@ void CHumanTracker::calcOpticalFlow()
 	if (first)
 	{
 		first = false;
-		cvtColor(rawFrame, prevRawFrameGray, CV_BGR2RGB);
+		cvtColor(rawFrame, prevRawFrameGray, CV_BGR2GRAY);
 		return;
 	}
 	
-	cvtColor(rawFrame, rawFramGray, CV_BGR2RGB);
+	cvtColor(rawFrame, rawFramGray, CV_BGR2GRAY);
 	calcOpticalFlowFarneback(prevRawFrameGray, rawFramGray, flow, 0.5, 3, 15, 3, 5, 1.2, 0);	
-	prevRawFrameGray = rawFramGray;
+	std::swap(prevRawFrameGray, rawFramGray);
 	
 	// Visulization	
-	if ((debugLevel && 0x10) == 0x10)
+	if ((debugLevel & 0x10) == 0x10)
 	{
-		opticalFrame = rawFrame.clone();
-		int step = 8;
+		std::vector<Mat> channels;		
+		split(rawFrame, channels);
+		
+		//Put the grayscale image in blue
+		channels[0] = Mat::zeros(iHeight, iWidth, channels[0].type());//rawFramGray;
+		channels[2] = Mat::zeros(iHeight, iWidth, channels[0].type());//rawFramGray;
+		int step = 1;
 		for(int y = 0; y < opticalFrame.rows; y += step)
 		{
 			for(int x = 0; x < opticalFrame.cols; x += step)
 			{
 				const Point2f& fxy = flow.at<Point2f>(y, x);
+				
+//				float rr = min<float>(255.0, (fxy.x / 25.0) * 255.0);
+//				float gg = min<float>(255.0, (fxy.y / 25.0) * 255.0);
+//				
+//				channels[1].at<unsigned char>(y,x) = (unsigned char) gg;
+//				channels[2].at<unsigned char>(y,x) = (unsigned char) rr;
+				
+				float ff = sqrt(pow(fxy.x, 2.0) + pow(fxy.y, 2.0));
+				ff = min<float>(255.0, (ff / 25.0) * 255.0);
+				channels[1].at<unsigned char>(y,x) = (unsigned char) ff;
+				/*
 				line(opticalFrame, Point(x,y), Point(cvRound(x+fxy.x), cvRound(y+fxy.y)),
 					CV_RGB(0, 255, 0));
 				circle(opticalFrame, Point(x,y), 2, CV_RGB(0, 255, 0), -1);
+				 */
 			}
 		}
+		merge(channels, opticalFrame);
 	}
 	
 }
@@ -804,7 +822,7 @@ int main(int argc, char **argv)
             cvi.encoding = "bgr8";
             cvi.image = humanTracker->opticalFrame;
             cvi.toImageMsg(im);
-            debugPub.publish(im);
+            opticalPub.publish(im);
         }
 		
         
