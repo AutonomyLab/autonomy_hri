@@ -27,6 +27,13 @@ public:
 		STATE_REJECT = 3	
 	};
 	
+	enum _gestureRegionIds {
+		REG_TOPLEFT = 0,
+		REG_TOPRIGHT = 1,
+		REG_BOTLEFT = 2,
+		REG_BOTRIGHT =3
+	};
+	
 private:
 	int iWidth;
 	int iHeight;
@@ -63,6 +70,15 @@ private:
 	
 	// Optical Flow
 	int minFlow;
+	/*
+	 * Drone Point of View, Face in center
+	 * 0 : Top left
+	 * 1 : Top right
+	 * 2 : Bottom left
+	 * 3 : Bottom right
+ 	 */
+	Rect gestureRegion[4];
+	float flowScoreInRegion[4];
 	
 	//Time measurements
 	ros::Time tStart;
@@ -94,7 +110,7 @@ private:
     void trackSkin();
 	void calcOpticalFlow();
 	void draw();
-    
+    	
     // Threading
     boost::thread displayThread;
 	
@@ -103,6 +119,7 @@ public:
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
+	float calcMedian(Mat &m, int nbins, float max, bool omitZeros = true);
 	
     bool isInited;
     Mat debugFrame;
@@ -190,6 +207,9 @@ void CHumanTracker::reset()
 	
 	isFaceInCurrentFrame = false;
 	
+	for (int i = 0; i < 4; i++)
+		flowScoreInRegion[i] = 0.0;
+	
 	initMats();
 	resetMats();
 	resetKalmanFilter();
@@ -246,6 +266,40 @@ void CHumanTracker::resetKalmanFilter()
 	
 }
 
+float CHumanTracker::calcMedian(Mat &m, int nbins, float max, bool omitZeros)
+{
+	MatND hist;
+	int hsize[1];
+	hsize[0] = nbins;
+	float range[2];
+	range[0] = 0.0;
+	range[1] = max;
+	const float *ranges[] = {range};	
+	int chnls[] = {0};
+
+	Mat mask = Mat::ones(m.rows, m.cols, CV_8UC1);
+	if (omitZeros)
+	{
+		m.convertTo(mask, CV_8UC1, 255.0);
+	}
+	
+	calcHist(&m, 1, chnls, mask, hist, 1, hsize, ranges);
+	
+	float step = max / nbins;
+	long int sumHist = sum(hist)[0];
+	long int sum = 0;
+	float median;
+	for (int i = 0; i < nbins; i++)
+	{
+		sum += hist.at<float>(i, 0);
+		median = (i * step) + (step / 2.0);
+		if (sum >= (sumHist / 2.0))
+		{			
+			break;
+		}
+	}
+	return median;
+}
 void CHumanTracker::generateRegionHistogram(Mat& region, MatND &hist, bool vis)
 {
 	MatND prior = hist.clone();
@@ -678,13 +732,42 @@ void CHumanTracker::calcOpticalFlow()
 	calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 5, 1.1, 0);//OPTFLOW_USE_INITIAL_FLOW);		
 	std::vector<Mat> flowChannels;
 	split(flow, flowChannels);
-	magnitude(flowChannels[0], flowChannels[1], flowMag);		
-	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
-	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
+//	magnitude(flowChannels[0], flowChannels[1], flowMag);		
+//	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
+//	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
+
+	
+	
+//	ROS_INFO("Media Flow : <%4.2f, %4.2f>:", medX, medY);
+			
+	if (true) //(cancelCameraMovement)
+	{
+		/* Experimental */
+		threshold(flowChannels[0], flowChannels[0], minFlow, 0.0, THRESH_TOZERO);
+		normalize(flowChannels[0], flowChannels[0], 0.0, 1.0, NORM_MINMAX);
+
+		threshold(flowChannels[1], flowChannels[1], minFlow, 0.0, THRESH_TOZERO);
+		normalize(flowChannels[1], flowChannels[1], 0.0, 1.0, NORM_MINMAX);
+
+		float medX = calcMedian(flowChannels[0], 25, 1.0);
+		float medY = calcMedian(flowChannels[1], 25, 1.0);
 		
+		Mat mask;
+		Mat zero = Mat::zeros(flowChannels[0].rows, flowChannels[0].cols, CV_32FC1);
+		
+		flowChannels[0].convertTo(mask, CV_8UC1, 255);
+		add(flowChannels[0], Scalar::all(-medX), flowChannels[0], mask);
+		max(flowChannels[0], zero, flowChannels[0]);
+		
+		flowChannels[1].convertTo(mask, CV_8UC1, 255);
+		add(flowChannels[1], Scalar::all(-medY), flowChannels[1], mask);
+		max(flowChannels[1], zero, flowChannels[1]);
+	}
+	magnitude(flowChannels[0], flowChannels[1], flowMag);
+			
 	float biasInFlow;	
 	Rect r;
-	if (cancelCameraMovement)
+	if (false)//(cancelCameraMovement)
 	{		
 		if (firstCancel)
 		{
@@ -722,6 +805,35 @@ void CHumanTracker::calcOpticalFlow()
 	}
 	std::swap(prevRawFrameGray, rawFramGray);
 	
+	// Gesture regions update	
+	gestureRegion[REG_TOPLEFT].x = flowROI.x;
+	gestureRegion[REG_TOPLEFT].y = flowROI.y;
+	gestureRegion[REG_TOPLEFT].width = belCenter.x  - flowROI.x;
+	gestureRegion[REG_TOPLEFT].height = belCenter.y  - flowROI.y + (beleif.height / 2);
+	
+	gestureRegion[REG_TOPRIGHT].x = belCenter.x;
+	gestureRegion[REG_TOPRIGHT].y = flowROI.y;
+	gestureRegion[REG_TOPRIGHT].width = (flowROI.x + flowROI.width) - belCenter.x;
+	gestureRegion[REG_TOPRIGHT].height = gestureRegion[REG_TOPLEFT].height;
+	
+	gestureRegion[REG_BOTLEFT].x = gestureRegion[REG_TOPLEFT].x;
+	gestureRegion[REG_BOTLEFT].y = flowROI.y + gestureRegion[REG_TOPLEFT].height + beleif.height;
+	gestureRegion[REG_BOTLEFT].width = gestureRegion[REG_TOPLEFT].width;
+	gestureRegion[REG_BOTLEFT].height = flowROI.y + flowROI.height - gestureRegion[REG_BOTLEFT].y;
+	
+	gestureRegion[REG_BOTRIGHT].x = gestureRegion[REG_TOPRIGHT].x;
+	gestureRegion[REG_BOTRIGHT].y = gestureRegion[REG_BOTLEFT].y;
+	gestureRegion[REG_BOTRIGHT].width = gestureRegion[REG_TOPRIGHT].width;
+	gestureRegion[REG_BOTRIGHT].height = gestureRegion[REG_BOTLEFT].height;
+	
+	for (int i = 0; i < 4; i++)
+	{
+		Rect reg = gestureRegion[i];
+		reg.x = gestureRegion[i].x - flowROI.x;
+		reg.y = gestureRegion[i].y - flowROI.y;		
+		flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sum(flowMag(reg))[0]);
+	}
+	
 	// Visulization	
 	if ((debugLevel & 0x10) == 0x10)
 	{
@@ -737,7 +849,21 @@ void CHumanTracker::calcOpticalFlow()
 		channels[2] = _i2;//Scalar::all(255.0);
 		Mat _tmp = opticalFrame(flowROI);
 		merge(channels, _tmp);
-		cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);
+		cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);		
+	}
+	
+	if ((debugLevel & 0x02) == 0x02)
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			std::stringstream txtstr;
+			rectangle(debugFrame, gestureRegion[i], CV_RGB(255,255,255));
+			Point2d center;
+			center.x = gestureRegion[i].x + gestureRegion[i].width / 2;
+			center.y = gestureRegion[i].y + gestureRegion[i].height / 2;
+			txtstr << fixed << setprecision(3) << flowScoreInRegion[i];
+			putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, CV_RGB(0,0,255));
+		}
 	}
 	
 	/* Experimental*/
@@ -858,8 +984,17 @@ int main(int argc, char **argv)
     if (false == ros::param::get( paramName, debugMode))
         debugMode = 0x02;
     
-	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, 6, skinEnabled, debugMode);
+	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, 3, skinEnabled, debugMode);
 	
+	// Median Test
+//	Mat test = Mat::zeros(1, 10, CV_32FC1);
+//	test = * (Mat_<float>(1,10) 
+//			<< 
+//			0.0, 0.0, 0.0, 0.0, 0.0,
+//			0.2, 0.2, 0.2, 0.2, 0.8
+//			);
+//	ROS_INFO("%f :", humanTracker->calcMedian(test, 10, 1.0, true));
+
 	/**
 	 * The queue size seems to be very important in this project
 	 * If we can not complete the calculation in the 1/fps time slot, we either 
