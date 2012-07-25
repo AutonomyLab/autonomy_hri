@@ -33,6 +33,7 @@ private:
 	//ros::NodeHandle node;
 	Mat rawFrame;	
 	Rect searchROI;
+	Rect flowROI;
 	Mat rawFramGray;
 	Mat prevRawFrameGray;
 	
@@ -60,7 +61,15 @@ private:
 	Mat flow;
 	Mat flowMag;
 	
-	double dt; // Loop length in seconds
+	// Optical Flow
+	int minFlow;
+	
+	//Time measurements
+	ros::Time tStart;
+	ros::Time tFaceStart;
+	ros::Time tSkinStart;
+	ros::Time tFlowStart;
+	ros::Time tEnd;
 	
 	string strStates[4];
 	
@@ -90,7 +99,7 @@ private:
     boost::thread displayThread;
 	
 public:
-	CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, bool _skinEnabled, unsigned short int _debugLevel);
+	CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel);
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
@@ -107,7 +116,7 @@ public:
 	bool isFaceInCurrentFrame;
 };
 
-CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, bool _skinEnabled, unsigned short int _debugLevel)
+CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel)
 {
 	isInited = false;
 	
@@ -123,6 +132,8 @@ CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _ini
 	
 	hbins = 15;
 	sbins = 16;
+	
+	minFlow = _minFlow;
 		
 	strStates[0] = "NOFACE";
 	strStates[1] = "DETECT";
@@ -140,7 +151,7 @@ CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _ini
 	
 	KFTracker = new KalmanFilter(6, 4, 0);
 	MLSearch = new KalmanFilter(6, 4, 0);
-    
+    isFaceInCurrentFrame = false;
 }
 
 CHumanTracker::~CHumanTracker()
@@ -174,6 +185,8 @@ void CHumanTracker::reset()
 	// x,y,w,h
 	measurement = Mat::zeros(4, 1, CV_32F);
 	
+	isFaceInCurrentFrame = false;
+	
 	initMats();
 	resetMats();
 	resetKalmanFilter();
@@ -197,9 +210,7 @@ void CHumanTracker::resetMats()
 	faceHist = Scalar::all(1.0 / (faceHist.rows * faceHist.cols) );
 }
 void CHumanTracker::resetKalmanFilter()
-{
-	
-	dt = 50 * 1e-3; // This will dynamically updated.
+{	
 	measurement.setTo(Scalar(0));
 	KFTracker->transitionMatrix = * (Mat_<float>(6,6) 
 			<< 
@@ -336,11 +347,14 @@ void CHumanTracker::histFilter(Mat& region, Mat& post, Mat& prior, MatND& hist, 
 
 void CHumanTracker::detectAndTrackFace()
 {
+	static ros::Time probe;
+	
+	
+	
 	// Do ROI 	
 	debugFrame = rawFrame.clone();
 	Mat img =  this->rawFrame(searchROI);
 	
-    double t = 0;
 	faces.clear();
 	ostringstream txtstr;
     const static Scalar colors[] =  { CV_RGB(0,0,255),
@@ -357,8 +371,11 @@ void CHumanTracker::detectAndTrackFace()
     resize( gray, frame, frame.size(), 0, 0, INTER_LINEAR );
     //equalizeHist( frame, frame );
 
-    t = (double) getTickCount();
-		
+	// This if for internal usage
+	ros::Time _n = ros::Time::now();
+	double dt = (_n - probe).toSec();
+	probe = _n;
+	
 	// We need C API to get score
 	MemStorage storage(cvCreateMemStorage(0));
 	CvMat _image = frame;
@@ -438,6 +455,7 @@ void CHumanTracker::detectAndTrackFace()
 	{
 		bool updateFaceHist = false;
 		// This is important:
+
 		KFTracker->transitionMatrix.at<float>(0,2) = dt;
 		KFTracker->transitionMatrix.at<float>(1,3) = dt;
 
@@ -496,9 +514,10 @@ void CHumanTracker::detectAndTrackFace()
 			}
 
 			// TODO: I'll fix this shit
-			Rect r = MLFace.rect;
+			Rect r = MLFace.rect;			
 			r.x += searchROI.x;
 			r.y += searchROI.y;
+			faces.push_back(r);
 			double nr = MLFace.neighbors;
 			faceScore = nr;
 			float normFaceScore = 1.0 - (nr / 40.0);
@@ -589,7 +608,7 @@ void CHumanTracker::detectAndTrackFace()
         putText(debugFrame, txtstr.str() , Point(30,300), FONT_HERSHEY_PLAIN, 2, CV_RGB(255,255,255));
     }
 	
-	dt =  ((double) getTickCount() - t) / ((double) getTickFrequency()); // In Seconds	
+//	dt =  ((double) getTickCount() - t) / ((double) getTickFrequency()); // In Seconds	
 }
 
 void CHumanTracker::trackSkin()
@@ -619,6 +638,15 @@ void CHumanTracker::calcOpticalFlow()
 {
 	static bool first = true;
 	
+	bool perform = 
+        (true) &&
+        (
+            (trackingState == STATE_TRACK) || 
+            (trackingState == STATE_REJECT)
+        );
+	
+	if (!perform) return;
+	
 	if (first)
 	{
 		first = false;
@@ -626,65 +654,48 @@ void CHumanTracker::calcOpticalFlow()
 		return;
 	}
 	
+	Point belCenter;
+	belCenter.x = beleif.x + (beleif.width * 0.5);
+	belCenter.y = beleif.y + (beleif.height * 0.5);
+	flowROI.x = max<int>(belCenter.x - KFTracker->statePost.at<float>(4) * 4, 0);
+	flowROI.y = max<int>(belCenter.y - KFTracker->statePost.at<float>(5) * 4, 0);
+	int x2 = min<int>(belCenter.x + KFTracker->statePost.at<float>(4) * 4, iWidth);
+	int y2 = min<int>(belCenter.y + KFTracker->statePost.at<float>(4) * 4, iHeight);
+	flowROI.width = x2 - flowROI.x;
+	flowROI.height = y2 - flowROI.y;
+	
+//	ROS_INFO("%d %d %d %d", flowROI.x, flowROI.y, x2, y2);
 	cvtColor(rawFrame, rawFramGray, CV_BGR2GRAY);
 	
 	bool cancelCameraMovement = (trackingState == STATE_TRACK);	
 
 	// TODO: Optimization here
-	calcOpticalFlowFarneback(prevRawFrameGray, rawFramGray, flow, 0.5, 3, 5, 3, 5, 1.1, 
-	OPTFLOW_USE_INITIAL_FLOW);		
+	Mat _i1 = prevRawFrameGray(flowROI);
+	Mat _i2 = rawFramGray(flowROI);
+	calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 5, 1.1, 0);//OPTFLOW_USE_INITIAL_FLOW);		
 	std::vector<Mat> flowChannels;
 	split(flow, flowChannels);
-	magnitude(flowChannels[0], flowChannels[1], flowMag);
-	threshold(flowMag, flowMag, 6, 0.0, THRESH_TOZERO);
+	magnitude(flowChannels[0], flowChannels[1], flowMag);		
+	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
 	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
-	//threshold(flowMag, flowMag, 0.25, 0.0, THRESH_TOZERO);
-	
-//	Point2f biasInFlow(0.0, 0.0);
-//	if (false) //(cancelCameraMovement)
-//	{
-//		Rect samplingWindow;
-//		samplingWindow.x = measurement.at<float>(0) + (0.10 * measurement.at<float>(2));
-//		samplingWindow.y = measurement.at<float>(1) + (0.10 * measurement.at<float>(3));
-//		samplingWindow.width = measurement.at<float>(2) * 0.9;
-//		samplingWindow.height = measurement.at<float>(3) * 0.9;
-//		Mat windowFlow = flow(samplingWindow);
-//		for (int y = 0; y < samplingWindow.height; y++)
-//		{
-//			for (int x = 0; x < samplingWindow.width; x++)
-//			{
-//				biasInFlow += windowFlow.at<Point2f>(y,x);
-//			}
-//		}
-//		
-//		biasInFlow.x = biasInFlow.x / (samplingWindow.height * samplingWindow.width);
-//		biasInFlow.y = biasInFlow.y / (samplingWindow.height * samplingWindow.width);
-//		ROS_INFO("Bias is %4.2f %4.2f", biasInFlow.x, biasInFlow.y);
-//	}
-//	
-//	int step = 1;
-//	for(int y = 0; y < opticalFrame.rows; y += step)
-//	{
-//		for(int x = 0; x < opticalFrame.cols; x += step)
-//		{
-//			Point2f fxy = flow.at<Point2f>(y, x);
-//
-//			// Hack
-//			if ( (fabs(fxy.x) > 0.01) && (fabs(fxy.y) > 0.01))
-//			{
-//				fxy -= biasInFlow;
-//			}
-//		}
-//	}
-
-
+		
+	float biasInFlow;	
+	if (cancelCameraMovement)
+	{
+		Rect r;
+		r.x = faces[0].x - flowROI.x;
+		r.y = faces[0].y - flowROI.y;
+		biasInFlow = mean(flowMag(r))[0];
+		flowMag = flowMag - Scalar::all(biasInFlow);
+//		ROS_INFO("Bias is %4.2f", biasInFlow);
+	}
 	std::swap(prevRawFrameGray, rawFramGray);
 	
 	// Visulization	
 	if ((debugLevel & 0x10) == 0x10)
 	{
 		std::vector<Mat> channels;		
-		split(rawFrame, channels);
+		split(rawFrame(flowROI), channels);
 		
 		// HSV Color Space
 		// Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)
@@ -692,37 +703,23 @@ void CHumanTracker::calcOpticalFlow()
 		channels[0] = Scalar::all(120) - channels[0];
 		//flowMag = 120 - flowMag;
 		channels[1] = Scalar::all(255.0);
-		channels[2] = rawFramGray;//Scalar::all(255.0);
-//		int step = 1;
-//		for(int y = 0; y < opticalFrame.rows; y += step)
-//		{
-//			for(int x = 0; x < opticalFrame.cols; x += step)
-//			{
-//				Point2f fxy = flow.at<Point2f>(y, x);
-//				
-//				// Hack
-//				if ( (fabs(fxy.x) > 0.01) && (fabs(fxy.y) > 0.01))
-//				{
-//					fxy -= biasInFlow;
-//				}
-//				
-////				float rr = min<float>(255.0, (fxy.x / 25.0) * 255.0);
-////				float gg = min<float>(255.0, (fxy.y / 25.0) * 255.0);
-////				
-////				channels[1].at<unsigned char>(y,x) = (unsigned char) gg;
-////				channels[2].at<unsigned char>(y,x) = (unsigned char) rr;
-//				
-//				 
-//				// Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)				
-//				float ff = 120.0 * sqrt(pow(fxy.x, 2.0) + pow(fxy.y, 2.0));
-//				channels[0].at<unsigned char>(y,x) = (unsigned char) ff;
-//			}
-//		}
-//		normalize(channels[0], channels[0], 0.0, 120.0, NORM_MINMAX);
-//		threshold(channels[0], channels[0], 40, 0, THRESH_TOZERO);
-		merge(channels, opticalFrame);
+		channels[2] = _i2;//Scalar::all(255.0);
+		Mat _tmp = opticalFrame(flowROI);
+		merge(channels, _tmp);
 		cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);
 	}
+	
+	/* Experimental*/
+//	if ((isFaceInCurrentFrame) && (trackingState == STATE_TRACK))
+//	{
+//		int minHessian = 300;
+//		SurfFeatureDetector detector( minHessian );
+//		std::vector<KeyPoint> keypoints;
+//		detector.detect( rawFramGray(faces[0]), keypoints );
+//		
+//		Mat _img = debugFrame(faces[0]);
+//		drawKeypoints( _img, keypoints, _img, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
+//	}
 	
 }
 
@@ -756,6 +753,7 @@ void CHumanTracker::draw()
 
 void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 {
+	tStart = ros::Time::now();
 	cv_bridge::CvImagePtr cv_ptr;    
     try
     {
@@ -779,11 +777,30 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 	
 	//TODO: Check clone
 	this->rawFrame = cv_ptr->image;
-
+	
+	tFaceStart = ros::Time::now();
 	detectAndTrackFace();
+	
+	tSkinStart = ros::Time::now();
     trackSkin();
+	
+	tFlowStart = ros::Time::now();
 	calcOpticalFlow();
-//	if (debugLevel > 0) draw();
+
+	tEnd = ros::Time::now();
+
+	std::stringstream txtstr;
+	if ((debugLevel & 0x02) == 0x02)
+    {
+        txtstr.str("");
+		txtstr << fixed;
+        txtstr << "Ca:" << "(" << std::setprecision(1) << ((tFaceStart - tStart).toSec() * 1e3) << "ms)";
+		txtstr << " Fa:" << "(" << std::setprecision(1) << ((tSkinStart - tFaceStart).toSec() * 1e3) << "ms)";
+		txtstr << " Sk:" << "(" << std::setprecision(1) << ((tFlowStart - tSkinStart).toSec() * 1e3) << "ms)";
+		txtstr << " Fl:" << "(" << std::setprecision(1) << ((tEnd - tFlowStart).toSec() * 1e3) << "ms)";
+		txtstr << " T:" << "(" << std::setprecision(1) << ((tEnd - tStart).toSec() * 1e3) << "ms)";
+        putText(debugFrame, txtstr.str() , Point(30,330), FONT_HERSHEY_PLAIN, 1, CV_RGB(255,255,255));		
+    }
 }
 
 int main(int argc, char **argv)
@@ -809,7 +826,7 @@ int main(int argc, char **argv)
     if (false == ros::param::get( paramName, debugMode))
         debugMode = 0x02;
     
-	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, skinEnabled, debugMode);
+	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, 6, skinEnabled, debugMode);
 	
 	/**
 	 * The queue size seems to be very important in this project
