@@ -114,11 +114,14 @@ public:
 	Rect beleif;
 	_trackingState trackingState;
 	bool isFaceInCurrentFrame;
+	
+	bool shouldPublish;
 };
 
 CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel)
 {
 	isInited = false;
+	shouldPublish = false;
 	
 	stateCounter = 0;
 	
@@ -757,6 +760,7 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 	cv_bridge::CvImagePtr cv_ptr;    
     try
     {
+		shouldPublish = true;
         cv_ptr = cv_bridge::toCvCopy(frame, sensor_msgs::image_encodings::BGR8);
     }
     catch (cv_bridge::Exception& e)
@@ -868,7 +872,8 @@ int main(int argc, char **argv)
 		}
         
         if (
-//                (debugPub.getNumSubscribers() > 0) && 
+//                (debugPub.getNumSubscribers() > 0) &&
+				(humanTracker->shouldPublish) &&
                 ((debugMode & 0x02) == 0x02) &&
                 (humanTracker->isInited)
            )
@@ -882,6 +887,7 @@ int main(int argc, char **argv)
         
         if (
 //                (skinPub.getNumSubscribers() > 0) && 
+				(humanTracker->shouldPublish) &&
                 ((debugMode & 0x04) == 0x04) &&
                 (humanTracker->isInited) &&
                 (skinEnabled)
@@ -895,6 +901,7 @@ int main(int argc, char **argv)
         }
 		
 		if (
+				(humanTracker->shouldPublish) &&
                 ((debugMode & 0x10) == 0x10) &&
                 (humanTracker->isInited)
            )
@@ -905,8 +912,7 @@ int main(int argc, char **argv)
             cvi.toImageMsg(im);
             opticalPub.publish(im);
         }
-		
-        
+		        
 		ros::spinOnce();
 		loopRate.sleep();
 	}
