@@ -352,8 +352,6 @@ void CHumanTracker::detectAndTrackFace()
 {
 	static ros::Time probe;
 	
-	
-	
 	// Do ROI 	
 	debugFrame = rawFrame.clone();
 	Mat img =  this->rawFrame(searchROI);
@@ -640,6 +638,8 @@ void CHumanTracker::trackSkin()
 void CHumanTracker::calcOpticalFlow()
 {
 	static bool first = true;
+	static bool firstCancel = true;
+	static Rect prevFaceRect;
 	
 	bool perform = 
         (true) &&
@@ -683,13 +683,41 @@ void CHumanTracker::calcOpticalFlow()
 	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
 		
 	float biasInFlow;	
+	Rect r;
 	if (cancelCameraMovement)
-	{
-		Rect r;
+	{		
+		if (firstCancel)
+		{
+			prevFaceRect = faces[0];
+			firstCancel = false;
+		}
+		else
+		{
+			Mat curFace = rawFramGray(faces[0]);
+			Mat prevFace = prevRawFrameGray(prevFaceRect);
+			prevFaceRect = faces[0];
+		}
+		r = faces[0];
 		r.x = faces[0].x - flowROI.x;
-		r.y = faces[0].y - flowROI.y;
+		r.y = faces[0].y - flowROI.y;		
 		biasInFlow = mean(flowMag(r))[0];
-		flowMag = flowMag - Scalar::all(biasInFlow);
+		
+		Point2d fCenter;				
+		fCenter.x = (r.x + r.width/2.0);
+		fCenter.y = (r.y + r.height/2.0);
+		for (int y = 0; y < flowMag.rows; y++)
+		{
+			for (int x = 0; x < flowMag.cols; x++)
+			{
+				float rad = sqrt( pow(x - fCenter.x, 2) + pow(y - fCenter.y, 2));
+				if (fabs(flowMag.at<float>(y,x)) > 0.01)
+				{
+					flowMag.at<float>(y,x) = max<float>(0.0, flowMag.at<float>(y,x) - (rad * biasInFlow));
+//					flowMag.at<float>(y,x) = max<float>(0.0, flowMag.at<float>(y,x) - (1.0 * biasInFlow));
+				}
+			}
+		}
+//		flowMag = flowMag - Scalar::all(biasInFlow);
 //		ROS_INFO("Bias is %4.2f", biasInFlow);
 	}
 	std::swap(prevRawFrameGray, rawFramGray);
