@@ -739,13 +739,12 @@ void CHumanTracker::calcOpticalFlow()
 	belCenter.x = beleif.x + (beleif.width * 0.5);
 	belCenter.y = beleif.y + (beleif.height * 0.5);
 	flowROI.x = max<int>(belCenter.x - KFTracker->statePost.at<float>(4) * 4, 0);
-	flowROI.y = max<int>(belCenter.y - KFTracker->statePost.at<float>(5) * 4, 0);
+	flowROI.y = max<int>(belCenter.y - KFTracker->statePost.at<float>(5) * 3, 0);
 	int x2 = min<int>(belCenter.x + KFTracker->statePost.at<float>(4) * 4, iWidth);
-	int y2 = min<int>(belCenter.y + KFTracker->statePost.at<float>(4) * 4, iHeight);
+	int y2 = min<int>(belCenter.y + KFTracker->statePost.at<float>(4) * 2, iHeight);
 	flowROI.width = x2 - flowROI.x;
 	flowROI.height = y2 - flowROI.y;
 	
-//	ROS_INFO("%d %d %d %d", flowROI.x, flowROI.y, x2, y2);
 	cvtColor(rawFrame, rawFramGray, CV_BGR2GRAY);
 	
 	bool cancelCameraMovement = (trackingState == STATE_TRACK);	
@@ -761,10 +760,6 @@ void CHumanTracker::calcOpticalFlow()
 //	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
 //	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
 
-	
-	
-//	ROS_INFO("Media Flow : <%4.2f, %4.2f>:", medX, medY);
-			
 	if (true) //(cancelCameraMovement)
 	{
 		/* Experimental */
@@ -837,7 +832,7 @@ void CHumanTracker::calcOpticalFlow()
 	gestureRegion[REG_TOPLEFT].x = flowROI.x;
 	gestureRegion[REG_TOPLEFT].y = flowROI.y;
 	gestureRegion[REG_TOPLEFT].width = belCenter.x  - flowROI.x;
-	gestureRegion[REG_TOPLEFT].height = belCenter.y  - flowROI.y + (beleif.height / 2);
+	gestureRegion[REG_TOPLEFT].height = belCenter.y  - flowROI.y + (beleif.height * 1.5);
 
 	gestureRegion[REG_TOPRIGHT].x = belCenter.x;
 	gestureRegion[REG_TOPRIGHT].y = flowROI.y;
@@ -862,7 +857,9 @@ void CHumanTracker::calcOpticalFlow()
 		reg.y = gestureRegion[i].y - flowROI.y;		
 		
 		float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ? sum(flowMag(reg))[0] : 0.0;
-		flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
+		//flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
+		// No filtering should be done here
+		flowScoreInRegion[i] = sFlow;
 	}
 	
 	// Visulization	
@@ -913,30 +910,7 @@ void CHumanTracker::calcOpticalFlow()
 
 void CHumanTracker::draw()
 {
-    return ;
-    
-//    static bool firstTime = true;
-//    
-//	if ((debugLevel & 0x01) == 0x01)
-//	{
-//		if (firstTime) namedWindow("Input Image", 1);
-//		imshow("Input Image", rawFrame);
-//	}
-//	
-//	if ((debugLevel & 0x02) == 0x02)
-//	{
-//		if (firstTime) namedWindow("Face Image", 1);
-//		imshow("Face Image", debugFrame);
-//	}
-//	
-//	if ((skinEnabled) && ((debugLevel & 0x04) == 0x04))
-//	{
-//		if (firstTime) namedWindow("Skin Image", 1);
-//		imshow("Skin Image", skinFrame);
-//	}
-//	
-//    if (firstTime) firstTime = false;
-//	waitKey(1);
+    return ;    
 }
 
 void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
