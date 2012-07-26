@@ -110,7 +110,9 @@ private:
     void trackSkin();
 	void calcOpticalFlow();
 	void draw();
-    	
+	void safeRect(Rect &r, Rect &boundry);
+	void safeRectToImage(Rect &r);
+	
     // Threading
     boost::thread displayThread;
 	
@@ -300,6 +302,26 @@ float CHumanTracker::calcMedian(Mat &m, int nbins, float max, bool omitZeros)
 	}
 	return median;
 }
+
+void CHumanTracker::safeRect(Rect& r, Rect& boundry)
+{
+	r.x = max<int>(r.x, boundry.x);
+	r.y = max<int>(r.y, boundry.y);
+
+	Point2d p2;
+	p2.x = min<int>(r.br().x, boundry.br().x);
+	p2.y = min<int>(r.br().y, boundry.br().y);
+	
+	r.width = p2.x - r.x;
+	r.height = p2.y - r.y;
+}
+
+void CHumanTracker::safeRectToImage(Rect& r)
+{
+	Rect safety(0, 0, iWidth, iHeight);
+	safeRect(r, safety);
+}
+
 void CHumanTracker::generateRegionHistogram(Mat& region, MatND &hist, bool vis)
 {
 	MatND prior = hist.clone();
@@ -729,7 +751,8 @@ void CHumanTracker::calcOpticalFlow()
 	// TODO: Optimization here
 	Mat _i1 = prevRawFrameGray(flowROI);
 	Mat _i2 = rawFramGray(flowROI);
-	calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 5, 1.1, 0);//OPTFLOW_USE_INITIAL_FLOW);		
+	//calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 50, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);		
+	calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);		
 	std::vector<Mat> flowChannels;
 	split(flow, flowChannels);
 //	magnitude(flowChannels[0], flowChannels[1], flowMag);		
@@ -752,19 +775,22 @@ void CHumanTracker::calcOpticalFlow()
 		float medX = calcMedian(flowChannels[0], 25, 1.0);
 		float medY = calcMedian(flowChannels[1], 25, 1.0);
 		
+		// This mask is very important because zero-valued elements
+		// Should not be taken into account
 		Mat mask;
-		Mat zero = Mat::zeros(flowChannels[0].rows, flowChannels[0].cols, CV_32FC1);
-		
+
 		flowChannels[0].convertTo(mask, CV_8UC1, 255);
 		add(flowChannels[0], Scalar::all(-medX), flowChannels[0], mask);
-		max(flowChannels[0], zero, flowChannels[0]);
+		max(flowChannels[0], Scalar::all(0.0), flowChannels[0]);
 		
 		flowChannels[1].convertTo(mask, CV_8UC1, 255);
 		add(flowChannels[1], Scalar::all(-medY), flowChannels[1], mask);
-		max(flowChannels[1], zero, flowChannels[1]);
+		max(flowChannels[1], Scalar::all(0.0), flowChannels[1]);
 	}
 	magnitude(flowChannels[0], flowChannels[1], flowMag);
-			
+//	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
+//	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
+		
 	float biasInFlow;	
 	Rect r;
 	if (false)//(cancelCameraMovement)
@@ -810,7 +836,7 @@ void CHumanTracker::calcOpticalFlow()
 	gestureRegion[REG_TOPLEFT].y = flowROI.y;
 	gestureRegion[REG_TOPLEFT].width = belCenter.x  - flowROI.x;
 	gestureRegion[REG_TOPLEFT].height = belCenter.y  - flowROI.y + (beleif.height / 2);
-	
+
 	gestureRegion[REG_TOPRIGHT].x = belCenter.x;
 	gestureRegion[REG_TOPRIGHT].y = flowROI.y;
 	gestureRegion[REG_TOPRIGHT].width = (flowROI.x + flowROI.width) - belCenter.x;
@@ -828,10 +854,13 @@ void CHumanTracker::calcOpticalFlow()
 	
 	for (int i = 0; i < 4; i++)
 	{
+		safeRectToImage(gestureRegion[i]);
 		Rect reg = gestureRegion[i];
 		reg.x = gestureRegion[i].x - flowROI.x;
 		reg.y = gestureRegion[i].y - flowROI.y;		
-		flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sum(flowMag(reg))[0]);
+		
+		float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ? sum(flowMag(reg))[0] : 0.0;
+		flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
 	}
 	
 	// Visulization	
@@ -857,7 +886,7 @@ void CHumanTracker::calcOpticalFlow()
 		for (int i = 0; i < 4; i++)
 		{
 			std::stringstream txtstr;
-			rectangle(debugFrame, gestureRegion[i], CV_RGB(255,255,255));
+			rectangle(debugFrame, gestureRegion[i], CV_RGB(0,255,0));
 			Point2d center;
 			center.x = gestureRegion[i].x + gestureRegion[i].width / 2;
 			center.y = gestureRegion[i].y + gestureRegion[i].height / 2;
