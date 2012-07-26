@@ -70,15 +70,7 @@ private:
 	
 	// Optical Flow
 	int minFlow;
-	/*
-	 * Drone Point of View, Face in center
-	 * 0 : Top left
-	 * 1 : Top right
-	 * 2 : Bottom left
-	 * 3 : Bottom right
- 	 */
-	Rect gestureRegion[4];
-	float flowScoreInRegion[4];
+	
 	
 	//Time measurements
 	ros::Time tStart;
@@ -135,6 +127,16 @@ public:
 	bool isFaceInCurrentFrame;
 	
 	bool shouldPublish;
+	
+	/*
+	 * Drone Point of View, Face in center
+	 * 0 : Top left
+	 * 1 : Top right
+	 * 2 : Bottom left
+	 * 3 : Bottom right
+ 	 */
+	Rect gestureRegion[4];
+	float flowScoreInRegion[4];
 };
 
 CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel)
@@ -1054,12 +1056,15 @@ int main(int argc, char **argv)
 				(humanTracker->trackingState == CHumanTracker::STATE_REJECT)
 			)
 		{
+			msg.header.stamp = ros::Time::now();
 			msg.numFaces = humanTracker->faces.size();
 			msg.faceScore = humanTracker->faceScore;
 			msg.faceROI.x_offset = humanTracker->beleif.x;
 			msg.faceROI.y_offset = humanTracker->beleif.y;
 			msg.faceROI.width = humanTracker->beleif.width;
 			msg.faceROI.height = humanTracker->beleif.height;
+			for (int i = 0; i < 4; i++)
+				msg.flowScore[i] = humanTracker->flowScoreInRegion[i];
 			facePub.publish(msg);
 		}
         
