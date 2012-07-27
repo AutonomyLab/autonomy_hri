@@ -754,6 +754,27 @@ void CHumanTracker::calcOpticalFlow()
 //	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
 //	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
 
+	// Gesture regions update	
+	gestureRegion[REG_TOPLEFT].x = flowROI.x;
+	gestureRegion[REG_TOPLEFT].y = flowROI.y;
+	gestureRegion[REG_TOPLEFT].width = belCenter.x  - flowROI.x;
+	gestureRegion[REG_TOPLEFT].height = belCenter.y  - flowROI.y + (beleif.height * 1.5);
+
+	gestureRegion[REG_TOPRIGHT].x = belCenter.x;
+	gestureRegion[REG_TOPRIGHT].y = flowROI.y;
+	gestureRegion[REG_TOPRIGHT].width = (flowROI.x + flowROI.width) - belCenter.x;
+	gestureRegion[REG_TOPRIGHT].height = gestureRegion[REG_TOPLEFT].height;
+	
+	gestureRegion[REG_BOTLEFT].x = gestureRegion[REG_TOPLEFT].x;
+	gestureRegion[REG_BOTLEFT].y = flowROI.y + gestureRegion[REG_TOPLEFT].height + beleif.height;
+	gestureRegion[REG_BOTLEFT].width = gestureRegion[REG_TOPLEFT].width;
+	gestureRegion[REG_BOTLEFT].height = flowROI.y + flowROI.height - gestureRegion[REG_BOTLEFT].y;
+	
+	gestureRegion[REG_BOTRIGHT].x = gestureRegion[REG_TOPRIGHT].x;
+	gestureRegion[REG_BOTRIGHT].y = gestureRegion[REG_BOTLEFT].y;
+	gestureRegion[REG_BOTRIGHT].width = gestureRegion[REG_TOPRIGHT].width;
+	gestureRegion[REG_BOTRIGHT].height = gestureRegion[REG_BOTLEFT].height;
+	
 	if (true) //(cancelCameraMovement)
 	{
 		/* Experimental */
@@ -764,7 +785,17 @@ void CHumanTracker::calcOpticalFlow()
 
 		maskX = abs(flowChannels[0]) > 0.01;
 		maskY = abs(flowChannels[1]) > 0.01;
-					
+		
+		// The possible hand regions are not sampled for flow compenstation
+//		rectangle(maskX, gestureRegion[REG_TOPLEFT].tl() - flowROI.tl(), gestureRegion[REG_TOPLEFT].br() - flowROI.tl(), 0, CV_FILLED);
+//		rectangle(maskX, gestureRegion[REG_TOPRIGHT].tl() - flowROI.tl(), gestureRegion[REG_TOPRIGHT].br() - flowROI.tl(), 0, CV_FILLED);
+//		rectangle(maskY, gestureRegion[REG_TOPLEFT].tl() - flowROI.tl(), gestureRegion[REG_TOPLEFT].br() - flowROI.tl(), 0, CV_FILLED);
+//		rectangle(maskY, gestureRegion[REG_TOPRIGHT].tl() - flowROI.tl(), gestureRegion[REG_TOPRIGHT].br() - flowROI.tl(), 0, CV_FILLED);
+//		
+//		namedWindow("test");
+//		imshow("test", maskX);
+//		waitKey(1);
+		
 		double minX, minY, maxX, maxY;
 		minMaxLoc(flowChannels[0], &minX, &maxX, 0, 0, maskX);
 		minMaxLoc(flowChannels[1], &minY, &maxY, 0, 0, maskY);
@@ -823,28 +854,7 @@ void CHumanTracker::calcOpticalFlow()
 //		ROS_INFO("Bias is %4.2f", biasInFlow);
 	}
 	std::swap(prevRawFrameGray, rawFramGray);
-	
-	// Gesture regions update	
-	gestureRegion[REG_TOPLEFT].x = flowROI.x;
-	gestureRegion[REG_TOPLEFT].y = flowROI.y;
-	gestureRegion[REG_TOPLEFT].width = belCenter.x  - flowROI.x;
-	gestureRegion[REG_TOPLEFT].height = belCenter.y  - flowROI.y + (beleif.height * 1.5);
-
-	gestureRegion[REG_TOPRIGHT].x = belCenter.x;
-	gestureRegion[REG_TOPRIGHT].y = flowROI.y;
-	gestureRegion[REG_TOPRIGHT].width = (flowROI.x + flowROI.width) - belCenter.x;
-	gestureRegion[REG_TOPRIGHT].height = gestureRegion[REG_TOPLEFT].height;
-	
-	gestureRegion[REG_BOTLEFT].x = gestureRegion[REG_TOPLEFT].x;
-	gestureRegion[REG_BOTLEFT].y = flowROI.y + gestureRegion[REG_TOPLEFT].height + beleif.height;
-	gestureRegion[REG_BOTLEFT].width = gestureRegion[REG_TOPLEFT].width;
-	gestureRegion[REG_BOTLEFT].height = flowROI.y + flowROI.height - gestureRegion[REG_BOTLEFT].y;
-	
-	gestureRegion[REG_BOTRIGHT].x = gestureRegion[REG_TOPRIGHT].x;
-	gestureRegion[REG_BOTRIGHT].y = gestureRegion[REG_BOTLEFT].y;
-	gestureRegion[REG_BOTRIGHT].width = gestureRegion[REG_TOPRIGHT].width;
-	gestureRegion[REG_BOTRIGHT].height = gestureRegion[REG_BOTLEFT].height;
-	
+		
 	// Not using two bottom regions
 	for (int i = 0; i < 2; i++)
 	{
