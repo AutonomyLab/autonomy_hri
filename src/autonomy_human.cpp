@@ -113,7 +113,7 @@ public:
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
-	float calcMedian(Mat &m, int nbins, float max, bool omitZeros = true);
+	float calcMedian(Mat &m, int nbins, float minVal, float maxVal, InputArray mask = noArray());
 	
     bool isInited;
     Mat debugFrame;
@@ -270,33 +270,27 @@ void CHumanTracker::resetKalmanFilter()
 	
 }
 
-float CHumanTracker::calcMedian(Mat &m, int nbins, float max, bool omitZeros)
+float CHumanTracker::calcMedian(Mat &m, int nbins, float minVal, float maxVal, InputArray mask)
 {
 	MatND hist;
 	int hsize[1];
 	hsize[0] = nbins;
 	float range[2];
-	range[0] = 0.0;
-	range[1] = max;
+	range[0] = minVal; 
+	range[1] = maxVal;
 	const float *ranges[] = {range};	
 	int chnls[] = {0};
-
-	Mat mask = Mat::ones(m.rows, m.cols, CV_8UC1);
-	if (omitZeros)
-	{
-		m.convertTo(mask, CV_8UC1, 255.0);
-	}
-	
+		
 	calcHist(&m, 1, chnls, mask, hist, 1, hsize, ranges);
 	
-	float step = max / nbins;
+	float step = (maxVal - minVal) / nbins;
 	long int sumHist = sum(hist)[0];
 	long int sum = 0;
 	float median;
 	for (int i = 0; i < nbins; i++)
 	{
 		sum += hist.at<float>(i, 0);
-		median = (i * step) + (step / 2.0);
+		median = minVal + (i * step) + (step / 2.0);
 		if (sum >= (sumHist / 2.0))
 		{			
 			break;
@@ -763,30 +757,32 @@ void CHumanTracker::calcOpticalFlow()
 	if (true) //(cancelCameraMovement)
 	{
 		/* Experimental */
-		threshold(flowChannels[0], flowChannels[0], minFlow, 0.0, THRESH_TOZERO);
-		normalize(flowChannels[0], flowChannels[0], 0.0, 1.0, NORM_MINMAX);
-
-		threshold(flowChannels[1], flowChannels[1], minFlow, 0.0, THRESH_TOZERO);
-		normalize(flowChannels[1], flowChannels[1], 0.0, 1.0, NORM_MINMAX);
-
-		float medX = calcMedian(flowChannels[0], 25, 1.0);
-		float medY = calcMedian(flowChannels[1], 25, 1.0);
-		
 		// This mask is very important because zero-valued elements
 		// Should not be taken into account
-		Mat mask;
+		Mat maskX;
+		Mat maskY;
 
-		flowChannels[0].convertTo(mask, CV_8UC1, 255);
-		add(flowChannels[0], Scalar::all(-medX), flowChannels[0], mask);
-		max(flowChannels[0], Scalar::all(0.0), flowChannels[0]);
+		maskX = abs(flowChannels[0]) > 0.01;
+		maskY = abs(flowChannels[1]) > 0.01;
+					
+		double minX, minY, maxX, maxY;
+		minMaxLoc(flowChannels[0], &minX, &maxX, 0, 0, maskX);
+		minMaxLoc(flowChannels[1], &minY, &maxY, 0, 0, maskY);
 		
-		flowChannels[1].convertTo(mask, CV_8UC1, 255);
-		add(flowChannels[1], Scalar::all(-medY), flowChannels[1], mask);
-		max(flowChannels[1], Scalar::all(0.0), flowChannels[1]);
+		float medX = calcMedian(flowChannels[0], 25, minX, maxX, maskX);
+		float medY = calcMedian(flowChannels[1], 25, minY, maxY, maskY);
+	
+//		ROS_INFO("Number of channls: %d", flowChannels.size());
+//		ROS_INFO("X: <%6.4lf..%6.4lf> Y: <%6.4lf..%6.4lf>", minX, maxX, minY, maxY);
+//		ROS_INFO("Median X: %6.4f Y: %6.4f", medX, medY);
+		
+		add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskX);			
+		add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskY);
+
 	}
 	magnitude(flowChannels[0], flowChannels[1], flowMag);
-//	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
-//	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
+	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
+	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
 		
 	float biasInFlow;	
 	Rect r;
@@ -849,7 +845,8 @@ void CHumanTracker::calcOpticalFlow()
 	gestureRegion[REG_BOTRIGHT].width = gestureRegion[REG_TOPRIGHT].width;
 	gestureRegion[REG_BOTRIGHT].height = gestureRegion[REG_BOTLEFT].height;
 	
-	for (int i = 0; i < 4; i++)
+	// Not using two bottom regions
+	for (int i = 0; i < 2; i++)
 	{
 		safeRectToImage(gestureRegion[i]);
 		Rect reg = gestureRegion[i];
@@ -989,7 +986,7 @@ int main(int argc, char **argv)
     if (false == ros::param::get( paramName, debugMode))
         debugMode = 0x02;
     
-	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, 3, skinEnabled, debugMode);
+	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, 10, skinEnabled, debugMode);
 	
 	// Median Test
 //	Mat test = Mat::zeros(1, 10, CV_32FC1);
