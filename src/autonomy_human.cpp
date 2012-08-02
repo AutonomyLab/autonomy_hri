@@ -782,21 +782,24 @@ void CHumanTracker::calcOpticalFlow()
 		maskY = abs(flowChannels[1]) > 0.01;
 		           
 		// The possible hand regions are not sampled for flow compenstation
-        Mat maskRegions = Mat::zeros(maskX.rows, maskX.cols, maskX.type());
-        rectangle(maskRegions, gestureRegion[REG_TOPLEFT].tl(), gestureRegion[REG_TOPLEFT].br(), 1, CV_FILLED);
-        rectangle(maskRegions, gestureRegion[REG_TOPRIGHT].tl(), gestureRegion[REG_TOPRIGHT].br(), 1, CV_FILLED);
+        // Initially we use inverted mask here
+        Mat maskRegions = Mat::ones(maskX.rows, maskX.cols, CV_8UC1);
+        Mat maskAugmentedX = Mat::ones(maskX.rows, maskX.cols, CV_8UC1);;
+        Mat maskAugmentedY = Mat::ones(maskY.rows, maskY.cols, CV_8UC1);;
 
-//		namedWindow("test");
-//		imshow("test", maskX);
-//		waitKey(1);
-		
-		double minX, minY, maxX, maxY;
-        Mat maskAugmented = maskX & ~maskRegions;
-        minMaxLoc(flowChannels[0], &minX, &maxX, 0, 0, maskAugmented);
-        minMaxLoc(flowChannels[1], &minY, &maxY, 0, 0, maskAugmented);
-		
-        float medX = calcMedian(flowChannels[0], 25, minX, maxX, maskAugmented);
-        float medY = calcMedian(flowChannels[1], 25, minY, maxY, maskAugmented);
+        rectangle(maskRegions, gestureRegion[REG_TOPLEFT].tl(), gestureRegion[REG_TOPLEFT].br(), 0, CV_FILLED);
+        rectangle(maskRegions, gestureRegion[REG_TOPRIGHT].tl(), gestureRegion[REG_TOPRIGHT].br(), 0, CV_FILLED);
+
+        double minX, minY, maxX, maxY;
+
+        bitwise_and(maskX, maskRegions, maskAugmentedX);
+        bitwise_and(maskY, maskRegions, maskAugmentedY);
+
+        minMaxLoc(flowChannels[0], &minX, &maxX, 0, 0, maskAugmentedX);
+        minMaxLoc(flowChannels[1], &minY, &maxY, 0, 0, maskAugmentedY);
+
+        float medX = calcMedian(flowChannels[0], 25, minX, maxX, maskAugmentedX);
+        float medY = calcMedian(flowChannels[1], 25, minY, maxY, maskAugmentedY);
 	
 //		ROS_INFO("Number of channls: %d", flowChannels.size());
 //        ROS_INFO("Ego");
@@ -828,8 +831,13 @@ void CHumanTracker::calcOpticalFlow()
             medX = calcMedian(faceFlowWindowX, 25, minX, maxX, faceMaskX);
             medY = calcMedian(faceFlowWindowY, 25, minY, maxY, faceMaskY);
 
-            add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskX & maskRegions);
-            add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskY & maskRegions);
+            // Now we want to cancel motion only in the interesting regions
+            maskRegions = 1 - maskRegions;
+            bitwise_and(maskX, maskRegions, maskAugmentedX);
+            bitwise_and(maskY, maskRegions, maskAugmentedY);
+
+            add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskAugmentedX);
+            add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskAugmentedY);
         }
 
 	}
