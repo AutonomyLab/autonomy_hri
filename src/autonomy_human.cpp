@@ -24,14 +24,14 @@ public:
 		STATE_LOST = 0,
 		STATE_DETECT = 1,
 		STATE_TRACK = 2,
-		STATE_REJECT = 3	
+        STATE_REJECT = 3,
+        STATE_NUM = 4
 	};
 	
 	enum _gestureRegionIds {
 		REG_TOPLEFT = 0,
 		REG_TOPRIGHT = 1,
-		REG_BOTLEFT = 2,
-		REG_BOTRIGHT =3
+        REG_NUM = 2
 	};
 	
 private:
@@ -103,7 +103,7 @@ private:
 	void calcOpticalFlow();
 	void draw();
 	void safeRect(Rect &r, Rect &boundry);
-	void safeRectToImage(Rect &r);
+    void safeRectToImage(Rect &r, double fx = 1.0, double fy = 1.0);
 	
     // Threading
     boost::thread displayThread;
@@ -121,7 +121,7 @@ public:
 	Mat opticalFrame;
 	
 	vector<Rect> faces;
-	int faceScore;
+    int faceScore;
 	Rect beleif;
 	_trackingState trackingState;
 	bool isFaceInCurrentFrame;
@@ -132,11 +132,9 @@ public:
 	 * Drone Point of View, Face in center
 	 * 0 : Top left
 	 * 1 : Top right
-	 * 2 : Bottom left
-	 * 3 : Bottom right
  	 */
-	Rect gestureRegion[4];
-	float flowScoreInRegion[4];
+    Rect gestureRegion[2];
+    float flowScoreInRegion[2];
 };
 
 CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel)
@@ -312,9 +310,9 @@ void CHumanTracker::safeRect(Rect& r, Rect& boundry)
 	r.height = p2.y - r.y;
 }
 
-void CHumanTracker::safeRectToImage(Rect& r)
+void CHumanTracker::safeRectToImage(Rect& r, double fx, double fy)
 {
-	Rect safety(0, 0, iWidth, iHeight);
+    Rect safety(0, 0, iWidth * fx, iHeight * fy);
 	safeRect(r, safety);
 }
 
@@ -722,37 +720,39 @@ void CHumanTracker::calcOpticalFlow()
 	
 	if (!perform) return;
 	
+    Mat rawFrameResized;
+    double fx = 0.5;
+    double fy = 0.5;
+    resize(rawFrame, rawFrameResized, Size(), fx, fy,  INTER_LINEAR);
+
 	if (first)
 	{
 		first = false;
-		cvtColor(rawFrame, prevRawFrameGray, CV_BGR2GRAY);
+        cvtColor(rawFrameResized, prevRawFrameGray, CV_BGR2GRAY);
 		return;
 	}
 	
 	Point belCenter;
-	belCenter.x = beleif.x + (beleif.width * 0.5);
-	belCenter.y = beleif.y + (beleif.height * 0.5);
-	flowROI.x = max<int>(belCenter.x - KFTracker->statePost.at<float>(4) * 4, 0);
-	flowROI.y = max<int>(belCenter.y - KFTracker->statePost.at<float>(5) * 3, 0);
-	int x2 = min<int>(belCenter.x + KFTracker->statePost.at<float>(4) * 4, iWidth);
-	int y2 = min<int>(belCenter.y + KFTracker->statePost.at<float>(4) * 2, iHeight);
+    belCenter.x = (fx * beleif.x) + (fx * beleif.width * 0.5);
+    belCenter.y = (fy * beleif.y) + (fy * beleif.height * 0.5);
+
+    //‌ FlowRoi is now not being used to filter out any region, it is a placeholder
+    flowROI.x = max<int>(belCenter.x - fx * KFTracker->statePost.at<float>(4) * 4, 0);
+    flowROI.y = max<int>(belCenter.y - fy * KFTracker->statePost.at<float>(5) * 3, 0);
+    int x2 = min<int>(belCenter.x + fx * KFTracker->statePost.at<float>(4) * 4, iWidth);
+    int y2 = min<int>(belCenter.y + fy * KFTracker->statePost.at<float>(4) * 2, iHeight);
 	flowROI.width = x2 - flowROI.x;
 	flowROI.height = y2 - flowROI.y;
 	
-	cvtColor(rawFrame, rawFramGray, CV_BGR2GRAY);
+    cvtColor(rawFrameResized, rawFramGray, CV_BGR2GRAY);
 	
-	bool cancelCameraMovement = (trackingState == STATE_TRACK);	
-
 	// TODO: Optimization here
-	Mat _i1 = prevRawFrameGray(flowROI);
-	Mat _i2 = rawFramGray(flowROI);
+    Mat _i1 = prevRawFrameGray;//(flowROI);
+    Mat _i2 = rawFramGray;//(flowROI);
 	//calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 50, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);		
 	calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);		
 	std::vector<Mat> flowChannels;
 	split(flow, flowChannels);
-//	magnitude(flowChannels[0], flowChannels[1], flowMag);		
-//	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
-//	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
 
 	// Gesture regions update	
 	gestureRegion[REG_TOPLEFT].x = flowROI.x;
@@ -764,17 +764,12 @@ void CHumanTracker::calcOpticalFlow()
 	gestureRegion[REG_TOPRIGHT].y = flowROI.y;
 	gestureRegion[REG_TOPRIGHT].width = (flowROI.x + flowROI.width) - belCenter.x;
 	gestureRegion[REG_TOPRIGHT].height = gestureRegion[REG_TOPLEFT].height;
-	
-	gestureRegion[REG_BOTLEFT].x = gestureRegion[REG_TOPLEFT].x;
-	gestureRegion[REG_BOTLEFT].y = flowROI.y + gestureRegion[REG_TOPLEFT].height + beleif.height;
-	gestureRegion[REG_BOTLEFT].width = gestureRegion[REG_TOPLEFT].width;
-	gestureRegion[REG_BOTLEFT].height = flowROI.y + flowROI.height - gestureRegion[REG_BOTLEFT].y;
-	
-	gestureRegion[REG_BOTRIGHT].x = gestureRegion[REG_TOPRIGHT].x;
-	gestureRegion[REG_BOTRIGHT].y = gestureRegion[REG_BOTLEFT].y;
-	gestureRegion[REG_BOTRIGHT].width = gestureRegion[REG_TOPRIGHT].width;
-	gestureRegion[REG_BOTRIGHT].height = gestureRegion[REG_BOTLEFT].height;
-	
+
+    // Safety check to downsampled image size
+    safeRectToImage(gestureRegion[REG_TOPLEFT], fx, fy);
+    safeRectToImage(gestureRegion[REG_TOPRIGHT], fx, fy);
+
+    // Cancel Ego Motion & Face bias As much As possible
 	if (true) //(cancelCameraMovement)
 	{
 		/* Experimental */
@@ -783,32 +778,59 @@ void CHumanTracker::calcOpticalFlow()
 		Mat maskX;
 		Mat maskY;
 
-		maskX = abs(flowChannels[0]) > 0.01;
+        maskX = abs(flowChannels[0]) > 0.01;
 		maskY = abs(flowChannels[1]) > 0.01;
-		
+		           
 		// The possible hand regions are not sampled for flow compenstation
-//		rectangle(maskX, gestureRegion[REG_TOPLEFT].tl() - flowROI.tl(), gestureRegion[REG_TOPLEFT].br() - flowROI.tl(), 0, CV_FILLED);
-//		rectangle(maskX, gestureRegion[REG_TOPRIGHT].tl() - flowROI.tl(), gestureRegion[REG_TOPRIGHT].br() - flowROI.tl(), 0, CV_FILLED);
-//		rectangle(maskY, gestureRegion[REG_TOPLEFT].tl() - flowROI.tl(), gestureRegion[REG_TOPLEFT].br() - flowROI.tl(), 0, CV_FILLED);
-//		rectangle(maskY, gestureRegion[REG_TOPRIGHT].tl() - flowROI.tl(), gestureRegion[REG_TOPRIGHT].br() - flowROI.tl(), 0, CV_FILLED);
-//		
+        Mat maskRegions = Mat::zeros(maskX.rows, maskX.cols, maskX.type());
+        rectangle(maskRegions, gestureRegion[REG_TOPLEFT].tl(), gestureRegion[REG_TOPLEFT].br(), 1, CV_FILLED);
+        rectangle(maskRegions, gestureRegion[REG_TOPRIGHT].tl(), gestureRegion[REG_TOPRIGHT].br(), 1, CV_FILLED);
+
 //		namedWindow("test");
 //		imshow("test", maskX);
 //		waitKey(1);
 		
 		double minX, minY, maxX, maxY;
-		minMaxLoc(flowChannels[0], &minX, &maxX, 0, 0, maskX);
-		minMaxLoc(flowChannels[1], &minY, &maxY, 0, 0, maskY);
+        Mat maskAugmented = maskX & ~maskRegions;
+        minMaxLoc(flowChannels[0], &minX, &maxX, 0, 0, maskAugmented);
+        minMaxLoc(flowChannels[1], &minY, &maxY, 0, 0, maskAugmented);
 		
-		float medX = calcMedian(flowChannels[0], 25, minX, maxX, maskX);
-		float medY = calcMedian(flowChannels[1], 25, minY, maxY, maskY);
+        float medX = calcMedian(flowChannels[0], 25, minX, maxX, maskAugmented);
+        float medY = calcMedian(flowChannels[1], 25, minY, maxY, maskAugmented);
 	
 //		ROS_INFO("Number of channls: %d", flowChannels.size());
-//		ROS_INFO("X: <%6.4lf..%6.4lf> Y: <%6.4lf..%6.4lf>", minX, maxX, minY, maxY);
-//		ROS_INFO("Median X: %6.4f Y: %6.4f", medX, medY);
+//        ROS_INFO("Ego");
+//        ROS_INFO("X: <%6.4lf..%6.4lf> Y: <%6.4lf..%6.4lf>", minX, maxX, minY, maxY);
+//        ROS_INFO("Median X: %6.4f Y: %6.4f", medX, medY);
 		
+        // Canceling Flow for all valid regions
 		add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskX);			
 		add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskY);
+
+        // Face Bias
+        if (trackingState == STATE_TRACK)
+        {
+            Rect fROI = faces.at(0);
+            fROI.x *= fx;
+            fROI.y *= fy;
+            fROI.width *= fx;
+            fROI.height *= fy;
+            safeRectToImage(fROI, fx, fy);
+
+            Mat faceFlowWindowX = flowChannels[0](fROI);
+            Mat faceFlowWindowY = flowChannels[1](fROI);
+            Mat faceMaskX = maskX(fROI);
+            Mat faceMaskY = maskY(fROI);
+
+            minMaxLoc(faceFlowWindowX, &minX, &maxX, 0, 0, faceMaskX);
+            minMaxLoc(faceFlowWindowY, &minY, &maxY, 0, 0, faceMaskY);
+
+            medX = calcMedian(faceFlowWindowX, 25, minX, maxX, faceMaskX);
+            medY = calcMedian(faceFlowWindowY, 25, minY, maxY, faceMaskY);
+
+            add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskX & maskRegions);
+            add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskY & maskRegions);
+        }
 
 	}
 	magnitude(flowChannels[0], flowChannels[1], flowMag);
@@ -855,13 +877,12 @@ void CHumanTracker::calcOpticalFlow()
 	}
 	std::swap(prevRawFrameGray, rawFramGray);
 		
-	// Not using two bottom regions
 	for (int i = 0; i < 2; i++)
 	{
-		safeRectToImage(gestureRegion[i]);
+
 		Rect reg = gestureRegion[i];
-		reg.x = gestureRegion[i].x - flowROI.x;
-		reg.y = gestureRegion[i].y - flowROI.y;		
+        reg.x = gestureRegion[i].x;// - flowROI.x;
+        reg.y = gestureRegion[i].y;// - flowROI.y;
 		
 		float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ? sum(flowMag(reg))[0] : 0.0;
 		//flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
@@ -873,7 +894,7 @@ void CHumanTracker::calcOpticalFlow()
 	if ((debugLevel & 0x10) == 0x10)
 	{
 		std::vector<Mat> channels;		
-		split(rawFrame(flowROI), channels);
+        split(rawFrameResized, channels);
 		
 		// HSV Color Space
 		// Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)
@@ -882,15 +903,22 @@ void CHumanTracker::calcOpticalFlow()
 		//flowMag = 120 - flowMag;
 		channels[1] = Scalar::all(255.0);
 		channels[2] = _i2;//Scalar::all(255.0);
-		Mat _tmp = opticalFrame(flowROI);
-		merge(channels, _tmp);
+        merge(channels, opticalFrame);
 		cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);		
 	}
 	
 	if ((debugLevel & 0x02) == 0x02)
 	{
-		for (int i = 0; i < 4; i++)
+
+
+        for (int i = 0; i < 2; i++)
 		{
+            // Only for visualization
+            gestureRegion[i].x /= fx;
+            gestureRegion[i].y /= fy;
+            gestureRegion[i].width /= fx;
+            gestureRegion[i].height /= fy;
+
 			std::stringstream txtstr;
 			rectangle(debugFrame, gestureRegion[i], CV_RGB(0,255,0));
 			Point2d center;
