@@ -892,7 +892,7 @@ void CHumanTracker::calcOpticalFlow()
         reg.x = gestureRegion[i].x;// - flowROI.x;
         reg.y = gestureRegion[i].y;// - flowROI.y;
 		
-		float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ? sum(flowMag(reg))[0] : 0.0;
+        float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ? mean(flowMag(reg))[0] : 0.0;
 		//flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
 		// No filtering should be done here
 		flowScoreInRegion[i] = sFlow;
@@ -1059,7 +1059,7 @@ int main(int argc, char **argv)
 	
 	ROS_INFO("Starting Autonomy Human ...");
 	
-	ros::Rate loopRate(50);
+    ros::Rate loopRate(30);
 	autonomy_human::human msg;
     
     cv_bridge::CvImage cvi;
