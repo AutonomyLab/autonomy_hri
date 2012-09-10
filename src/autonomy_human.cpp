@@ -91,6 +91,7 @@ private:
 	unsigned short int debugLevel;
 	bool skinEnabled;
 	CvHaarClassifierCascade* cascade; // C API is needed for score
+    CvHaarClassifierCascade* cascadeProfile;
 	
 	void copyKalman(KalmanFilter* src, KalmanFilter* dest);
 	void resetKalmanFilter();
@@ -109,7 +110,7 @@ private:
     boost::thread displayThread;
 	
 public:
-	CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel);
+    CHumanTracker(string &cascadeFile, string &cascadeFileProfile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel);
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
@@ -137,7 +138,7 @@ public:
     float flowScoreInRegion[2];
 };
 
-CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel)
+CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel)
 {
 	isInited = false;
 	shouldPublish = false;
@@ -162,14 +163,20 @@ CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _ini
 	strStates[2] = "TRACKG";
 	strStates[3] = "REJECT";
 	
-	minFaceSize = Size(20, 25);
-	maxFaceSize = Size(100,100);
+    minFaceSize = Size(12, 18);
+    maxFaceSize = Size(60, 80);
 	
 	cascade = (CvHaarClassifierCascade*) cvLoad(cascadeFile.c_str(), 0, 0, 0);
 	if (cascade == NULL)
 	{
 		ROS_ERROR("Problem loading cascade file %s", cascadeFile.c_str());
 	}
+
+    cascadeProfile = (CvHaarClassifierCascade*) cvLoad(cascadeFileProfile.c_str(), 0, 0, 0);
+    if (cascade == NULL)
+    {
+        ROS_ERROR("Problem loading profile cascade file %s", cascadeFileProfile.c_str());
+    }
 	
 	KFTracker = new KalmanFilter(6, 4, 0);
 	MLSearch = new KalmanFilter(6, 4, 0);
@@ -178,6 +185,8 @@ CHumanTracker::CHumanTracker(string &cascadeFile, int _initialScoreMin, int _ini
 
 CHumanTracker::~CHumanTracker()
 {
+//    delete cascade;
+//    delete cascadeProfile;
 	delete KFTracker;
 	delete MLSearch;
 }
@@ -237,10 +246,13 @@ void CHumanTracker::resetMats()
 void CHumanTracker::resetKalmanFilter()
 {	
 	measurement.setTo(Scalar(0));
+
+    // The system model is very naive. The small effect of xdot and ydot
+    // on x and y are intentional (it is 0 now)
 	KFTracker->transitionMatrix = * (Mat_<float>(6,6) 
 			<< 
-			1,0,1,0,0,0,
-			0,1,0,1,0,0, 
+            1,0,0,0,0,0,
+            0,1,0,0,0,0,
 			0,0,1,0,0,0,
 			0,0,0,1,0,0,
 			0,0,0,0,1,0,
@@ -458,6 +470,21 @@ void CHumanTracker::detectAndTrackFace()
 	// End of using C API
 	
 	isFaceInCurrentFrame = (vecAvgComp.size() > 0);
+
+    // This is a hack
+    bool isProfileFace = false;
+    if ((!isFaceInCurrentFrame) && ((trackingState == STATE_REJECT) || (trackingState == STATE_REJECT)))
+    {
+        ROS_WARN("Using Profile Face hack ...");
+        CvSeq* _objects = cvHaarDetectObjects(&_image, cascadeProfile, storage,
+                1.2, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING|CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
+        Seq<CvAvgComp>(_objects).copyTo(vecAvgComp);
+        isFaceInCurrentFrame = (vecAvgComp.size() > 0);
+        if (isFaceInCurrentFrame)
+        {
+            ROS_WARN("The hack seems to work!");
+        }
+    }
 	
 	if (trackingState == STATE_LOST)
 	{
@@ -591,6 +618,7 @@ void CHumanTracker::detectAndTrackFace()
 			faces.push_back(r);
 			double nr = MLFace.neighbors;
 			faceScore = nr;
+            if (isProfileFace) faceScore = 1.0;
 			float normFaceScore = 1.0 - (nr / 40.0);
 			if (normFaceScore > 1.0) normFaceScore = 1.0;
 			if (normFaceScore < 0.0) normFaceScore = 0.0;
@@ -1016,7 +1044,8 @@ int main(int argc, char **argv)
 	image_transport::ImageTransport it(n);
 		
 	//TODO: Get from rosparam
-	string xmlFile = "../cascades/haarcascade_frontalface_default.xml";
+    string xmlFile = "../cascades/haarcascade_frontalface_alt.xml";
+    string xmlFileProfile = "../cascades/haarcascade_profileface.xml";
     
     //CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
     
@@ -1032,7 +1061,7 @@ int main(int argc, char **argv)
     if (false == ros::param::get( paramName, debugMode))
         debugMode = 0x02;
     
-	CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, 10, skinEnabled, debugMode);
+    CHumanTracker* humanTracker = new CHumanTracker(xmlFile, xmlFileProfile, 5, 6, 6, 10, skinEnabled, debugMode);
 	
 	// Median Test
 //	Mat test = Mat::zeros(1, 10, CV_32FC1);
