@@ -463,8 +463,11 @@ void CHumanTracker::detectAndTrackFace()
 	MemStorage storage(cvCreateMemStorage(0));
     MemStorage storageProfile(cvCreateMemStorage(0));
 
+    CvSeq* _objectsProfile;
+    CvSeq* _objects;
+
 	CvMat _image = frame;
-	CvSeq* _objects = cvHaarDetectObjects(&_image, cascade, storage, 
+    _objects = cvHaarDetectObjects(&_image, cascade, storage,
 			1.2, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING|CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
 	
 	vector<CvAvgComp> vecAvgComp;
@@ -479,7 +482,7 @@ void CHumanTracker::detectAndTrackFace()
     {
         ROS_WARN("Using Profile Face hack ...");
 
-        CvSeq* _objectsProfile = cvHaarDetectObjects(&_image, cascadeProfile, storageProfile,
+        _objectsProfile = cvHaarDetectObjects(&_image, cascadeProfile, storageProfile,
                 1.2, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING|CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
         vecAvgComp.clear();
         Seq<CvAvgComp>(_objectsProfile).copyTo(vecAvgComp);
