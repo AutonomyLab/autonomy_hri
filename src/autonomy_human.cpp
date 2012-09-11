@@ -461,6 +461,7 @@ void CHumanTracker::detectAndTrackFace()
 	
 	// We need C API to get score
 	MemStorage storage(cvCreateMemStorage(0));
+
 	CvMat _image = frame;
 	CvSeq* _objects = cvHaarDetectObjects(&_image, cascade, storage, 
 			1.2, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING|CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
@@ -476,9 +477,10 @@ void CHumanTracker::detectAndTrackFace()
     if ((!isFaceInCurrentFrame) && ((trackingState == STATE_REJECT) || (trackingState == STATE_REJECT)))
     {
         ROS_WARN("Using Profile Face hack ...");
-        CvSeq* _objects = cvHaarDetectObjects(&_image, cascadeProfile, storage,
+        MemStorage storageProfile(cvCreateMemStorage(0));
+        CvSeq* _objectsProfile = cvHaarDetectObjects(&_image, cascadeProfile, storageProfile,
                 1.2, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING|CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
-        Seq<CvAvgComp>(_objects).copyTo(vecAvgComp);
+        Seq<CvAvgComp>(_objectsProfile).copyTo(vecAvgComp);
         isFaceInCurrentFrame = (vecAvgComp.size() > 0);
         if (isFaceInCurrentFrame)
         {
