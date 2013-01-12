@@ -89,7 +89,9 @@ private:
 	 * Bit 4: Optical Flow
 	 */
 	unsigned short int debugLevel;
+    bool profileHackEnabled;
 	bool skinEnabled;
+    bool gestureEnabled;
 
     // C API is needed for score
     // But let's add smart pointers
@@ -118,7 +120,11 @@ private:
     cv::Ptr<CvMemStorage> storageProfile;
 	
 public:
-    CHumanTracker(string &cascadeFile, string &cascadeFileProfile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel);
+    CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
+                  int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
+                  int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
+                  bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
+                  unsigned short int _debugLevel);
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
@@ -149,7 +155,11 @@ public:
 //
 // KFTracker = new KalmanFilter(6, 4, 0);
 // MLSearch = new KalmanFilter(6, 4, 0);
-CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile, int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow, bool _skinEnabled, unsigned short int _debugLevel)
+CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
+                             int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
+                             int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
+                             bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
+                             unsigned short int _debugLevel)
     : KFTracker(6, 4, 0)
     , MLSearch(6, 4, 0)
     , stateCounter(0)
@@ -157,13 +167,15 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile, in
     , minDetectFrames(_initialDetectFrames)
     , minRejectFrames(_initialRejectFrames)
     , maxRejectCov(6.0)
-    , minFaceSize(12, 18)
-    , maxFaceSize(60, 80)
+    , minFaceSize(_minFaceSizeW, _minFaceSizeH)
+    , maxFaceSize(_maxFaceSizeW, _maxFaceSizeH)
     , hbins(15)
     , sbins(16)
     , minFlow(_minFlow)
     , debugLevel(_debugLevel)
+    , profileHackEnabled(_profileHackEnabled)
     , skinEnabled(_skinEnabled)
+    , gestureEnabled(_gestureEnabled)
     , storage(cvCreateMemStorage(0))
     , storageProfile(cvCreateMemStorage(0))
     , isInited(false)
@@ -1053,40 +1065,65 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 //    }
 }
 
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "autonomy_human");
 	ros::NodeHandle n;
 	image_transport::ImageTransport it(n);
 		
-	//TODO: Get from rosparam
+    string p_xmlFile, p_xmlFileProfile;
+    
+    if (false == ros::param::get("~cascade_file", p_xmlFile))
+    {
+        ROS_ERROR("No cascade file provided, use `cascade_file` param to set it.");
+    } else {
+        ROS_INFO("Cascade file: %s", p_xmlFile.c_str());
+    }
 
-    string xmlFile = "../cascades/haarcascade_frontalface_alt.xml";
-    string xmlFileProfile = "../cascades/haarcascade_profileface.xml";
-    //CHumanTracker* humanTracker = new CHumanTracker(xmlFile, 5, 6, 6, true, 0x06);
+    bool p_profileFaceEnabled;
+    ros::param::param("~profile_hack_enabled", p_profileFaceEnabled, false);
+    ROS_INFO("Profile Face Hack is %s", p_profileFaceEnabled ? "Enabled" : "Disabled");
+
+    if ((false == ros::param::get("~cascade_profile_file", p_xmlFileProfile)) && (p_profileFaceEnabled)) {
+        ROS_ERROR("No profile cascade file provided, use `cascade_profile_file` param to set it.");
+    } else {
+        ROS_INFO("Profile Cascade file: %s", p_xmlFileProfile.c_str());
+    }
+
     
-    std::string paramName;
+
+    bool p_skinEnabled;
+    ros::param::param("~skin_enabled", p_skinEnabled, false);
+    ROS_INFO("Skin Segmentation is %s", p_skinEnabled ? "Enabled" : "Disabled");
+
+    bool p_gestureEnabled;
+    ros::param::param("~skin_enabled", p_gestureEnabled, false);
+    ROS_INFO("Gesture Recognition is %s", p_gestureEnabled ? "Enabled" : "Disabled");
     
-    paramName.assign("~skin_enabled");
-    bool skinEnabled;
-    if (false == ros::param::get( paramName, skinEnabled))
-        skinEnabled = false;
+    int  p_debugMode;
+    ros::param::param("~debug_mode", p_debugMode, 0x02);
+    ROS_INFO("Debug mode is %x", p_debugMode);
     
-    paramName.assign("~debug_mode");
-    int  debugMode;
-    if (false == ros::param::get( paramName, debugMode))
-        debugMode = 0x02;
-    
-    CHumanTracker humanTracker(xmlFile, xmlFileProfile, 5, 6, 6, 10, skinEnabled, debugMode);
+    int p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow;
+    ros::param::param("~initial_min_score", p_initialScoreMin, 5);
+    ros::param::param("~initial_detect_frames", p_initialDetectFrames, 6);
+    ros::param::param("~initial_reject_frames", p_initialRejectFrames, 6);
+    ros::param::param("~min_flow", p_minFlow, 10);
+
+
+    int p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH;
+    ros::param::param("~min_face_width", p_minFaceSizeW, 12);
+    ros::param::param("~min_face_height", p_minFaceSizeH, 18);
+    ros::param::param("~max_face_width", p_maxFaceSizeW, 60);
+    ros::param::param("~max_face_height", p_maxFaceSizeH, 80);
+
+    CHumanTracker humanTracker(p_xmlFile, p_xmlFileProfile,
+                               p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
+                               p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
+                               p_profileFaceEnabled, p_skinEnabled, p_gestureEnabled,
+                               p_debugMode);
 	
-	// Median Test
-//	Mat test = Mat::zeros(1, 10, CV_32FC1);
-//	test = * (Mat_<float>(1,10) 
-//			<< 
-//			0.0, 0.0, 0.0, 0.0, 0.0,
-//			0.2, 0.2, 0.2, 0.2, 0.8
-//			);
-//	ROS_INFO("%f :", humanTracker.calcMedian(test, 10, 1.0, true));
 
 	/**
 	 * The queue size seems to be very important in this project
@@ -1133,7 +1170,7 @@ int main(int argc, char **argv)
         if (
 //                (debugPub.getNumSubscribers() > 0) &&
                 (humanTracker.shouldPublish) &&
-                ((debugMode & 0x02) == 0x02) &&
+                ((p_debugMode & 0x02) == 0x02) &&
                 (humanTracker.isInited)
            )
         {
@@ -1147,9 +1184,9 @@ int main(int argc, char **argv)
         if (
 //                (skinPub.getNumSubscribers() > 0) && 
                 (humanTracker.shouldPublish) &&
-                ((debugMode & 0x04) == 0x04) &&
+                ((p_debugMode & 0x04) == 0x04) &&
                 (humanTracker.isInited) &&
-                (skinEnabled)
+                (p_skinEnabled)
            )
         {
             cvi.header.stamp = ros::Time::now();
@@ -1161,7 +1198,7 @@ int main(int argc, char **argv)
 		
 		if (
                 (humanTracker.shouldPublish) &&
-                ((debugMode & 0x10) == 0x10) &&
+                ((p_debugMode & 0x10) == 0x10) &&
                 (humanTracker.isInited)
            )
         {
