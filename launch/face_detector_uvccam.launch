@@ -1,0 +1,38 @@
+<launch>
+    <arg name="namespace" default="ns1" />
+    <group ns="$(arg namespace)">
+     <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node" >
+        <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascade_frontalface_alt.xml" />
+        <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
+        <param name="profile_hack_enabled" value="false" />
+        <param name="skin_enabled" value="false" />
+        <param name="gesture_enabled" value="false" />
+        <param name="initial_min_score" value="5" />
+        <param name="initial_detect_frames" value="6" />
+        <param name="initial_reject_frames" value="6" />
+        <param name="min_flow" value="10" />
+        <param name="min_face_width" value="12" />
+        <param name="min_face_height" value="18" />
+        <param name="max_face_width" value="90" />
+        <param name="max_face_height" value="120" />
+        <param name="debug_mode" value="2" />
+        <remap from="input_rgb_image" to="image_raw" />
+      </node>
+      <node pkg="image_view" name="rawimage" type="image_view">
+        <param name="autosize" value="true" />
+        <remap from="image" to="image_raw" />
+      </node>
+      <node pkg="image_view" name="debugimage" type="image_view">
+        <param name="autosize" value="true" />
+        <remap from="image" to="output_rgb_debug" />
+      </node>     
+      <node pkg="uvc_camera" type="camera_node" name="uvc_camera" output="screen">
+        <param name="width" type="int" value="320" />
+        <param name="height" type="int" value="240" />
+        <param name="fps" type="int" value="30" />
+        <param name="frame" type="string" value="wide_stereo" />
+        <param name="device" type="string" value="/dev/video0" />
+        <param name="camera_info_url" type="string" value="file://$(find uvc_camera)/example.yaml" />
+      </node>
+    </group>
+</launch>

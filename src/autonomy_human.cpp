@@ -194,10 +194,12 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
 		ROS_ERROR("Problem loading cascade file %s", cascadeFile.c_str());
 	}
 
-    cascadeProfile = (CvHaarClassifierCascade*) cvLoad(cascadeFileProfile.c_str(), 0, 0, 0);
-    if (cascade.empty())
-    {
-        ROS_ERROR("Problem loading profile cascade file %s", cascadeFileProfile.c_str());
+    if (profileHackEnabled) {
+        cascadeProfile = (CvHaarClassifierCascade*) cvLoad(cascadeFileProfile.c_str(), 0, 0, 0);
+        if (cascade.empty())
+        {
+            ROS_ERROR("Problem loading profile cascade file %s", cascadeFileProfile.c_str());
+        }
     }
 		
     isFaceInCurrentFrame = false;
@@ -495,9 +497,9 @@ void CHumanTracker::detectAndTrackFace()
 
     // This is a hack
     bool isProfileFace = false;
-    if ((!isFaceInCurrentFrame) && ((trackingState == STATE_REJECT) || (trackingState == STATE_REJECT)))
+    if ((profileHackEnabled) && (!isFaceInCurrentFrame) && ((trackingState == STATE_REJECT) || (trackingState == STATE_REJECT)))
     {
-        ROS_WARN("Using Profile Face hack ...");
+        ROS_DEBUG("Using Profile Face hack ...");
 
         if (!storageProfile.empty()) {
             cvClearMemStorage(storageProfile);
@@ -509,7 +511,7 @@ void CHumanTracker::detectAndTrackFace()
         isFaceInCurrentFrame = (vecAvgComp.size() > 0);
         if (isFaceInCurrentFrame)
         {
-            ROS_WARN("The hack seems to work!");
+            ROS_DEBUG("The hack seems to work!");
         }
         isProfileFace = true;
     }
@@ -631,10 +633,10 @@ void CHumanTracker::detectAndTrackFace()
 //                {
                     rectangle(debugFrame, center - Point(r.width*0.5, r.height*0.5), center + Point(r.width*0.5, r.height * 0.5), color);
 
-//                    txtstr.str("");
-//                    txtstr << "   N:" << rr->neighbors << " S:" << r.width << "x" << r.height;
+                    txtstr.str("");
+                    txtstr << "   Sc:" << rr->neighbors << " S:" << r.width << "x" << r.height;
 
-//                    putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, color);
+                    putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, color);
 //                }
 			}
 
@@ -673,16 +675,6 @@ void CHumanTracker::detectAndTrackFace()
 		Point belCenter;
 		belCenter.x = beleif.x + (beleif.width * 0.5);
 		belCenter.y = beleif.y + (beleif.height * 0.5);
-
-//		double belRad = sqrt(pow(beleif.width,2) + pow(beleif.height,2)) * 0.5;
-
-//		double faceUnc = norm(KFTracker.errorCovPost, NORM_L2);
-//		double faceUncPos = sqrt(
-//                pow(KFTracker.errorCovPost.at<float>(0,0), 2) +
-//                pow(KFTracker.errorCovPost.at<float>(1,1), 2) +
-//                pow(KFTracker.errorCovPost.at<float>(4,4), 2) +
-//                pow(KFTracker.errorCovPost.at<float>(5,5), 2)
-//				);
 		
         if ((debugLevel & 0x02) == 0x02)
         {
@@ -768,7 +760,7 @@ void CHumanTracker::calcOpticalFlow()
 	static Rect prevFaceRect;
 	
 	bool perform = 
-        (true) &&
+        (gestureEnabled) &&
         (
             (trackingState == STATE_TRACK) || 
             (trackingState == STATE_REJECT)
@@ -993,17 +985,7 @@ void CHumanTracker::calcOpticalFlow()
 		}
 	}
 	
-	/* Experimental*/
-//	if ((isFaceInCurrentFrame) && (trackingState == STATE_TRACK))
-//	{
-//		int minHessian = 300;
-//		SurfFeatureDetector detector( minHessian );
-//		std::vector<KeyPoint> keypoints;
-//		detector.detect( rawFramGray(faces[0]), keypoints );
-//		
-//		Mat _img = debugFrame(faces[0]);
-//		drawKeypoints( _img, keypoints, _img, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-//	}
+
 	
 }
 
@@ -1051,18 +1033,6 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 
 	tEnd = ros::Time::now();
 
-	std::stringstream txtstr;
-//	if ((debugLevel & 0x02) == 0x02)
-//    {
-//        txtstr.str("");
-//		txtstr << fixed;
-//        txtstr << "Ca:" << "(" << std::setprecision(1) << ((tFaceStart - tStart).toSec() * 1e3) << "ms)";
-//		txtstr << " Fa:" << "(" << std::setprecision(1) << ((tSkinStart - tFaceStart).toSec() * 1e3) << "ms)";
-//		txtstr << " Sk:" << "(" << std::setprecision(1) << ((tFlowStart - tSkinStart).toSec() * 1e3) << "ms)";
-//		txtstr << " Fl:" << "(" << std::setprecision(1) << ((tEnd - tFlowStart).toSec() * 1e3) << "ms)";
-//		txtstr << " T:" << "(" << std::setprecision(1) << ((tEnd - tStart).toSec() * 1e3) << "ms)";
-//        putText(debugFrame, txtstr.str() , Point(30,330), FONT_HERSHEY_PLAIN, 1, CV_RGB(255,255,255));
-//    }
 }
 
 
@@ -1076,7 +1046,9 @@ int main(int argc, char **argv)
     
     if (false == ros::param::get("~cascade_file", p_xmlFile))
     {
-        ROS_ERROR("No cascade file provided, use `cascade_file` param to set it.");
+        ROS_FATAL("No cascade file provided, use `cascade_file` param to set it.");
+        ros::shutdown();
+        exit(1);
     } else {
         ROS_INFO("Cascade file: %s", p_xmlFile.c_str());
     }
@@ -1086,7 +1058,9 @@ int main(int argc, char **argv)
     ROS_INFO("Profile Face Hack is %s", p_profileFaceEnabled ? "Enabled" : "Disabled");
 
     if ((false == ros::param::get("~cascade_profile_file", p_xmlFileProfile)) && (p_profileFaceEnabled)) {
-        ROS_ERROR("No profile cascade file provided, use `cascade_profile_file` param to set it.");
+        ROS_FATAL("No profile cascade file provided, use `cascade_profile_file` param to set it.");
+        ros::shutdown();
+        exit(2);
     } else {
         ROS_INFO("Profile Cascade file: %s", p_xmlFileProfile.c_str());
     }
@@ -1098,7 +1072,7 @@ int main(int argc, char **argv)
     ROS_INFO("Skin Segmentation is %s", p_skinEnabled ? "Enabled" : "Disabled");
 
     bool p_gestureEnabled;
-    ros::param::param("~skin_enabled", p_gestureEnabled, false);
+    ros::param::param("~gesture_enabled", p_gestureEnabled, false);
     ROS_INFO("Gesture Recognition is %s", p_gestureEnabled ? "Enabled" : "Disabled");
     
     int  p_debugMode;
@@ -1136,7 +1110,7 @@ int main(int argc, char **argv)
 	ros::Publisher facePub = n.advertise<autonomy_human::human>("human", 5);  
     image_transport::Publisher debugPub = it.advertise("output_rgb_debug", 1);
     image_transport::Publisher skinPub = it.advertise("output_rgb_skin", 1);
-	image_transport::Publisher opticalPub = it.advertise("output_rgb_optical", 1);
+    image_transport::Publisher opticalPub = it.advertise("output_rgb_optical", 1);
 
 	
 	ROS_INFO("Starting Autonomy Human ...");
@@ -1162,13 +1136,14 @@ int main(int argc, char **argv)
             msg.faceROI.y_offset = humanTracker.beleif.y;
             msg.faceROI.width = humanTracker.beleif.width;
             msg.faceROI.height = humanTracker.beleif.height;
-            for (int i = 0; i < 2; i++)
-                msg.flowScore[i] = humanTracker.flowScoreInRegion[i];
+            if (p_gestureEnabled) {
+                for (int i = 0; i < 2; i++)
+                    msg.flowScore[i] = humanTracker.flowScoreInRegion[i];
+            }
 			facePub.publish(msg);
 		}
         
         if (
-//                (debugPub.getNumSubscribers() > 0) &&
                 (humanTracker.shouldPublish) &&
                 ((p_debugMode & 0x02) == 0x02) &&
                 (humanTracker.isInited)
@@ -1182,7 +1157,6 @@ int main(int argc, char **argv)
         }
         
         if (
-//                (skinPub.getNumSubscribers() > 0) && 
                 (humanTracker.shouldPublish) &&
                 ((p_debugMode & 0x04) == 0x04) &&
                 (humanTracker.isInited) &&
@@ -1199,7 +1173,8 @@ int main(int argc, char **argv)
 		if (
                 (humanTracker.shouldPublish) &&
                 ((p_debugMode & 0x10) == 0x10) &&
-                (humanTracker.isInited)
+                (humanTracker.isInited) &&
+                (p_gestureEnabled)
            )
         {
             cvi.header.stamp = ros::Time::now();
