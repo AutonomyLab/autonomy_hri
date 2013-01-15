@@ -1,0 +1,10 @@
+<stack>
+  <description brief="Autonomy Lab Human Robot Interaction Repository">
+    A set of packages that are developed in autonomy_lab for Human Robot Interaction Research.
+  </description>
+  <author>Maintained by Mani Monajjemi</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://autonomy.cs.sfu.ca/hri</url>
+  <depend stack="ros"/>
+</stack>
