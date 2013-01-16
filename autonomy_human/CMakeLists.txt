@@ -29,4 +29,5 @@ rosbuild_add_boost_directories()
 #target_link_libraries(example ${PROJECT_NAME})
 
 rosbuild_add_executable(autonomy_human src/autonomy_human.cpp)
+rosbuild_add_executable(test_flow src/test_flow.cpp)
 rosbuild_link_boost(autonomy_human thread)
