@@ -16,14 +16,49 @@ using namespace cv;
 bool shouldPublish = false;
 bool isInited = false;
 unsigned int iWidth, iHeight;
+Mat prevRawFrame;
 Mat rawFrame;
 Mat debugFrame;
+Mat flow;
+Mat prevRawFrameGray;
+Mat rawFrameGray;
+Mat flowMag;
 
-ros::Time tStart, tEnd;
+ros::Time tStart, tFlow, tEnd;
 
 void calcOpticalFlow()
 {
-    flip(rawFrame, debugFrame, 0);
+    static bool first = true;
+
+    if (first) {
+        first = false;
+        return;
+    }
+
+//    calcOpticalFlowSF(prevRawFrame, rawFrame,
+//                      flow,
+//                      3, 2, 4, 4.1, 25.5, 18, 55.0, 25.5, 0.35, 18, 55.0, 25.5, 10);
+
+//    calcOpticalFlowSF(prevRawFrameGray, rawFrameGray,
+//                      flow,
+//                      1, 2, 4);
+
+
+    calcOpticalFlowFarneback( prevRawFrameGray, rawFrameGray , flow, 0.5, 3, 5, 3, 7, 1.5, 0);//OPTFLOW_USE_INITIAL_FLOW);
+
+    std::vector<Mat> flowChannels;
+    split(flow, flowChannels);
+    magnitude(flowChannels[0], flowChannels[1], flowMag);
+    threshold(flowMag, flowMag, 5.0, 0.0, THRESH_TOZERO);
+    normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
+    std::vector<Mat> channels;
+    split(rawFrame, channels);
+    flowMag.convertTo(channels[0], CV_8UC1, 120);
+    channels[0] = Scalar::all(120) - channels[0];
+    channels[1] = Scalar::all(255.0);
+    channels[2] = rawFrameGray;
+    merge(channels, debugFrame);
+    cvtColor(debugFrame, debugFrame, CV_HSV2BGR);
 }
 
 void visionCallback(const sensor_msgs::ImageConstPtr& frame)
@@ -47,16 +82,21 @@ void visionCallback(const sensor_msgs::ImageConstPtr& frame)
         isInited = true;
         iWidth = cv_ptr->image.cols;
         iHeight = cv_ptr->image.rows;
-        ROS_INFO("Image size is %d x %d", iWidth, iHeight);
+        ROS_INFO("Image size is %d x %d | Type : %d", iWidth, iHeight, cv_ptr->image.type());
     }
 
+    prevRawFrame = rawFrame.clone();
+    prevRawFrameGray = rawFrameGray.clone();
     //TODO: Check clone
     rawFrame = cv_ptr->image;
+    cvtColor(rawFrame, rawFrameGray, CV_BGR2GRAY);
 
+    tFlow = ros::Time::now();
     calcOpticalFlow();
 
     tEnd = ros::Time::now();
 
+    ROS_INFO("Flow: %d x %d x %d @ %5.3f", flow.rows, flow.cols, flow.dims, (tEnd - tFlow).toSec());
 }
 
 int main(int argc, char **argv)
