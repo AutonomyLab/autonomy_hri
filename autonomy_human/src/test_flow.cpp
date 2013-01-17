@@ -4,7 +4,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/RegionOfInterest.h>
 #include <std_msgs/Header.h>
-
+#include <std_msgs/Float32.h>
+#include <autonomy_human/flow.h>
 #include "opencv2/objdetect/objdetect.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -25,6 +26,22 @@ Mat rawFrameGray;
 Mat flowMag;
 
 ros::Time tStart, tFlow, tEnd;
+autonomy_human::flow flowMsg;
+
+
+// From OpenCV fback.cpp
+void drawOptFlowMap(const Mat& flow, Mat& cflowmap, const int step, const Scalar& color)
+{
+    for(int y = 0; y < cflowmap.rows; y += step)
+        for(int x = 0; x < cflowmap.cols; x += step)
+        {
+            const Point2f& fxy = flow.at<Point2f>(y, x);
+            ROS_INFO("%4.2f %4.2f", fxy.x, fxy.y);
+            line(cflowmap, Point(x,y), Point(cvRound(x+fxy.x), cvRound(y+fxy.y)),
+                 color);
+            //circle(cflowmap, Point(x,y), 2, color, -1);
+        }
+}
 
 void calcOpticalFlow()
 {
@@ -44,21 +61,52 @@ void calcOpticalFlow()
 //                      1, 2, 4);
 
 
-    calcOpticalFlowFarneback( prevRawFrameGray, rawFrameGray , flow, 0.5, 3, 5, 3, 7, 1.5, 0);//OPTFLOW_USE_INITIAL_FLOW);
+    // TODO: nan check
+    calcOpticalFlowFarneback( prevRawFrameGray, rawFrameGray , flow, 0.5, 3, 50, 3, 7, 1.5, 0);//OPTFLOW_USE_INITIAL_FLOW);
 
     std::vector<Mat> flowChannels;
     split(flow, flowChannels);
     magnitude(flowChannels[0], flowChannels[1], flowMag);
-    threshold(flowMag, flowMag, 5.0, 0.0, THRESH_TOZERO);
-    normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
-    std::vector<Mat> channels;
-    split(rawFrame, channels);
-    flowMag.convertTo(channels[0], CV_8UC1, 120);
-    channels[0] = Scalar::all(120) - channels[0];
-    channels[1] = Scalar::all(255.0);
-    channels[2] = rawFrameGray;
-    merge(channels, debugFrame);
-    cvtColor(debugFrame, debugFrame, CV_HSV2BGR);
+
+    // These are the pixels that actually have a calculated flow
+    Mat maskX;
+    Mat maskY;
+    maskX = abs(flowChannels[0]) > 5.0; //0.01;
+    maskY = abs(flowChannels[1]) > 5.0; //0.01;
+    Mat mask = maskX | maskY;
+
+    flowMsg.header.stamp = ros::Time::now();
+
+    // Note that flow_x and flow_y are signed!
+    flowMsg.flow_x = sum(flowChannels[0])[0];
+    flowMsg.flow_y = sum(flowChannels[1])[0];
+    flowMsg.flow_mag = sum(flowMag)[0];
+
+    //threshold(flowMag, flowMag, 5.0, 0.0, THRESH_TOZERO);
+    //normalize is WRONG when u need to make decisions based on flow
+    //normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
+    if (false) {
+        std::vector<Mat> channels;
+        split(rawFrame, channels);
+        flowMag.convertTo(channels[0], CV_8UC1, 120);
+        channels[0] = Scalar::all(120) - channels[0];
+        channels[1] = Scalar::all(255.0);
+        //flowChannels[0].convertTo(channels[0], CV_8UC1, 120);
+        //flowChannels[1].convertTo(channels[1], CV_8UC1, 120);
+        channels[2] = rawFrameGray;
+        merge(channels, debugFrame);
+        cvtColor(debugFrame, debugFrame, CV_HSV2BGR);
+    } else {
+        std::vector<Mat> channels;
+        split(rawFrame, channels);
+        mask.convertTo(channels[0], CV_8UC1, 120);
+        channels[0] = Scalar::all(120) - channels[0];
+        channels[1] = Scalar::all(255.0);
+        channels[2] = rawFrameGray;
+        merge(channels, debugFrame);
+        cvtColor(debugFrame, debugFrame, CV_HSV2BGR);
+    }
+
 }
 
 void visionCallback(const sensor_msgs::ImageConstPtr& frame)
@@ -108,6 +156,7 @@ int main(int argc, char **argv)
 
     image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 1, visionCallback);
     image_transport::Publisher debugPub = it.advertise("output_rgb_debug", 1);
+    ros::Publisher flowPub = n.advertise<autonomy_human::flow>("flow", 50);
 
 
     ROS_INFO("Starting Test Flow ...");
@@ -126,6 +175,7 @@ int main(int argc, char **argv)
             cvi.image = debugFrame;
             cvi.toImageMsg(im);
             debugPub.publish(im);
+            flowPub.publish(flowMsg);
         }
 
         ros::spinOnce();
