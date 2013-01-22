@@ -1,6 +1,7 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include "std_msgs/UInt32.h"
+#include "std_msgs/Bool.h"
 #include "autonomy_human/human.h"
 #include "ros/time.h"
 #include "autonomy_human/SortedNamespaces.h"
@@ -56,6 +57,10 @@ int main(int argc, char **argv)
     bool is_elected = false;
     ros::param::get("~myName", my_name); // numRobot gets the number of robots to be selected from user.
 
+    ros::Publisher elected_pub;
+    elected_pub = nh.advertise<std_msgs::Bool>("IsElected",10);
+
+    //ros::Publisher elected_pub=nh.advertise<std_msgs::bool>("IsElected",10);
     ros::Subscriber election_sub=nh.subscribe("/election",10,electionResultsCallback);
     ros::Rate loop_rate(10);
 
@@ -64,6 +69,7 @@ int main(int argc, char **argv)
         ROS_INFO("My name is: [ %s ]",my_name.c_str());
         ros::Duration last_election = ros::Time::now() - election_time;
         ROS_INFO("Last election happened %f seconds ago",last_election.toSec());
+        std_msgs::Bool is_elected_msg;
 
         if (last_election.toSec() < 2)
         {
@@ -76,6 +82,8 @@ int main(int argc, char **argv)
         }
         ROS_INFO("My position is: [ %d ]",my_position);
         ROS_INFO("Am I elected? [ %d ]",is_elected);
+        is_elected_msg.data = is_elected;
+        elected_pub.publish(is_elected_msg);
         ros::spinOnce();
         loop_rate.sleep();
     }
