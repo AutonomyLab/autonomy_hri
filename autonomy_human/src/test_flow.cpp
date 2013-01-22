@@ -62,33 +62,43 @@ void calcOpticalFlow()
 
 
     // TODO: nan check
-    calcOpticalFlowFarneback( prevRawFrameGray, rawFrameGray , flow, 0.5, 3, 50, 3, 7, 1.5, 0);//OPTFLOW_USE_INITIAL_FLOW);
+    calcOpticalFlowFarneback( prevRawFrameGray, rawFrameGray , flow, 0.5, 5, 5, 3, 5, 1.1, (flow.rows != 0) ? OPTFLOW_USE_INITIAL_FLOW : 0);//OPTFLOW_USE_INITIAL_FLOW);
 
     std::vector<Mat> flowChannels;
     split(flow, flowChannels);
+//    Mat nn;
+
+    //bool doAvg = (flowMag.rows > 0);
     magnitude(flowChannels[0], flowChannels[1], flowMag);
+    Rect roi(300,100, 100, 100);
+
+//    if (doAvg)
+//        flowMag = (0.5 * flowMag) + (0.5 * nn);
+//    else
+//        flowMag = nn;
 
     // These are the pixels that actually have a calculated flow
     Mat maskX;
     Mat maskY;
-    maskX = abs(flowChannels[0]) > 5.0; //0.01;
-    maskY = abs(flowChannels[1]) > 5.0; //0.01;
+    maskX = abs(flowChannels[0]) > 0.01;
+    maskY = abs(flowChannels[1]) > 0.01;
     Mat mask = maskX | maskY;
+
+    threshold(flowMag, flowMag, 5.0 , 0.0, THRESH_TOZERO);
 
     flowMsg.header.stamp = ros::Time::now();
 
     // Note that flow_x and flow_y are signed!
     flowMsg.flow_x = sum(flowChannels[0])[0];
     flowMsg.flow_y = sum(flowChannels[1])[0];
-    flowMsg.flow_mag = sum(flowMag)[0];
+    flowMsg.flow_mag = sum(flowMag(roi))[0];
 
-    //threshold(flowMag, flowMag, 5.0, 0.0, THRESH_TOZERO);
     //normalize is WRONG when u need to make decisions based on flow
     //normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
-    if (false) {
+    if (true) {
         std::vector<Mat> channels;
         split(rawFrame, channels);
-        flowMag.convertTo(channels[0], CV_8UC1, 120);
+        flowMag.convertTo(channels[0], CV_8UC1, 120); //120x amplification!
         channels[0] = Scalar::all(120) - channels[0];
         channels[1] = Scalar::all(255.0);
         //flowChannels[0].convertTo(channels[0], CV_8UC1, 120);
@@ -96,6 +106,7 @@ void calcOpticalFlow()
         channels[2] = rawFrameGray;
         merge(channels, debugFrame);
         cvtColor(debugFrame, debugFrame, CV_HSV2BGR);
+        rectangle(debugFrame, roi, CV_RGB(255, 0, 0));
     } else {
         std::vector<Mat> channels;
         split(rawFrame, channels);
