@@ -19,6 +19,7 @@ using namespace cv;
 uint32_t number_robot;
 vector<string> sorted_namespaces;
 ros::Time election_time;
+autonomy_human::human face_info;
 
 // ************** Debugging Visualization Parameters & Functions
 bool show_viz = true;
@@ -31,7 +32,11 @@ cv::Mat led_vis;
 
 void clearWindow()
 {
-    led_vis = Mat::ones(lw_height,lw_width,CV_8UC3);
+    led_vis = Mat::zeros(lw_height,lw_width,CV_8UC3);
+    char buff[25];
+    sprintf(buff,"%d FaceSore", face_info.faceScore);
+    string str = buff;
+    putText(led_vis,str,Point(25,25),CV_FONT_HERSHEY_PLAIN,1,CV_RGB(255,255,255));
 }
 
 void visualizeLed()
@@ -62,6 +67,12 @@ void electionResultsCallback(const autonomy_human::SortedNamespaces& msg)
     election_time = msg.header.stamp;
     ROS_INFO("The User wants: [ %d ]  robots",number_robot);
     ROS_INFO("The first user is : [ %s ]  ",sorted_namespaces.at(0).c_str());
+}
+
+void humanCallback(const autonomy_human::human& msg)
+{
+    face_info.faceScore = msg.faceScore;
+    face_info.header = msg.header;
 }
 
 void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsigned int& myposition)
@@ -96,24 +107,29 @@ int main(int argc, char **argv)
     unsigned int my_position = 0;
     bool is_elected = false;
     ros::param::get("~myName", my_name); // numRobot gets the number of robots to be selected from user.
+    face_info.faceScore = 0;
 
     ros::Publisher elected_pub;
     elected_pub = nh.advertise<std_msgs::Bool>("IsElected",10);
 
     //ros::Publisher elected_pub=nh.advertise<std_msgs::bool>("IsElected",10);
     ros::Subscriber election_sub=nh.subscribe("/election",10,electionResultsCallback);
+    ros::Subscriber human_sub=nh.subscribe("human",10,humanCallback);
     ros::Rate loop_rate(10);
 
     while(ros::ok())
     {
         ROS_INFO("My name is: [ %s ]",my_name.c_str());
         ros::Duration last_election = ros::Time::now() - election_time;
+        ros::Duration last_face_info = ros::Time::now() - face_info.header.stamp;
         ROS_INFO("Last election happened %f seconds ago",last_election.toSec());
         std_msgs::Bool is_elected_msg;
 
         if(show_viz) visualizeLed();
 
-        if (last_election.toSec() < 1)
+        if(last_face_info.toSec() > 0.5 ) face_info.faceScore = 0;
+
+        if (last_election.toSec() < 0.5)
         {
             isElected(sorted_namespaces,my_name,is_elected,my_position);
         }
@@ -134,6 +150,7 @@ int main(int argc, char **argv)
         }
         ROS_INFO("My position is: [ %d ]",my_position);
         ROS_INFO("Am I elected? [ %d ]",is_elected);
+        ROS_INFO("My Face Score is: [%d]", face_info.faceScore);
         is_elected_msg.data = is_elected;
         elected_pub.publish(is_elected_msg);
         ros::spinOnce();
