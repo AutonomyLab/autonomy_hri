@@ -55,6 +55,11 @@ void redLED()
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,0,0),-1);
 }
 
+void turnOffLED()
+{
+    circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,0,0),-1);
+}
+
 
 // ~~~~~~~~~~~~~~~ Debugging Visualization Parameters & Functions
 
@@ -102,6 +107,7 @@ int main(int argc, char **argv)
 
     namedWindow(lw_window); //visualization
     clearWindow(); //visualization
+    turnOffLED();
 
     string my_name = "Shokoofeh";
     unsigned int my_position = 0;
@@ -127,27 +133,37 @@ int main(int argc, char **argv)
 
         if(show_viz) visualizeLed();
 
-        if(last_face_info.toSec() > 0.5 ) face_info.faceScore = 0;
+        if(last_face_info.toSec() > 0.5 ) // What is going on?
+       {
+            face_info.faceScore = 0;
+            clearWindow();
+            turnOffLED();
+        } else
+        {
+            if (last_election.toSec() < 0.5)
+            {
+                isElected(sorted_namespaces,my_name,is_elected,my_position);
+                if(is_elected)
+                {
+                    clearWindow();
+                    greenLED();
+                }
+                else
+                {
+                    clearWindow();
+                    redLED();
+                }
+            }
+            else
+            {
+                is_elected = false;
+                my_position = 0;
+                turnOffLED();
+            }
 
-        if (last_election.toSec() < 0.5)
-        {
-            isElected(sorted_namespaces,my_name,is_elected,my_position);
         }
-        else
-        {
-            is_elected = false;
-            my_position = 0;
-        }
-        if(is_elected)
-        {
-            clearWindow();
-            greenLED();
-        }
-        else
-        {
-            clearWindow();
-            redLED();
-        }
+
+
         ROS_INFO("My position is: [ %d ]",my_position);
         ROS_INFO("Am I elected? [ %d ]",is_elected);
         ROS_INFO("My Face Score is: [%d]", face_info.faceScore);
