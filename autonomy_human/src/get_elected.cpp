@@ -5,6 +5,7 @@
 #include "autonomy_human/human.h"
 #include "ros/time.h"
 #include "autonomy_human/SortedNamespaces.h"
+#include "std_msgs/Float32.h"
 
 #include <sstream>
 #include <vector>
@@ -15,11 +16,14 @@
 
 using namespace std;
 using namespace cv;
+#define ELECTION_TIMEOUT 0.5
+#define FACESCORE_TIMEOUT 0.5
 
 uint32_t number_robot;
 vector<string> sorted_namespaces;
 ros::Time election_time;
 autonomy_human::human face_info;
+
 
 // ************** Debugging Visualization Parameters & Functions
 bool show_viz = true;
@@ -62,7 +66,64 @@ void turnOffLED()
 
 
 // ~~~~~~~~~~~~~~~ Debugging Visualization Parameters & Functions
+// ****************Circular queue for averaging over face scores
 
+const int MAX_AVERAGE_FACESCORE = 5;
+class cqueue
+{
+public:
+    int arr[MAX_AVERAGE_FACESCORE],front;
+    bool full_arr;
+    cqueue()
+    {
+        front = -1;
+        full_arr = false;
+    }
+    void insert(int );
+    float_t average(int[] );
+    void empty();
+};
+
+void cqueue::empty()
+{
+    front = -1;
+    full_arr = false;
+}
+
+void cqueue::insert(int val)
+{
+    if(front == -1)
+    {
+        front = 0;
+        arr[front] = val;
+    }
+    else if(front == MAX_AVERAGE_FACESCORE -1)
+    {
+        front = 0;
+        arr[front] = val;
+        full_arr = true;
+    }
+    else
+    {
+        front++;
+        arr[front] = val;
+    }
+}
+
+float_t cqueue::average(int arr[])
+{
+    float_t aver;
+    int sum = 0;
+    for(int i = 0; i < MAX_AVERAGE_FACESCORE;i++)
+    {
+        sum = sum + arr[i];
+    }
+    aver = sum/MAX_AVERAGE_FACESCORE;
+    return aver;
+}
+cqueue cq;
+std_msgs::Float32 average_fs;
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~Circular queue for averaging over face scores
 
 void electionResultsCallback(const autonomy_human::SortedNamespaces& msg)
 {
@@ -77,7 +138,15 @@ void electionResultsCallback(const autonomy_human::SortedNamespaces& msg)
 void humanCallback(const autonomy_human::human& msg)
 {
     face_info.faceScore = msg.faceScore;
-    face_info.header = msg.header;
+    //face_info.header = msg.header;
+    face_info.header.stamp = ros::Time::now();
+    cq.insert(msg.faceScore);
+    if(cq.full_arr)
+    {
+        average_fs.data = cq.average(cq.arr);
+        ROS_INFO("My Average Face score: %f",average_fs.data);
+    }
+    ROS_INFO("My Face score: %d",face_info.faceScore);
 }
 
 void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsigned int& myposition)
@@ -104,7 +173,6 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     ros::Time _now = ros::Time::now();
 
-
     namedWindow(lw_window); //visualization
     clearWindow(); //visualization
     turnOffLED();
@@ -115,10 +183,7 @@ int main(int argc, char **argv)
     ros::param::get("~myName", my_name); // numRobot gets the number of robots to be selected from user.
     face_info.faceScore = 0;
 
-    ros::Publisher elected_pub;
-    elected_pub = nh.advertise<std_msgs::Bool>("IsElected",10);
-
-    //ros::Publisher elected_pub=nh.advertise<std_msgs::bool>("IsElected",10);
+    ros::Publisher aver_faceScore_pub = nh.advertise<std_msgs::Float32>("average_facescore",10);
     ros::Subscriber election_sub=nh.subscribe("/election",10,electionResultsCallback);
     ros::Subscriber human_sub=nh.subscribe("human",10,humanCallback);
     ros::Rate loop_rate(10);
@@ -133,14 +198,14 @@ int main(int argc, char **argv)
 
         if(show_viz) visualizeLed();
 
-        if(last_face_info.toSec() > 0.5 ) // What is going on?
+        if(last_face_info.toSec() > FACESCORE_TIMEOUT ) // What is going on?
        {
             face_info.faceScore = 0;
             clearWindow();
             turnOffLED();
         } else
         {
-            if (last_election.toSec() < 0.5)
+            if (last_election.toSec() < ELECTION_TIMEOUT)
             {
                 isElected(sorted_namespaces,my_name,is_elected,my_position);
                 if(is_elected)
@@ -167,8 +232,8 @@ int main(int argc, char **argv)
         ROS_INFO("My position is: [ %d ]",my_position);
         ROS_INFO("Am I elected? [ %d ]",is_elected);
         ROS_INFO("My Face Score is: [%d]", face_info.faceScore);
-        is_elected_msg.data = is_elected;
-        elected_pub.publish(is_elected_msg);
+        //elected_pub.publish(is_elected_msg);
+        aver_faceScore_pub.publish(average_fs);
         ros::spinOnce();
         loop_rate.sleep();
     }
