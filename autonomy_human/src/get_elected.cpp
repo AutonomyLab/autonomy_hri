@@ -58,6 +58,10 @@ void redLED()
 {
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,0,0),-1);
 }
+void blueLED()
+{
+    circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,0,255),-1);
+}
 
 void turnOffLED()
 {
@@ -203,7 +207,8 @@ int main(int argc, char **argv)
             face_info.faceScore = 0;
             clearWindow();
             turnOffLED();
-        } else
+        }
+        else
         {
             if (last_election.toSec() < ELECTION_TIMEOUT)
             {
@@ -223,7 +228,7 @@ int main(int argc, char **argv)
             {
                 is_elected = false;
                 my_position = 0;
-                turnOffLED();
+                blueLED();
             }
 
         }
