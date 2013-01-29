@@ -1,7 +1,9 @@
 <launch>
     <arg name="namespace" default="" />
      <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node" >
-        <param name="cascade_file" value="/home/autolab/Downloads/OpenCV-2.4.3/data/haarcascades/haarcascade_fullbody.xml" />
+<!--
+        <param name="cascade_file" value="/home/autolab/Downloads/OpenCV-2.4.3/data/haarcascades/haarcascade_mcs_upperbody.xml" />
+-->
         <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
         <param name="profile_hack_enabled" value="false" />
         <param name="skin_enabled" value="false" />
