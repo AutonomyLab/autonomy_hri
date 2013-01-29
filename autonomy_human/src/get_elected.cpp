@@ -72,7 +72,7 @@ void turnOffLED()
 // ~~~~~~~~~~~~~~~ Debugging Visualization Parameters & Functions
 // ****************Circular queue for averaging over face scores
 
-const int MAX_AVERAGE_FACESCORE = 5;
+const int MAX_AVERAGE_FACESCORE = 10;
 class cqueue
 {
 public:
