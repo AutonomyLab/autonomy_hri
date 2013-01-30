@@ -18,7 +18,7 @@ using namespace std;
 using namespace cv;
 #define ELECTION_TIMEOUT 0.5
 #define FACESCORE_TIMEOUT 0.5
-#define SPEECH_TIMEOUT 20
+#define SPEECH_TIMEOUT 200
 
 struct Talker
 {
@@ -48,7 +48,7 @@ void clearWindow()
     char buff[25];
     sprintf(buff,"%d FaceSore", face_info.faceScore);
     string str = buff;
-    putText(led_vis,str,Point(25,25),CV_FONT_HERSHEY_PLAIN,1,CV_RGB(255,255,255));
+    putText(led_vis,str,Point(25,25),CV_FONT_HERSHEY_PLAIN,2,CV_RGB(255,255,255));
     led_color = "black";
 }
 void visualizeLed()
@@ -70,6 +70,11 @@ void blueLED()
 {
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,0,255),-1);
     led_color = "blue";
+}
+void highlightLED()
+{
+    //circle(led_vis,Point(lw_height/2,lw_width/2),50,CV_RGB(0,0,0),-1);
+    putText(led_vis,"FREEZE",Point(70,220),CV_FONT_HERSHEY_DUPLEX,2,CV_RGB(0,0,0));
 }
 void turnOffLED()
 {
@@ -259,12 +264,13 @@ int main(int argc, char **argv)
                     if((strcmp(talker.speech.data.c_str(),"yes") == 0) && ((strcmp(led_color.c_str(),"green")==0) || (strcmp(led_color.c_str(),"red") == 0)))
                     {
                         check_election = false;
+                        highlightLED();
                     }
                 }
             }
         }
 
-        if ((strcmp(talker.speech.data.c_str(),"start election") == 0))
+        if ((strcmp(talker.speech.data.c_str(),"start") == 0))
         {
             check_election = true;
         }
