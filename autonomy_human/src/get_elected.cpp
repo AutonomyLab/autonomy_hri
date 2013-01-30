@@ -31,6 +31,7 @@ vector<string> sorted_namespaces;
 ros::Time election_time;
 autonomy_human::human face_info;
 bool check_election;
+std_msgs::Float32 average_fs;
 
 // ************** Debugging Visualization Parameters & Functions
 bool show_viz = true;
@@ -46,7 +47,8 @@ void clearWindow()
 {
     led_vis = Mat::zeros(lw_height,lw_width,CV_8UC3);
     char buff[25];
-    sprintf(buff,"%d FaceSore", face_info.faceScore);
+    //sprintf(buff,"%d FaceSore", face_info.faceScore);
+    sprintf(buff,"%6.1f FaceSore",average_fs.data);
     string str = buff;
     putText(led_vis,str,Point(25,25),CV_FONT_HERSHEY_PLAIN,2,CV_RGB(255,255,255));
     led_color = "black";
@@ -86,7 +88,7 @@ void turnOffLED()
 // ~~~~~~~~~~~~~~~ Debugging Visualization Parameters & Functions
 // ****************Circular queue for averaging over face scores
 
-const int MAX_AVERAGE_FACESCORE = 10;
+const int MAX_AVERAGE_FACESCORE = 5;
 class cqueue
 {
 public:
@@ -140,7 +142,7 @@ float_t cqueue::average(int arr[])
     return aver;
 }
 cqueue cq;
-std_msgs::Float32 average_fs;
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~Circular queue for averaging over face scores
 
 void electionResultsCallback(const autonomy_human::SortedNamespaces& msg)
