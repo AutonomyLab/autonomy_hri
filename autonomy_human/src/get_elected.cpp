@@ -61,11 +61,13 @@ void visualizeLed()
 void greenLED()
 {
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,255,0),-1);
+    circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,255,255),10);
     led_color = "green";
 }
 void redLED()
 {
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,0,0),-1);
+    circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,255,255),10);
     led_color = "red";
 }
 void blueLED()
@@ -73,10 +75,27 @@ void blueLED()
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,0,255),-1);
     led_color = "blue";
 }
-void highlightLED()
+void happyLED()
 {
-    //circle(led_vis,Point(lw_height/2,lw_width/2),50,CV_RGB(0,0,0),-1);
-    putText(led_vis,"FREEZE",Point(70,220),CV_FONT_HERSHEY_DUPLEX,2,CV_RGB(0,0,0));
+    clearWindow();
+    circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,255,0),-1);
+    char buff[25];
+    //sprintf(buff,"%d FaceSore", face_info.faceScore);
+    sprintf(buff,"%6.1f FaceSore",average_fs.data);
+    string str = buff;
+    putText(led_vis,str,Point(25,25),CV_FONT_HERSHEY_PLAIN,2,CV_RGB(255,255,255));
+    putText(led_vis,"Selected",Point(80,220),CV_FONT_HERSHEY_PLAIN,3,CV_RGB(255,255,255));
+}
+void sadLED()
+{
+    clearWindow();
+    circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,0,0),-1);
+    char buff[25];
+    //sprintf(buff,"%d FaceSore", face_info.faceScore);
+    sprintf(buff,"%6.1f FaceSore",average_fs.data);
+    string str = buff;
+    putText(led_vis,str,Point(25,25),CV_FONT_HERSHEY_PLAIN,2,CV_RGB(255,255,255));
+    putText(led_vis,"Rejected",Point(90,220),CV_FONT_HERSHEY_PLAIN,3,CV_RGB(255,255,255));
 }
 void turnOffLED()
 {
@@ -266,7 +285,8 @@ int main(int argc, char **argv)
                     if((strcmp(talker.speech.data.c_str(),"yes") == 0) && ((strcmp(led_color.c_str(),"green")==0) || (strcmp(led_color.c_str(),"red") == 0)))
                     {
                         check_election = false;
-                        highlightLED();
+                        if(strcmp(led_color.c_str(),"green")==0) happyLED();
+                        else sadLED();
                     }
                 }
             }
