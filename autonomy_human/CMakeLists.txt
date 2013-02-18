@@ -30,5 +30,6 @@ rosbuild_add_boost_directories()
 
 rosbuild_add_executable(autonomy_human src/autonomy_human.cpp)
 rosbuild_add_executable(get_elected src/get_elected.cpp)
+rosbuild_add_executable(get_elected_increamental src/get_elected_increamental.cpp)
 rosbuild_add_executable(test_flow src/test_flow.cpp)
 rosbuild_link_boost(autonomy_human thread)

@@ -4,7 +4,7 @@
 #include "std_msgs/Bool.h"
 #include "autonomy_human/human.h"
 #include "ros/time.h"
-#include "autonomy_human/SortedNamespaces.h"
+#include "autonomy_human/election.h"
 #include "std_msgs/Float32.h"
 
 #include <sstream>
@@ -105,6 +105,7 @@ void turnOffLED()
 
 
 // ~~~~~~~~~~~~~~~ Debugging Visualization Parameters & Functions
+
 // ****************Circular queue for averaging over face scores
 
 const int MAX_AVERAGE_FACESCORE = 5;
@@ -162,9 +163,9 @@ float_t cqueue::average(int arr[])
 }
 cqueue cq;
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~Circular queue for averaging over face scores
+// ~~~~~~~~~~~~~~~~~Circular queue for averaging over face scores
 
-void electionResultsCallback(const autonomy_human::SortedNamespaces& msg)
+void electionResultsCallback(const autonomy_human::election& msg) // Retreive Infromation from "election" topic.
 {
     //clearWindow();
     if(check_election)
@@ -177,10 +178,9 @@ void electionResultsCallback(const autonomy_human::SortedNamespaces& msg)
     }
 }
 
-void humanCallback(const autonomy_human::human& msg)
+void humanCallback(const autonomy_human::human& msg) // Get recent face score and put it in the faceScore to get average on FS
 {
     face_info.faceScore = msg.faceScore;
-    //face_info.header = msg.header;
     face_info.header.stamp = ros::Time::now();
     cq.insert(msg.faceScore);
     if(cq.full_arr)
@@ -191,7 +191,7 @@ void humanCallback(const autonomy_human::human& msg)
     ROS_INFO("My Face score: %d",face_info.faceScore);
 }
 
-void speechCallback (const std_msgs::String& msg)
+void speechCallback (const std_msgs::String& msg) // Speech commands
 {
     talker.speech.data = msg.data;
     talker.ts = ros::Time::now();
