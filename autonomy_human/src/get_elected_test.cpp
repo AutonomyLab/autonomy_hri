@@ -206,10 +206,12 @@ void humanCallback(const autonomy_human::human& msg) // Get recent face score an
         {
             average_fs.data = cq.average(cq.arr);
         }
-    }
-    else
+    } else if(!check_election && (robot_state == electedSTATE))
     {
         average_fs.data = -1;
+    } else if(!check_election && (robot_state == rejectedSTATE))
+    {
+         average_fs.data = cq.average(cq.arr);
     }
     ROS_INFO("My Average Face score: %f",average_fs.data);
     ROS_INFO("My Face score: %d",face_info.faceScore);
@@ -225,7 +227,7 @@ void speechCallback (const std_msgs::String& msg) // Speech commands
 void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsigned int& myposition)
 {
     iselected = false;
-    if (!sorted_ns.empty() && (myname == sorted_ns.at(0))) {
+    if (!sorted_ns.empty() && (myname == sorted_ns.at(0)) && valid_election && check_election && (number_robot > 0)) {
 
         iselected = true;
     }
@@ -275,6 +277,7 @@ void electedFunc()
 {
     if (last_state != electedSTATE) stateTime = ros::Time::now();
     check_election = false;
+    is_rejected = false;
     happyLED();
     // check if the election is reset or not
     if ((talker_last_ts.toSec() < SPEECH_TIMEOUT) &&     ((strcmp(talker.speech.data.c_str(),"start") == 0) ||
@@ -376,23 +379,6 @@ int main(int argc, char **argv)
             else robot_state = electedSTATE;
         }
 
-//        if((last_face_info.toSec() > FACESCORE_TIMEOUT) ) // No - It can not see any face
-//        {
-//            ROS_ERROR("Last seen face %f seconds ago",last_face_info.toSec()); // Get the expired face score
-//            robot_state = wait4FaceSTATE;
-//        }
-//        else // Yes - It can see a face!
-//        {
-//            ROS_ERROR("check election?   %d",check_election);
-
-//            if(check_election)
-//            {
-//                robot_state = wait4ElectionSTATE;
-//            }else
-//            {
-//                robot_state = electedSTATE;
-//            }
-//        }
 
         //********************* ROBOT STATE *********************
 

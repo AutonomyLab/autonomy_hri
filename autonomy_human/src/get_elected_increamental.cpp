@@ -211,7 +211,7 @@ void speechCallback (const std_msgs::String& msg) // Speech commands
 void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsigned int& myposition)
 {
     iselected = false;
-    if (!sorted_ns.empty() && (myname == sorted_ns.at(0))) iselected = true;
+    if (!sorted_ns.empty() && (myname == sorted_ns.at(0)) && check_election) iselected = true;
 }
 
 
