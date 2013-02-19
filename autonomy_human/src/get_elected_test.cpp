@@ -246,7 +246,7 @@ void wait4ElectionFunc()
     if (last_state != wait4ElectionSTATE) stateTime = ros::Time::now();
     check_election = true;
     // Does it get the recent election result?
-    if (last_election.toSec() > ELECTION_TIMEOUT || !valid_election)  // No - Either the election node is off or the result is too old
+    if (last_election.toSec() > ELECTION_TIMEOUT)  // No - Either the election node is off or the result is too old
     {
         ROS_ERROR("Last election happened %f seconds ago",last_election.toSec());
         is_elected = false;
