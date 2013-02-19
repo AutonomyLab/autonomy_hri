@@ -401,6 +401,7 @@ int main(int argc, char **argv)
         ROS_INFO("Robot State: >>> %s <<<", state_names[robot_state].c_str());
         ROS_INFO("Am I elected? [ %d ]",is_elected);
          ROS_INFO("Am I rejected? [ %d ]",is_elected);
+         ROS_ERROR("Averege Face Score: [%f] ", average_fs.data);
         aver_faceScore_pub.publish(average_fs);
         ros::spinOnce();
         loop_rate.sleep();
