@@ -20,7 +20,7 @@ using namespace std;
 using namespace cv;
 #define ELECTION_TIMEOUT 0.5
 #define FACESCORE_TIMEOUT 0.5
-#define SPEECH_TIMEOUT 200
+#define SPEECH_TIMEOUT 1
 
 struct Talker
 {
@@ -28,13 +28,29 @@ struct Talker
     ros::Time ts;
 }talker;
 
+enum
+{
+    wait4FaceSTATE,
+    wait4ElectionSTATE,
+    electedSTATE,
+}robot_state, last_state;
+
+string state_names[4] =
+{
+    "Looking for Face",
+    "Waiting for election msg",
+    "Elected",
+};
+
 int32_t number_robot;
 vector<string> sorted_namespaces;
-ros::Time election_time;
+ros::Time election_time, stateTime;
+ros::Duration last_election, last_face_info, talker_last_ts;
 autonomy_human::human face_info;
-bool check_election;
-bool restart_election;
+bool check_election, restart_election, is_elected, valid_election;
 std_msgs::Float32 average_fs;
+string my_name;
+unsigned int my_position;
 
 // ************** Debugging Visualization Parameters & Functions
 bool show_viz = true;
@@ -172,13 +188,9 @@ void electionResultsCallback(const autonomy_human::election& msg) // Retreive In
         number_robot = msg.num_robot;
         sorted_namespaces = msg.namespaces;
         election_time = msg.header.stamp;
+        if(msg.is_valid) valid_election = true;
+        else if(!msg.is_valid) valid_election = false;
         ROS_INFO("The User wants: [ %d ]  robots",number_robot);
-        if(msg.is_valid)
-        {
-            restart_election = true;
-            check_election = true;
-        }
-        else if(!msg.is_valid) restart_election = false;
 }
 
 void humanCallback(const autonomy_human::human& msg) // Get recent face score and put it in the faceScore to get average on FS
@@ -211,7 +223,65 @@ void speechCallback (const std_msgs::String& msg) // Speech commands
 void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsigned int& myposition)
 {
     iselected = false;
-    if (!sorted_ns.empty() && (myname == sorted_ns.at(0))) iselected = true;
+    if (!sorted_ns.empty() && (myname == sorted_ns.at(0))) {
+
+        iselected = true;
+    }
+}
+
+void wait4FaceFunc()
+{
+    if (last_state != wait4FaceSTATE) stateTime = ros::Time::now();
+    face_info.faceScore = 0;
+    turnOffLED();
+    last_state = wait4FaceSTATE;
+}
+
+void wait4ElectionFunc()
+{
+    if (last_state != wait4ElectionSTATE) stateTime = ros::Time::now();
+    check_election = true;
+    // Does it get the recent election result?
+    if (last_election.toSec() > ELECTION_TIMEOUT || !valid_election)  // No - Either the election node is off or the result is too old
+    {
+        ROS_ERROR("Last election happened %f seconds ago",last_election.toSec());
+        is_elected = false;
+        blueLED();
+    }
+    else  // Yes - It can get proper election result --> Everything is ready for decision on election.
+    {
+        redLED();
+        isElected(sorted_namespaces,my_name,is_elected,my_position);
+        if(is_elected) //if already elected
+        {
+            robot_state = electedSTATE;
+            check_election = false;
+        }
+    }
+
+    last_state = wait4ElectionSTATE;
+}
+
+void electedFunc()
+{
+    if (last_state != electedSTATE) stateTime = ros::Time::now();
+    check_election = false;
+    happyLED();
+    // check if the election is reset or not
+    if ((talker_last_ts.toSec() < SPEECH_TIMEOUT) &&     ((strcmp(talker.speech.data.c_str(),"start") == 0) ||
+                                                            (strcmp(talker.speech.data.c_str(),"start election") == 0) ||
+                                                            (strcmp(talker.speech.data.c_str(),"restart election") == 0) ||
+                                                            (strcmp(talker.speech.data.c_str(),"restart") == 0) ||
+                                                            (strcmp(talker.speech.data.c_str(),"again") == 0)))// if yes --> reset the election
+    {
+        is_elected = false;
+        restart_election = true;
+        check_election = true;
+        robot_state = wait4FaceSTATE;
+        number_robot = 0;
+        talker.speech.data.clear();
+    }
+    last_state = electedSTATE;
 }
 
 
@@ -220,6 +290,9 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "get_elected");
     ros::NodeHandle nh;
     ros::Time _now = ros::Time::now();
+    stateTime = ros::Time::now();
+    robot_state = wait4FaceSTATE;
+    last_state = wait4FaceSTATE;
 
     namedWindow(lw_window); //visualization
     clearWindow(); //visualization
@@ -227,9 +300,9 @@ int main(int argc, char **argv)
     check_election = true;
     restart_election = true;
 
-    string my_name = "Shokoofeh"; // default name
-    unsigned int my_position = 0;
-    bool is_elected = false;
+    my_name = "Shokoofeh"; // default name
+    my_position = 0;
+    is_elected = false;
     ros::param::get("~myName", my_name); // myName gets the robot name from user.
     face_info.faceScore = 0; // default face score
 
@@ -241,64 +314,45 @@ int main(int argc, char **argv)
 
     while(ros::ok())
     {
-        ROS_INFO("My name is: [ %s ]",my_name.c_str());
-        ros::Duration last_election = ros::Time::now() - election_time;
-        ros::Duration last_face_info = ros::Time::now() - face_info.header.stamp;
-        ros::Duration talker_last_ts = ros::Time::now() - talker.ts;
+        last_election = ros::Time::now() - election_time;
+        last_face_info = ros::Time::now() - face_info.header.stamp;
+        talker_last_ts = ros::Time::now() - talker.ts;
         if(show_viz) visualizeLed();
 
-        if(check_election){
+        if((last_face_info.toSec() > FACESCORE_TIMEOUT) ) // No - It can not see any face
+        {
+            ROS_ERROR("Last seen face %f seconds ago",last_face_info.toSec()); // Get the expired face score
+            robot_state = wait4FaceSTATE;
+        }
+        else // Yes - It can see a face!
+        {
+            ROS_ERROR("check election?   %d",check_election);
 
-            // Can it see a face?
-                if((last_face_info.toSec() > FACESCORE_TIMEOUT) || (face_info.faceScore == 0)) // No - It can not see any face
-               {
-                    face_info.faceScore = 0;
-                    turnOffLED();
-                    if (last_face_info.toSec() > FACESCORE_TIMEOUT) ROS_ERROR("Last seen face %f seconds ago",last_face_info.toSec()); // Get the expired face score
-                }
-                else // Yes - It can see a face!
-                {
-                    // Does it get the recent election result?
-                    if (last_election.toSec() > ELECTION_TIMEOUT)  // No - Either the election node is off or the result is too old
-                    {
-                        ROS_ERROR("Last election happened %f seconds ago",last_election.toSec());
-                        is_elected = false;
-                        blueLED();
-                    }
-                    else // Yes - It can get proper election result --> Everything is ready for decision on election.
-                    {
-                        // check if the election is reset or not
-                        if ((talker_last_ts.toSec() < SPEECH_TIMEOUT) &&     ((strcmp(talker.speech.data.c_str(),"start") == 0) ||
-                                                                                (strcmp(talker.speech.data.c_str(),"start election") == 0) ||
-                                                                                (strcmp(talker.speech.data.c_str(),"restart election") == 0) ||
-                                                                                (strcmp(talker.speech.data.c_str(),"restart") == 0) ||
-                                                                                (strcmp(talker.speech.data.c_str(),"again") == 0))
-                            )// if yes --> reset the election
-                        {
-                            is_elected = false;
-                            restart_election = true;
-                            check_election = true;
-                        }
+            if(check_election)
+            {
+                robot_state = wait4ElectionSTATE;
+            }else
+            {
+                robot_state = electedSTATE;
+            }
+        }
 
-                         else   // if not --> continue the election process
-                        {
-                            //check to see if it is already elected or not
-                            isElected(sorted_namespaces,my_name,is_elected,my_position);
-                            if(is_elected) //if already elected
-                            {
-                                check_election = false;
-                                happyLED();
-                            }
-                            else //if not elected
-                            {
-                                redLED();
-                            }
-                        }
-                    }
-                }
+        //********************* ROBOT STATE *********************
+
+        if (robot_state == wait4FaceSTATE)
+        {
+            wait4FaceFunc();
+        } else if (robot_state == wait4ElectionSTATE)
+        {
+            wait4ElectionFunc();
+        } else if (robot_state == electedSTATE)
+        {
+            electedFunc();
         }
 
 
+        ROS_INFO("***************************************************");
+        ROS_INFO("Robot State: >>> %s <<<", state_names[robot_state].c_str());
         ROS_INFO("Am I elected? [ %d ]",is_elected);
         aver_faceScore_pub.publish(average_fs);
         ros::spinOnce();
@@ -306,5 +360,6 @@ int main(int argc, char **argv)
     }
     return 0;
 }
+
 
 

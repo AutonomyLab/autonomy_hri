@@ -26,7 +26,7 @@
         <param name="autosize" value="true" />
         <remap from="image" to="output_rgb_debug" />
       </node>
-      <node pkg="autonomy_human" name="get_elected" type="get_elected_increamental" output="screen" cwd="node">
+      <node pkg="autonomy_human" name="get_elected" type="get_elected_test" output="screen" cwd="node">
         <param name="myName" value="$(arg namespace)"/>
       </node>
       <node pkg="uvc_camera" type="camera_node" name="uvc_camera" output="screen">
