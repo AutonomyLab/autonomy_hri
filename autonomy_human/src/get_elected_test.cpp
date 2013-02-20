@@ -52,7 +52,7 @@ autonomy_human::human face_info;
 bool check_election, restart_election, is_elected, valid_election, is_rejected;
 std_msgs::Float32 average_fs;
 string my_name;
-unsigned int my_position;
+unsigned int my_position, elected_counter, rejected_counter;
 
 // ************** Debugging Visualization Parameters & Functions
 bool show_viz = true;
@@ -208,10 +208,10 @@ void humanCallback(const autonomy_human::human& msg) // Get recent face score an
         }
     } else if(!check_election && (robot_state == electedSTATE))
     {
-        average_fs.data = -1;
+        average_fs.data = -cq.average(cq.arr);;
     } else if(!check_election && (robot_state == rejectedSTATE))
     {
-         average_fs.data = cq.average(cq.arr);
+         average_fs.data = 0;
     }
     ROS_INFO("My Average Face score: %f",average_fs.data);
     ROS_INFO("My Face score: %d",face_info.faceScore);
@@ -227,9 +227,27 @@ void speechCallback (const std_msgs::String& msg) // Speech commands
 void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsigned int& myposition)
 {
     iselected = false;
-    if (!sorted_ns.empty() && (myname == sorted_ns.at(0)) && valid_election && check_election && (number_robot > 0)) {
-
+    if (!sorted_ns.empty() && (myname == sorted_ns.front()) && valid_election && check_election && (number_robot > 0)) {
+        elected_counter += 1;
+        ROS_INFO("Elected Counter:    %d", elected_counter);
+        if(elected_counter > 5)
+        {
         iselected = true;
+        }
+    }
+}
+
+void isRejected(vector<string> sorted_ns, string& myname, bool& isrejected)
+{
+    isrejected = false;
+    if (!sorted_ns.empty() && (myname == sorted_ns.back()))
+    {
+        rejected_counter = rejected_counter + 1;
+        ROS_INFO("Rejected Counter:    %d", rejected_counter);
+        if(rejected_counter > 5)
+        {
+        isrejected = true;
+        }
     }
 }
 
@@ -258,15 +276,17 @@ void wait4ElectionFunc()
         isElected(sorted_namespaces,my_name,is_elected,my_position);
         if(is_elected) //if already elected
         {
-            if(!is_rejected)
-            {
-                robot_state = electedSTATE;
-                check_election = false;
-            } else
-            {
-                robot_state = rejectedSTATE;
-                check_election = false;
-            }
+            robot_state = electedSTATE;
+            check_election = false;
+//            if(!is_rejected)
+//            {
+//                robot_state = electedSTATE;
+//                check_election = false;
+//            } else
+//            {
+//                robot_state = rejectedSTATE;
+//                check_election = false;
+//            }
         }
     }
 
@@ -289,16 +309,23 @@ void electedFunc()
         is_elected = false;
         is_rejected = false;
         restart_election = true;
+        rejected_counter = 0;
         check_election = true;
         robot_state = wait4FaceSTATE;
+        elected_counter = 0;
         number_robot = 0;
         talker.speech.data.clear();
     } else if ((talker_last_ts.toSec() < SPEECH_TIMEOUT) &&     ((strcmp(talker.speech.data.c_str(),"not you") == 0)))
     {
-        talker.speech.data.clear();
-        is_rejected = true;
-        sadLED();
-        robot_state = rejectedSTATE;
+        isRejected(sorted_namespaces,my_name,is_rejected);
+        if (is_rejected)
+        {
+            talker.speech.data.clear();
+            sadLED();
+            //elected_counter = 0;
+            robot_state = rejectedSTATE;
+        }
+
     }
     last_state = electedSTATE;
 }
@@ -321,6 +348,8 @@ void rejectedFunc()
         restart_election = true;
         check_election = true;
         robot_state = wait4FaceSTATE;
+        rejected_counter = 0;
+        elected_counter = 0;
         number_robot = 0;
         talker.speech.data.clear();
     }
@@ -342,6 +371,8 @@ int main(int argc, char **argv)
     turnOffLED();
     check_election = true;
     restart_election = true;
+    elected_counter = 0;
+    rejected_counter = 0;
 
     my_name = "Shokoofeh"; // default name
     my_position = 0;

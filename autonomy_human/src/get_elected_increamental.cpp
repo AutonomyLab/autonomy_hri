@@ -215,6 +215,8 @@ void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsign
 }
 
 
+
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "get_elected");
