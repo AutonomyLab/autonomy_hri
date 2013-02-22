@@ -22,6 +22,9 @@ using namespace cv;
 #define FACESCORE_TIMEOUT 0.5
 #define SPEECH_TIMEOUT 1
 
+const unsigned int MAX_AVERAGE_ELECTION = 3;
+const unsigned int MAX_AVERAGE_FACESCORE = 5;
+
 struct Talker
 {
     std_msgs::String speech;
@@ -127,7 +130,7 @@ void turnOffLED()
 
 // ****************Circular queue for averaging over face scores
 
-const int MAX_AVERAGE_FACESCORE = 5;
+
 class cqueue
 {
 public:
@@ -173,7 +176,7 @@ float_t cqueue::average(int arr[])
 {
     float_t aver;
     int sum = 0;
-    for(int i = 0; i < MAX_AVERAGE_FACESCORE;i++)
+    for(unsigned int i = 0; i < MAX_AVERAGE_FACESCORE;i++)
     {
         sum = sum + arr[i];
     }
@@ -230,7 +233,7 @@ void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsign
     if (!sorted_ns.empty() && (myname == sorted_ns.front()) && valid_election && check_election && (number_robot > 0)) {
         elected_counter += 1;
         ROS_INFO("Elected Counter:    %d", elected_counter);
-        if(elected_counter > 5)
+        if(elected_counter > MAX_AVERAGE_ELECTION)
         {
         iselected = true;
         }
@@ -244,7 +247,7 @@ void isRejected(vector<string> sorted_ns, string& myname, bool& isrejected)
     {
         rejected_counter = rejected_counter + 1;
         ROS_INFO("Rejected Counter:    %d", rejected_counter);
-        if(rejected_counter > 5)
+        if(rejected_counter > MAX_AVERAGE_ELECTION)
         {
         isrejected = true;
         }
