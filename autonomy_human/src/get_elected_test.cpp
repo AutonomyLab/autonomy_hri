@@ -203,20 +203,6 @@ void humanCallback(const autonomy_human::human& msg) // Get recent face score an
     face_info.faceScore = msg.faceScore;
     face_info.header.stamp = ros::Time::now();
     cq.insert(msg.faceScore);
-    if(check_election)
-    {
-        if(cq.full_arr)
-        {
-            average_fs.data = cq.average(cq.arr);
-        }
-    } else if(!check_election && (robot_state == electedSTATE))
-    {
-        average_fs.data = -cq.average(cq.arr);;
-    } else if(!check_election && (robot_state == rejectedSTATE))
-    {
-         average_fs.data = 0;
-    }
-    ROS_INFO("My Average Face score: %f",average_fs.data);
     ROS_INFO("My Face score: %d",face_info.faceScore);
 }
 
@@ -225,6 +211,26 @@ void speechCallback (const std_msgs::String& msg) // Speech commands
     talker.speech.data = msg.data;
     talker.ts = ros::Time::now();
     ROS_INFO("*********************  I heard: %s",talker.speech.data.c_str());
+}
+
+void aveFacescoreFunc(){
+    if(check_election)
+    {
+        if(cq.full_arr)
+        {
+            average_fs.data = cq.average(cq.arr);
+        }else
+        {
+             average_fs.data = 0;
+        }
+    } else if(!check_election && (robot_state == electedSTATE))
+    {
+        average_fs.data = -cq.average(cq.arr);;
+    } else if(!check_election && (robot_state == rejectedSTATE))
+    {
+         average_fs.data = 0;
+    }
+    ROS_INFO("My Face score: %d",face_info.faceScore);
 }
 
 void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsigned int& myposition)
@@ -318,6 +324,7 @@ void electedFunc()
         elected_counter = 0;
         number_robot = 0;
         talker.speech.data.clear();
+        cq.empty();
     } else if ((talker_last_ts.toSec() < SPEECH_TIMEOUT) &&     ((strcmp(talker.speech.data.c_str(),"not you") == 0)))
     {
         isRejected(sorted_namespaces,my_name,is_rejected);
@@ -355,6 +362,7 @@ void rejectedFunc()
         elected_counter = 0;
         number_robot = 0;
         talker.speech.data.clear();
+        cq.empty();
     }
     last_state = rejectedSTATE;
 }
@@ -396,6 +404,7 @@ int main(int argc, char **argv)
         last_face_info = ros::Time::now() - face_info.header.stamp;
         talker_last_ts = ros::Time::now() - talker.ts;
         if(show_viz) visualizeLed();
+        aveFacescoreFunc();
 
         if(check_election){
             if((last_face_info.toSec() > FACESCORE_TIMEOUT) ) // No - It can not see any face
