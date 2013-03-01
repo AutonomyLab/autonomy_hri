@@ -49,6 +49,8 @@ private:
     KalmanFilter MLSearch; // Maximum Likelihood Search for multiple faces
 	Mat state; // x,y,xdot,ydot,w,h
 	Mat measurement;
+    float pCovScalar;
+    float mCovScalar;
 	
 	// State Machine	
 	int stateCounter;
@@ -121,6 +123,7 @@ private:
 	
 public:
     CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
+                  float _pCov, float _mCov,
                   int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                   int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
                   bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
@@ -156,12 +159,15 @@ public:
 // KFTracker = new KalmanFilter(6, 4, 0);
 // MLSearch = new KalmanFilter(6, 4, 0);
 CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
+                             float _pCov, float _mCov,
                              int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                              int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
                              bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
                              unsigned short int _debugLevel)
     : KFTracker(6, 4, 0)
     , MLSearch(6, 4, 0)
+    , pCovScalar(_pCov)
+    , mCovScalar(_mCov)
     , stateCounter(0)
     , initialScoreMin(_initialScoreMin)
     , minDetectFrames(_initialDetectFrames)
@@ -291,8 +297,8 @@ void CHumanTracker::resetKalmanFilter()
 	
     setIdentity(KFTracker.errorCovPre, Scalar_<float>::all(1e2));
     setIdentity(KFTracker.errorCovPost, Scalar_<float>::all(1e2));
-    setIdentity(KFTracker.processNoiseCov, Scalar_<float>::all(0.05));
-    setIdentity(KFTracker.measurementNoiseCov, Scalar_<float>::all(1.0));
+    setIdentity(KFTracker.processNoiseCov, Scalar_<float>::all(pCovScalar));
+    setIdentity(KFTracker.measurementNoiseCov, Scalar_<float>::all(mCovScalar));
 
 	copyKalman(KFTracker, MLSearch);
 			
@@ -1092,7 +1098,12 @@ int main(int argc, char **argv)
     ros::param::param("~max_face_width", p_maxFaceSizeW, 60);
     ros::param::param("~max_face_height", p_maxFaceSizeH, 80);
 
+    float p_mCov, p_pCov;
+    ros::param::param("~meas_cov", p_mCov, 1.0);
+    ros::param::param("~proc_cov", p_pCov, 0.05);
+
     CHumanTracker humanTracker(p_xmlFile, p_xmlFileProfile,
+                               p_pCov, p_mCov,
                                p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
                                p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
                                p_profileFaceEnabled, p_skinEnabled, p_gestureEnabled,
