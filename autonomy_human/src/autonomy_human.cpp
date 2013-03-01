@@ -1098,7 +1098,7 @@ int main(int argc, char **argv)
     ros::param::param("~max_face_width", p_maxFaceSizeW, 60);
     ros::param::param("~max_face_height", p_maxFaceSizeH, 80);
 
-    float p_mCov, p_pCov;
+    double p_mCov, p_pCov;
     ros::param::param("~meas_cov", p_mCov, 1.0);
     ros::param::param("~proc_cov", p_pCov, 0.05);
 
