@@ -8,6 +8,7 @@
 #include "ros/time.h"
 #include "autonomy_human/election.h"
 #include "std_msgs/Float32.h"
+#include "ardrone_autonomy/LedAnim.h"
 
 #include <sstream>
 #include <vector>
@@ -56,6 +57,47 @@ bool check_election, restart_election, is_elected, valid_election, is_rejected;
 std_msgs::Float32 average_fs;
 string my_name;
 unsigned int my_position, elected_counter, rejected_counter;
+ardrone_autonomy::LedAnim ardrone_led;
+ros::ServiceClient led_serv;
+
+void playLEDAnimation(const int _type, const int _duration, const float _freq )
+{
+    ROS_INFO("HERE");
+    ardrone_autonomy::LedAnim ledAnim;
+    static bool isFirst = true;
+    static ros::Time lastRequest;
+    static int lastDuration;
+
+    if (isFirst)
+    {
+        lastRequest = ros::Time::now();
+        lastDuration = -1;
+        isFirst = false;
+    }
+    else
+    {
+        // Return if still executing last animation
+        if ( (ros::Time::now() - lastRequest) < ros::Duration( ((double) lastDuration) - 0.25)) return;
+    }
+
+
+    ledAnim.request.type = _type;
+    ledAnim.request.duration = _duration;
+    ledAnim.request.freq = _freq;
+
+    lastRequest = ros::Time::now();
+    lastDuration = _duration;
+
+    if (led_serv)
+    {
+        led_serv.call(ledAnim);
+    }
+    else
+    {
+        ROS_WARN("Led Animation Service not working!");
+    }
+
+}
 
 // ************** Debugging Visualization Parameters & Functions
 bool show_viz = true;
@@ -91,6 +133,7 @@ void greenLED()
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,255,0),-1);
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,255,255),10);
     led_color = "green";
+    playLEDAnimation( 8, 1, 1.0);
 }
 void redLED()
 {
@@ -98,18 +141,21 @@ void redLED()
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,0,0),-1);
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,255,255),10);
     led_color = "red";
+    playLEDAnimation( 7, 1, 1.0);
 }
 void blueLED()
 {
     showFaceScore();
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,0,255),-1);
     led_color = "blue";
+    playLEDAnimation( 3, 1, 1.0);
 }
 void happyLED()
 {
     showFaceScore();
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,255,0),-1);
     putText(led_vis,"Selected",Point(80,220),CV_FONT_HERSHEY_PLAIN,3,CV_RGB(255,255,255));
+    playLEDAnimation( 8, 1, 1.0);
 }
 void sadLED()
 {
@@ -123,7 +169,7 @@ void turnOffLED()
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(0,0,0),-1);
     led_color = "black";
     putText(led_vis,"No Face!",Point(80,220),CV_FONT_HERSHEY_PLAIN,3,CV_RGB(255,255,255));
-
+    playLEDAnimation( 2, 1, 1.0);
 }
 
 // ~~~~~~~~~~~~~~~ Debugging Visualization Parameters & Functions
@@ -212,6 +258,8 @@ void speechCallback (const std_msgs::String& msg) // Speech commands
     talker.ts = ros::Time::now();
     ROS_INFO("*********************  I heard: %s",talker.speech.data.c_str());
 }
+
+
 
 void aveFacescoreFunc(){
     if(check_election)
@@ -396,6 +444,7 @@ int main(int argc, char **argv)
     ros::Subscriber election_sub=nh.subscribe("/election",10,electionResultsCallback);
     ros::Subscriber human_sub=nh.subscribe("human",10,humanCallback);
     ros::Subscriber speech_sub=nh.subscribe("/recognizer/output",10,speechCallback);
+    led_serv = nh.serviceClient<ardrone_autonomy::LedAnim>("ardrone/setledanimation");
     ros::Rate loop_rate(10);
 
     while(ros::ok())
