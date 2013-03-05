@@ -62,7 +62,6 @@ ros::ServiceClient led_serv;
 
 void playLEDAnimation(const int _type, const int _duration, const float _freq )
 {
-    ROS_INFO("HERE");
     ardrone_autonomy::LedAnim ledAnim;
     static bool isFirst = true;
     static ros::Time lastRequest;
