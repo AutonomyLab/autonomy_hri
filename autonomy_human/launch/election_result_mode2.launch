@@ -7,12 +7,12 @@
         <param name="profile_hack_enabled" value="false" />
         <param name="skin_enabled" value="false" />
         <param name="gesture_enabled" value="false" />
-        <param name="initial_min_score" value="5" />
+        <param name="initial_min_score" value="2" />
         <param name="initial_detect_frames" value="6" />
         <param name="initial_reject_frames" value="6" />
         <param name="min_flow" value="10" />
-        <param name="min_face_width" value="6" />
-        <param name="min_face_height" value="9" />
+        <param name="min_face_width" value="2" />
+        <param name="min_face_height" value="3" />
         <param name="max_face_width" value="90" />
         <param name="max_face_height" value="120" />
         <param name="debug_mode" value="2" />
