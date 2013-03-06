@@ -5,12 +5,14 @@
 #include <sensor_msgs/RegionOfInterest.h>
 #include <std_msgs/Header.h>
 
-#include "opencv2/objdetect/objdetect.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/video/tracking.hpp"
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/video/tracking.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
 
-#include <boost/thread.hpp>
+//#include <boost/thread.hpp>
 
 #include "autonomy_human/human.h"
 
@@ -33,6 +35,13 @@ public:
 		REG_TOPRIGHT = 1,
         REG_NUM = 2
 	};
+
+    enum _stablizationMethods {
+        STABLIZE_OFF = 0,
+        STABLIZE_MEDIAN,
+        STABLIZE_HOMOGRAPHY,
+        STABLIZAE_NUM
+    };
 	
 private:
 	int iWidth;
@@ -120,14 +129,14 @@ private:
     // Let's use OpenCV Smart Pointers to old data structures
     cv::Ptr<CvMemStorage> storage;
     cv::Ptr<CvMemStorage> storageProfile;
-	
+
 public:
     CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
                   float _pCov, float _mCov,
                   int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                   int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
                   bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
-                  unsigned short int _debugLevel);
+                  unsigned short int _debugLevel, unsigned int _stablization);
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
@@ -145,6 +154,7 @@ public:
 	bool isFaceInCurrentFrame;
 	
 	bool shouldPublish;
+    unsigned int stablization;
 	
 	/*
 	 * Drone Point of View, Face in center
@@ -153,6 +163,10 @@ public:
  	 */
     Rect gestureRegion[2];
     float flowScoreInRegion[2];
+
+    //TODO: remove this
+    double dummy;
+
 };
 
 //
@@ -163,7 +177,7 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
                              int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                              int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
                              bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
-                             unsigned short int _debugLevel)
+                             unsigned short int _debugLevel, unsigned int _stablization)
     : KFTracker(6, 4, 0)
     , MLSearch(6, 4, 0)
     , pCovScalar(_pCov)
@@ -186,7 +200,8 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
     , storageProfile(cvCreateMemStorage(0))
     , isInited(false)
     , trackingState(STATE_LOST)
-    , shouldPublish(false)    
+    , shouldPublish(false)
+    , stablization(_stablization)
 {	
 		
 	strStates[0] = "NOFACE";
@@ -209,6 +224,8 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
     }
 		
     isFaceInCurrentFrame = false;
+
+    dummy = 0.0;
 }
 
 CHumanTracker::~CHumanTracker()
@@ -775,8 +792,8 @@ void CHumanTracker::calcOpticalFlow()
 	if (!perform) return;
 	
     Mat rawFrameResized;
-    double fx = 0.5;
-    double fy = 0.5;
+    const double fx = 0.5;
+    const double fy = 0.5;
     resize(rawFrame, rawFrameResized, Size(), fx, fy,  INTER_LINEAR);
 
 	if (first)
@@ -803,10 +820,25 @@ void CHumanTracker::calcOpticalFlow()
 	// TODO: Optimization here
     Mat _i1 = prevRawFrameGray;//(flowROI);
     Mat _i2 = rawFramGray;//(flowROI);
-	//calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 50, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);		
-	calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);		
+
+    int flags = OPTFLOW_USE_INITIAL_FLOW;
+    if (firstCancel) {
+        flags = 0;
+        firstCancel = false;
+    }
+    calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 20, 3, 9, 1.9, flags);//OPTFLOW_USE_INITIAL_FLOW);
 	std::vector<Mat> flowChannels;
 	split(flow, flowChannels);
+
+    // This mask is very important because zero-valued elements
+    // Should not be taken into account
+    Mat maskX;
+    Mat maskY;
+    Mat maskFull;
+
+    maskX = abs(flowChannels[0]) > 0.01;
+    maskY = abs(flowChannels[1]) > 0.01;
+    bitwise_and(maskX, maskY, maskFull);
 
 	// Gesture regions update	
 	gestureRegion[REG_TOPLEFT].x = flowROI.x;
@@ -824,19 +856,20 @@ void CHumanTracker::calcOpticalFlow()
     safeRectToImage(gestureRegion[REG_TOPRIGHT], fx, fy);
 
     // Cancel Ego Motion & Face bias As much As possible
-	if (true) //(cancelCameraMovement)
-	{
-		/* Experimental */
-		// This mask is very important because zero-valued elements
-		// Should not be taken into account
-		Mat maskX;
-		Mat maskY;
+    int _row = 0;
+    int _col = 0;
+    std::vector<cv::Point2f> prev;
+    std::vector<cv::Point2f> curr;
+    std::vector<cv::Point2f> prev_stab;
+    Mat homography = Mat::eye(3, 3, CV_32F);
 
-        maskX = abs(flowChannels[0]) > 0.01;
-		maskY = abs(flowChannels[1]) > 0.01;
-		           
-		// The possible hand regions are not sampled for flow compenstation
-        // Initially we use inverted mask here
+    magnitude(flowChannels[0], flowChannels[1], flowMag);
+
+    ROS_INFO("Sum Mag Before: %6.f", sum(flowMag)[0]);
+    if (stablization == STABLIZE_MEDIAN) {
+
+//		// The possible hand regions are not sampled for flow compenstation
+//        // Initially we use inverted mask here
         Mat maskRegions = Mat::ones(maskX.rows, maskX.cols, CV_8UC1);
         Mat maskAugmentedX = Mat::ones(maskX.rows, maskX.cols, CV_8UC1);;
         Mat maskAugmentedY = Mat::ones(maskY.rows, maskY.cols, CV_8UC1);;
@@ -855,18 +888,17 @@ void CHumanTracker::calcOpticalFlow()
         float medX = calcMedian(flowChannels[0], 25, minX, maxX, maskAugmentedX);
         float medY = calcMedian(flowChannels[1], 25, minY, maxY, maskAugmentedY);
 	
-//		ROS_INFO("Number of channls: %d", flowChannels.size());
-//        ROS_INFO("Ego");
-//        ROS_INFO("X: <%6.4lf..%6.4lf> Y: <%6.4lf..%6.4lf>", minX, maxX, minY, maxY);
-//        ROS_INFO("Median X: %6.4f Y: %6.4f", medX, medY);
+////		ROS_INFO("Number of channls: %d", flowChannels.size());
+////        ROS_INFO("Ego");
+////        ROS_INFO("X: <%6.4lf..%6.4lf> Y: <%6.4lf..%6.4lf>", minX, maxX, minY, maxY);
+////        ROS_INFO("Median X: %6.4f Y: %6.4f", medX, medY);
 		
-        // Canceling Flow for all valid regions
+//        // Canceling Flow for all valid regions
         add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskX);
         add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskY);
 
-        // Face Bias
-        if (trackingState == STATE_TRACK)
-        {
+//        // Face Bias
+        if (trackingState == STATE_TRACK) {
             Rect fROI = faces.at(0);
             fROI.x *= fx;
             fROI.y *= fy;
@@ -893,50 +925,66 @@ void CHumanTracker::calcOpticalFlow()
             add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskAugmentedX);
             add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskAugmentedY);
         }
+    } else if (stablization == STABLIZE_HOMOGRAPHY) {
+        for (_row = 0; _row < flow.rows; _row += 1) {
+            for (_col = 0; _col < flow.cols; _col += 1) {
+                if (maskFull.at<uchar>(_row, _col) == 0) continue;
+                const Point2f& prev_point = (1.0 / fx) * (Point2f(_col, _row) - flow.at<Point2f>(_row, _col));
+                const Point2f& curr_point = (1.0 / fx) * Point2f(_col, _row);
+                prev.push_back(prev_point);
+                curr.push_back(curr_point);
+            }
+        }
 
+        homography = findHomography(prev, curr, CV_RANSAC, 5);
+
+        //        cv::warpPerspective(_i1, _i1, homography, Size(_i1.cols, _i1.rows), cv::WARP_INVERSE_MAP);
+        //        cv::warpPerspective(_i2, _i2, homography, Size(_i2.cols, _i2.rows), cv::WARP_INVERSE_MAP);
+        //        calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);
+        //        split(flow, flowChannels);
+
+        perspectiveTransform(curr, prev_stab, homography.inv());
+
+
+        for (unsigned int i = 0; i < curr.size(); i++)
+        {
+//            std::cout << "Current: " << curr[i] << std::endl;
+//            std::cout << "Prev Stab: " << prev_stab[i] << std::endl;
+            const Point2f& flow_extra = curr[i] - prev_stab[i];
+//            std::cout << "Extra Flow: " << flow_extra << std::endl;
+            const unsigned int _row = curr[i].y * fy;
+            const unsigned int _col = curr[i].x * fx;
+//            std::cout << "Current Flow: " << flow.at<Point2f>(_row, _col) << std::endl;
+//            ROS_INFO("Decreasing the flow at %3d %3d from %4.2f %4.2f by %4.2f %4.2f",
+//                     _row, _col,
+//                     flowChannels[1].at<float>(_row, _col),
+//                     flowChannels[0].at<float>(_row, _col),
+//                     flow_extra.y, flow_extra.x);
+//            if (
+//                ((flowChannels[0].at<float>(_row, _col) * flow_extra.x) > 0) &&
+//                ((flowChannels[1].at<float>(_row, _col) * flow_extra.y) > 0)
+//                ) cc++;
+            flowChannels[0].at<float>(_row, _col) -= (flow_extra.x * fx);
+            flowChannels[1].at<float>(_row, _col) -= (flow_extra.y * fy);
+        }
+//        ROS_INFO("T: %5d / %5d", cc, curr.size());
+//        for (_row = 0; _row < flow.rows; _row++) {
+//            for (_col = 0; _col < flow.cols; _col++) {
+//                flowChannels[0].at<float>(_row, _col) = prev_stab
+//            }
+//        }
 	}
 	magnitude(flowChannels[0], flowChannels[1], flowMag);
+    ROS_INFO("Sum Mag After: %6.f", sum(flowMag)[0]);
+
 	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
-	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
+
+    // Big Question: Why does the below line make the signal so weak?
+//	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
 		
 	float biasInFlow;	
 	Rect r;
-	if (false)//(cancelCameraMovement)
-	{		
-		if (firstCancel)
-		{
-			prevFaceRect = faces[0];
-			firstCancel = false;
-		}
-		else
-		{
-			Mat curFace = rawFramGray(faces[0]);
-			Mat prevFace = prevRawFrameGray(prevFaceRect);
-			prevFaceRect = faces[0];
-		}
-		r = faces[0];
-		r.x = faces[0].x - flowROI.x;
-		r.y = faces[0].y - flowROI.y;		
-		biasInFlow = mean(flowMag(r))[0];
-		
-		Point2d fCenter;				
-		fCenter.x = (r.x + r.width/2.0);
-		fCenter.y = (r.y + r.height/2.0);
-		for (int y = 0; y < flowMag.rows; y++)
-		{
-			for (int x = 0; x < flowMag.cols; x++)
-			{
-				float rad = sqrt( pow(x - fCenter.x, 2) + pow(y - fCenter.y, 2));
-				if (fabs(flowMag.at<float>(y,x)) > 0.01)
-				{
-					flowMag.at<float>(y,x) = max<float>(0.0, flowMag.at<float>(y,x) - (rad * biasInFlow));
-//					flowMag.at<float>(y,x) = max<float>(0.0, flowMag.at<float>(y,x) - (1.0 * biasInFlow));
-				}
-			}
-		}
-//		flowMag = flowMag - Scalar::all(biasInFlow);
-//		ROS_INFO("Bias is %4.2f", biasInFlow);
-	}
+
 	std::swap(prevRawFrameGray, rawFramGray);
 		
 	for (int i = 0; i < 2; i++)
@@ -946,11 +994,13 @@ void CHumanTracker::calcOpticalFlow()
         reg.x = gestureRegion[i].x;// - flowROI.x;
         reg.y = gestureRegion[i].y;// - flowROI.y;
 		
-        float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ? mean(flowMag(reg))[0] : 0.0;
+        float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ? mean(flowMag(reg), maskFull(reg))[0] : 0.0;
 		//flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
 		// No filtering should be done here
 		flowScoreInRegion[i] = sFlow;
 	}
+
+    dummy = dummy + mean(flowMag, maskFull)[0];
 	
 	// Visulization	
 	if ((debugLevel & 0x10) == 0x10)
@@ -960,19 +1010,27 @@ void CHumanTracker::calcOpticalFlow()
 		
 		// HSV Color Space
 		// Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)
-		flowMag.convertTo(channels[0], CV_8UC1, 120);
-		channels[0] = Scalar::all(120) - channels[0];
+        flowMag.convertTo(channels[0], CV_8UC1, 10);
+        channels[0] = Scalar::all(255) - channels[0];
 		//flowMag = 120 - flowMag;
 		channels[1] = Scalar::all(255.0);
 		channels[2] = _i2;//Scalar::all(255.0);
         merge(channels, opticalFrame);
 		cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);		
+        if (stablization == STABLIZE_HOMOGRAPHY) {
+            for (unsigned int i = 0; i < prev.size(); i++) {
+                line(debugFrame, prev[i], curr[i], CV_RGB(0,255,0));
+    //            line(debugFrame, prev_stab[i], curr[i], CV_RGB(255,0,0));
+    //            circle(opticalFrame, curr[i], 1, CV_RGB(255,255,255));
+            }
+        }
 	}
 	
 	if ((debugLevel & 0x02) == 0x02)
 	{
-
-
+        if (stablization == STABLIZE_HOMOGRAPHY)
+            cv::warpPerspective(debugFrame, debugFrame, homography, Size(debugFrame.cols, debugFrame.rows), cv::WARP_INVERSE_MAP);
+        //cv::warpAffine(debugFrame, debugFrame, homography(Rect(0,0,3,2)), Size(debugFrame.cols, debugFrame.rows), cv::WARP_INVERSE_MAP);
         for (int i = 0; i < 2; i++)
 		{
             // Only for visualization
@@ -1081,6 +1139,10 @@ int main(int argc, char **argv)
     ros::param::param("~gesture_enabled", p_gestureEnabled, false);
     ROS_INFO("Gesture Recognition is %s", p_gestureEnabled ? "Enabled" : "Disabled");
     
+    int p_stablization;
+    ros::param::param("~flowstablize_mode", p_stablization, 0);
+    ROS_INFO("Flow Stablization is %d", p_stablization);
+
     int  p_debugMode;
     ros::param::param("~debug_mode", p_debugMode, 0x02);
     ROS_INFO("Debug mode is %x", p_debugMode);
@@ -1107,7 +1169,7 @@ int main(int argc, char **argv)
                                p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
                                p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
                                p_profileFaceEnabled, p_skinEnabled, p_gestureEnabled,
-                               p_debugMode);
+                               p_debugMode, p_stablization);
 	
 
 	/**
@@ -1148,6 +1210,7 @@ int main(int argc, char **argv)
             msg.faceROI.width = humanTracker.beleif.width;
             msg.faceROI.height = humanTracker.beleif.height;
             if (p_gestureEnabled) {
+                msg.numFaces =  humanTracker.dummy;
                 for (int i = 0; i < 2; i++)
                     msg.flowScore[i] = humanTracker.flowScoreInRegion[i];
             }
