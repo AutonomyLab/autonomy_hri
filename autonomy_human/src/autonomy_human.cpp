@@ -130,13 +130,21 @@ private:
     cv::Ptr<CvMemStorage> storage;
     cv::Ptr<CvMemStorage> storageProfile;
 
+    ros::Publisher& facePub;
+    image_transport::Publisher& debugPub;
+    image_transport::Publisher& skinPub;
+    image_transport::Publisher& opticalPub;
+
 public:
     CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
                   float _pCov, float _mCov,
                   int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                   int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
                   bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
-                  unsigned short int _debugLevel, unsigned int _stablization);
+                  unsigned short int _debugLevel, unsigned int _stablization,
+                  ros::Publisher& _facePub, image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub);
+
+    void publish();
 	~CHumanTracker();
 	void visionCallback(const sensor_msgs::ImageConstPtr& frame);
 	void reset();
@@ -164,9 +172,6 @@ public:
     Rect gestureRegion[2];
     float flowScoreInRegion[2];
 
-    //TODO: remove this
-    double dummy;
-
 };
 
 //
@@ -177,7 +182,8 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
                              int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                              int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
                              bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
-                             unsigned short int _debugLevel, unsigned int _stablization)
+                             unsigned short int _debugLevel, unsigned int _stablization,
+                             ros::Publisher& _facePub, image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub)
     : KFTracker(6, 4, 0)
     , MLSearch(6, 4, 0)
     , pCovScalar(_pCov)
@@ -198,6 +204,10 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
     , gestureEnabled(_gestureEnabled)
     , storage(cvCreateMemStorage(0))
     , storageProfile(cvCreateMemStorage(0))
+    , facePub(_facePub)
+    , debugPub(_debugPub)
+    , skinPub(_skinPub)
+    , opticalPub(_opticalPub)
     , isInited(false)
     , trackingState(STATE_LOST)
     , shouldPublish(false)
@@ -225,7 +235,75 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
 		
     isFaceInCurrentFrame = false;
 
-    dummy = 0.0;
+}
+
+void CHumanTracker::publish()
+{
+    autonomy_human::human msg;
+
+    cv_bridge::CvImage cvi;
+    sensor_msgs::Image im;
+    cvi.header.frame_id = "image";
+
+    if (
+            (trackingState == CHumanTracker::STATE_TRACK) ||
+            (trackingState == CHumanTracker::STATE_REJECT)
+        )
+    {
+        msg.header.stamp = ros::Time::now();
+        msg.numFaces = faces.size();
+        msg.faceScore = faceScore;
+        msg.faceROI.x_offset = beleif.x;
+        msg.faceROI.y_offset = beleif.y;
+        msg.faceROI.width = beleif.width;
+        msg.faceROI.height = beleif.height;
+        if (gestureEnabled) {
+            for (int i = 0; i < 2; i++)
+                msg.flowScore[i] = flowScoreInRegion[i];
+        }
+        facePub.publish(msg);
+    }
+
+    if (
+            (shouldPublish) &&
+            ((debugLevel & 0x02) == 0x02) &&
+            (isInited)
+       )
+    {
+        cvi.header.stamp = ros::Time::now();
+        cvi.encoding = "bgr8";
+        cvi.image = debugFrame;
+        cvi.toImageMsg(im);
+        debugPub.publish(im);
+    }
+
+    if (
+            (shouldPublish) &&
+            ((debugLevel & 0x04) == 0x04) &&
+            (isInited) &&
+            (skinEnabled)
+       )
+    {
+        cvi.header.stamp = ros::Time::now();
+        cvi.encoding = "mono8";
+        cvi.image = skinFrame;
+        cvi.toImageMsg(im);
+        skinPub.publish(im);
+    }
+
+    if (
+            (shouldPublish) &&
+            ((debugLevel & 0x10) == 0x10) &&
+            (isInited) &&
+            (gestureEnabled)
+       )
+    {
+        cvi.header.stamp = ros::Time::now();
+        cvi.encoding = "bgr8";
+        cvi.image = opticalFrame;
+        cvi.toImageMsg(im);
+        opticalPub.publish(im);
+    }
 }
 
 CHumanTracker::~CHumanTracker()
@@ -260,7 +338,7 @@ void CHumanTracker::reset()
 	
 	isFaceInCurrentFrame = false;
 	
-	for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 2; i++)
 		flowScoreInRegion[i] = 0.0;
 	
 	initMats();
@@ -865,7 +943,7 @@ void CHumanTracker::calcOpticalFlow()
 
     magnitude(flowChannels[0], flowChannels[1], flowMag);
 
-    ROS_INFO("Sum Mag Before: %6.f", sum(flowMag)[0]);
+//    ROS_INFO("Sum Mag Before: %6.f", sum(flowMag)[0]);
     if (stablization == STABLIZE_MEDIAN) {
 
 //		// The possible hand regions are not sampled for flow compenstation
@@ -926,6 +1004,19 @@ void CHumanTracker::calcOpticalFlow()
             add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskAugmentedY);
         }
     } else if (stablization == STABLIZE_HOMOGRAPHY) {
+//        Mat maskRegions = Mat::ones(maskX.rows, maskX.cols, CV_8UC1);
+//        Mat maskAugmentedX = Mat::ones(maskX.rows, maskX.cols, CV_8UC1);;
+//        Mat maskAugmentedY = Mat::ones(maskY.rows, maskY.cols, CV_8UC1);;
+
+//        rectangle(maskRegions, gestureRegion[REG_TOPLEFT].tl(), gestureRegion[REG_TOPLEFT].br(), 0, CV_FILLED);
+//        rectangle(maskRegions, gestureRegion[REG_TOPRIGHT].tl(), gestureRegion[REG_TOPRIGHT].br(), 0, CV_FILLED);
+
+//        bitwise_and(maskX, maskRegions, maskAugmentedX);
+//        bitwise_and(maskY, maskRegions, maskAugmentedY);
+
+//        Mat maskFullAugmented;
+//        bitwise_and(maskAugmentedX, maskAugmentedY, maskFullAugmented);
+
         for (_row = 0; _row < flow.rows; _row += 1) {
             for (_col = 0; _col < flow.cols; _col += 1) {
                 if (maskFull.at<uchar>(_row, _col) == 0) continue;
@@ -936,7 +1027,7 @@ void CHumanTracker::calcOpticalFlow()
             }
         }
 
-        homography = findHomography(prev, curr, CV_RANSAC, 5);
+        homography = findHomography(prev, curr, CV_RANSAC, 3);
 
         //        cv::warpPerspective(_i1, _i1, homography, Size(_i1.cols, _i1.rows), cv::WARP_INVERSE_MAP);
         //        cv::warpPerspective(_i2, _i2, homography, Size(_i2.cols, _i2.rows), cv::WARP_INVERSE_MAP);
@@ -975,9 +1066,9 @@ void CHumanTracker::calcOpticalFlow()
 //        }
 	}
 	magnitude(flowChannels[0], flowChannels[1], flowMag);
-    ROS_INFO("Sum Mag After: %6.f", sum(flowMag)[0]);
+//    ROS_INFO("Sum Mag After: %6.f", sum(flowMag)[0]);
 
-	threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
+    threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
 
     // Big Question: Why does the below line make the signal so weak?
 //	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
@@ -999,8 +1090,6 @@ void CHumanTracker::calcOpticalFlow()
 		// No filtering should be done here
 		flowScoreInRegion[i] = sFlow;
 	}
-
-    dummy = dummy + mean(flowMag, maskFull)[0];
 	
 	// Visulization	
 	if ((debugLevel & 0x10) == 0x10)
@@ -1017,7 +1106,7 @@ void CHumanTracker::calcOpticalFlow()
 		channels[2] = _i2;//Scalar::all(255.0);
         merge(channels, opticalFrame);
 		cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);		
-        if (stablization == STABLIZE_HOMOGRAPHY) {
+        if (false){//(stablization == STABLIZE_HOMOGRAPHY) {
             for (unsigned int i = 0; i < prev.size(); i++) {
                 line(debugFrame, prev[i], curr[i], CV_RGB(0,255,0));
     //            line(debugFrame, prev_stab[i], curr[i], CV_RGB(255,0,0));
@@ -1095,6 +1184,7 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
 	tFlowStart = ros::Time::now();
 	calcOpticalFlow();
 
+    publish();
 	tEnd = ros::Time::now();
 
 }
@@ -1164,12 +1254,7 @@ int main(int argc, char **argv)
     ros::param::param("~meas_cov", p_mCov, 1.0);
     ros::param::param("~proc_cov", p_pCov, 0.05);
 
-    CHumanTracker humanTracker(p_xmlFile, p_xmlFileProfile,
-                               p_pCov, p_mCov,
-                               p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
-                               p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
-                               p_profileFaceEnabled, p_skinEnabled, p_gestureEnabled,
-                               p_debugMode, p_stablization);
+
 	
 
 	/**
@@ -1179,85 +1264,29 @@ int main(int argc, char **argv)
 	 * additive delays.
 	 */ 
 	
-    image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 1, &CHumanTracker::visionCallback, &humanTracker);
+
 	ros::Publisher facePub = n.advertise<autonomy_human::human>("human", 5);  
     image_transport::Publisher debugPub = it.advertise("output_rgb_debug", 1);
     image_transport::Publisher skinPub = it.advertise("output_rgb_skin", 1);
     image_transport::Publisher opticalPub = it.advertise("output_rgb_optical", 1);
 
-	
+    CHumanTracker humanTracker(p_xmlFile, p_xmlFileProfile,
+                               p_pCov, p_mCov,
+                               p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
+                               p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
+                               p_profileFaceEnabled, p_skinEnabled, p_gestureEnabled,
+                               p_debugMode, p_stablization,
+                               facePub, debugPub, skinPub, opticalPub);
+
+    image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 1, &CHumanTracker::visionCallback, &humanTracker);
+
 	ROS_INFO("Starting Autonomy Human ...");
 	
     ros::Rate loopRate(30);
-	autonomy_human::human msg;
-    
-    cv_bridge::CvImage cvi;
-    sensor_msgs::Image im;
-    cvi.header.frame_id = "image";
+
     
 	while (ros::ok()){
-		
-		if (
-                (humanTracker.trackingState == CHumanTracker::STATE_TRACK) ||
-                (humanTracker.trackingState == CHumanTracker::STATE_REJECT)
-			)
-		{
-			msg.header.stamp = ros::Time::now();
-            msg.numFaces = humanTracker.faces.size();
-            msg.faceScore = humanTracker.faceScore;
-            msg.faceROI.x_offset = humanTracker.beleif.x;
-            msg.faceROI.y_offset = humanTracker.beleif.y;
-            msg.faceROI.width = humanTracker.beleif.width;
-            msg.faceROI.height = humanTracker.beleif.height;
-            if (p_gestureEnabled) {
-                msg.numFaces =  humanTracker.dummy;
-                for (int i = 0; i < 2; i++)
-                    msg.flowScore[i] = humanTracker.flowScoreInRegion[i];
-            }
-			facePub.publish(msg);
-		}
-        
-        if (
-                (humanTracker.shouldPublish) &&
-                ((p_debugMode & 0x02) == 0x02) &&
-                (humanTracker.isInited)
-           )
-        {
-            cvi.header.stamp = ros::Time::now();
-            cvi.encoding = "bgr8";
-            cvi.image = humanTracker.debugFrame;
-            cvi.toImageMsg(im);
-            debugPub.publish(im);
-        }
-        
-        if (
-                (humanTracker.shouldPublish) &&
-                ((p_debugMode & 0x04) == 0x04) &&
-                (humanTracker.isInited) &&
-                (p_skinEnabled)
-           )
-        {
-            cvi.header.stamp = ros::Time::now();
-            cvi.encoding = "mono8";
-            cvi.image = humanTracker.skinFrame;
-            cvi.toImageMsg(im);
-            skinPub.publish(im);
-        }
-		
-		if (
-                (humanTracker.shouldPublish) &&
-                ((p_debugMode & 0x10) == 0x10) &&
-                (humanTracker.isInited) &&
-                (p_gestureEnabled)
-           )
-        {
-            cvi.header.stamp = ros::Time::now();
-            cvi.encoding = "bgr8";
-            cvi.image = humanTracker.opticalFrame;
-            cvi.toImageMsg(im);
-            opticalPub.publish(im);
-        }
-		        
+		      
 		ros::spinOnce();
 		loopRate.sleep();
 	}
