@@ -462,7 +462,7 @@ void CHumanTracker::generateRegionHistogram(Mat& region, MatND &hist, bool vis)
 		{
 			unsigned int v = hsv.at<Vec3b>(r,c)[2];
 			// TODO: Make me parameters
-			if (( v > 50) && (v < 150))
+            if (( v > 10) && (v < 240))
 			{
 				mask.at<uchar>(r,c) = 1;
 			}
@@ -844,10 +844,12 @@ void CHumanTracker::trackSkin()
     if (perform)
     {
         histFilter(rawFrame, skin, skinPrior, faceHist, false);
+        const double sum_skin = sum(skin)[0];
+        skin *= (1.0 / sum_skin);
         skinPrior = skin.clone();
         if ((debugLevel & 0x04) == 0x04)
         {
-            Mat visSkin;
+            Mat visSkin;            
             normalize(skin, visSkin, 1.0, 0.0, NORM_MINMAX);
             visSkin.convertTo(skinFrame, CV_8UC1, 255.0, 0.0);
         }
@@ -889,7 +891,7 @@ void CHumanTracker::calcOpticalFlow()
     flowROI.x = max<int>(belCenter.x - fx * KFTracker.statePost.at<float>(4) * 4, 0);
     flowROI.y = max<int>(belCenter.y - fy * KFTracker.statePost.at<float>(5) * 3, 0);
     int x2 = min<int>(belCenter.x + fx * KFTracker.statePost.at<float>(4) * 4, iWidth);
-    int y2 = min<int>(belCenter.y + fy * KFTracker.statePost.at<float>(4) * 2, iHeight);
+    int y2 = min<int>(belCenter.y + fy * KFTracker.statePost.at<float>(4) * 0, iHeight);
 	flowROI.width = x2 - flowROI.x;
 	flowROI.height = y2 - flowROI.y;
 	
@@ -921,12 +923,12 @@ void CHumanTracker::calcOpticalFlow()
 	// Gesture regions update	
 	gestureRegion[REG_TOPLEFT].x = flowROI.x;
 	gestureRegion[REG_TOPLEFT].y = flowROI.y;
-	gestureRegion[REG_TOPLEFT].width = belCenter.x  - flowROI.x;
-    gestureRegion[REG_TOPLEFT].height = belCenter.y  - flowROI.y + (beleif.height * 1.2);
+    gestureRegion[REG_TOPLEFT].width = 0.5 * (flowROI.width - (fx * beleif.width));
+    gestureRegion[REG_TOPLEFT].height = flowROI.height;
 
-	gestureRegion[REG_TOPRIGHT].x = belCenter.x;
-	gestureRegion[REG_TOPRIGHT].y = flowROI.y;
-	gestureRegion[REG_TOPRIGHT].width = (flowROI.x + flowROI.width) - belCenter.x;
+    gestureRegion[REG_TOPRIGHT].x = gestureRegion[REG_TOPLEFT].x + gestureRegion[REG_TOPLEFT].width + (fx * beleif.width);
+    gestureRegion[REG_TOPRIGHT].y = gestureRegion[REG_TOPLEFT].y;
+    gestureRegion[REG_TOPRIGHT].width = gestureRegion[REG_TOPLEFT].width;
 	gestureRegion[REG_TOPRIGHT].height = gestureRegion[REG_TOPLEFT].height;
 
     // Safety check to downsampled image size
@@ -1027,48 +1029,64 @@ void CHumanTracker::calcOpticalFlow()
             }
         }
 
-        homography = findHomography(prev, curr, CV_RANSAC, 3);
-
-        //        cv::warpPerspective(_i1, _i1, homography, Size(_i1.cols, _i1.rows), cv::WARP_INVERSE_MAP);
-        //        cv::warpPerspective(_i2, _i2, homography, Size(_i2.cols, _i2.rows), cv::WARP_INVERSE_MAP);
-        //        calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);
-        //        split(flow, flowChannels);
-
-        perspectiveTransform(curr, prev_stab, homography.inv());
+        try {
+            homography = findHomography(prev, curr, CV_RANSAC, 3);
 
 
-        for (unsigned int i = 0; i < curr.size(); i++)
-        {
-//            std::cout << "Current: " << curr[i] << std::endl;
-//            std::cout << "Prev Stab: " << prev_stab[i] << std::endl;
-            const Point2f& flow_extra = curr[i] - prev_stab[i];
-//            std::cout << "Extra Flow: " << flow_extra << std::endl;
-            const unsigned int _row = curr[i].y * fy;
-            const unsigned int _col = curr[i].x * fx;
-//            std::cout << "Current Flow: " << flow.at<Point2f>(_row, _col) << std::endl;
-//            ROS_INFO("Decreasing the flow at %3d %3d from %4.2f %4.2f by %4.2f %4.2f",
-//                     _row, _col,
-//                     flowChannels[1].at<float>(_row, _col),
-//                     flowChannels[0].at<float>(_row, _col),
-//                     flow_extra.y, flow_extra.x);
-//            if (
-//                ((flowChannels[0].at<float>(_row, _col) * flow_extra.x) > 0) &&
-//                ((flowChannels[1].at<float>(_row, _col) * flow_extra.y) > 0)
-//                ) cc++;
-            flowChannels[0].at<float>(_row, _col) -= (flow_extra.x * fx);
-            flowChannels[1].at<float>(_row, _col) -= (flow_extra.y * fy);
+            //        cv::warpPerspective(_i1, _i1, homography, Size(_i1.cols, _i1.rows), cv::WARP_INVERSE_MAP);
+            //        cv::warpPerspective(_i2, _i2, homography, Size(_i2.cols, _i2.rows), cv::WARP_INVERSE_MAP);
+            //        calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 5, 3, 9, 1.9, 0);//OPTFLOW_USE_INITIAL_FLOW);
+            //        split(flow, flowChannels);
+
+            perspectiveTransform(curr, prev_stab, homography.inv());
+
+
+            for (unsigned int i = 0; i < curr.size(); i++)
+            {
+    //            std::cout << "Current: " << curr[i] << std::endl;
+    //            std::cout << "Prev Stab: " << prev_stab[i] << std::endl;
+                const Point2f& flow_extra = curr[i] - prev_stab[i];
+    //            std::cout << "Extra Flow: " << flow_extra << std::endl;
+                const unsigned int _row = curr[i].y * fy;
+                const unsigned int _col = curr[i].x * fx;
+    //            std::cout << "Current Flow: " << flow.at<Point2f>(_row, _col) << std::endl;
+    //            ROS_INFO("Decreasing the flow at %3d %3d from %4.2f %4.2f by %4.2f %4.2f",
+    //                     _row, _col,
+    //                     flowChannels[1].at<float>(_row, _col),
+    //                     flowChannels[0].at<float>(_row, _col),
+    //                     flow_extra.y, flow_extra.x);
+    //            if (
+    //                ((flowChannels[0].at<float>(_row, _col) * flow_extra.x) > 0) &&
+    //                ((flowChannels[1].at<float>(_row, _col) * flow_extra.y) > 0)
+    //                ) cc++;
+                flowChannels[0].at<float>(_row, _col) -= (flow_extra.x * fx);
+                flowChannels[1].at<float>(_row, _col) -= (flow_extra.y * fy);
+            }
+    //        ROS_INFO("T: %5d / %5d", cc, curr.size());
+    //        for (_row = 0; _row < flow.rows; _row++) {
+    //            for (_col = 0; _col < flow.cols; _col++) {
+    //                flowChannels[0].at<float>(_row, _col) = prev_stab
+    //            }
+    //        }
+        } catch (cv::Exception &e) {
+            ROS_WARN("Findhomography failed with %s", e.what());
         }
-//        ROS_INFO("T: %5d / %5d", cc, curr.size());
-//        for (_row = 0; _row < flow.rows; _row++) {
-//            for (_col = 0; _col < flow.cols; _col++) {
-//                flowChannels[0].at<float>(_row, _col) = prev_stab
-//            }
-//        }
 	}
 	magnitude(flowChannels[0], flowChannels[1], flowMag);
+
+
+    if (skinEnabled) {
+        Mat skin_small;
+        resize(skin, skin_small, Size(0,0), fx, fy);
+        normalize(skin_small, skin_small, 1.0, 0.0, NORM_MINMAX);
+        Mat skin_mask = skin_small > 0.7;
+        multiply(flowMag, skin_mask, flowMag, 1.0, CV_32FC1);
+    } else {
+        threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
+    }
 //    ROS_INFO("Sum Mag After: %6.f", sum(flowMag)[0]);
 
-    threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
+
 
     // Big Question: Why does the below line make the signal so weak?
 //	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
@@ -1085,7 +1103,10 @@ void CHumanTracker::calcOpticalFlow()
         reg.x = gestureRegion[i].x;// - flowROI.x;
         reg.y = gestureRegion[i].y;// - flowROI.y;
 		
-        float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ? mean(flowMag(reg), maskFull(reg))[0] : 0.0;
+        float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ?
+                        mean(flowMag(reg)/*, maskFull(reg)*/)[0] : 0.0;
+
+
 		//flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
 		// No filtering should be done here
 		flowScoreInRegion[i] = sFlow;
@@ -1120,6 +1141,8 @@ void CHumanTracker::calcOpticalFlow()
         if (stablization == STABLIZE_HOMOGRAPHY)
             cv::warpPerspective(debugFrame, debugFrame, homography, Size(debugFrame.cols, debugFrame.rows), cv::WARP_INVERSE_MAP);
         //cv::warpAffine(debugFrame, debugFrame, homography(Rect(0,0,3,2)), Size(debugFrame.cols, debugFrame.rows), cv::WARP_INVERSE_MAP);
+
+        //rectangle(debugFrame, Rect(flowROI.x / fx, flowROI.y / fy, flowROI.width / fx, flowROI.height / fy), CV_RGB(255, 0, 0));
         for (int i = 0; i < 2; i++)
 		{
             // Only for visualization
