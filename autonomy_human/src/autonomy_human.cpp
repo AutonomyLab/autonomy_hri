@@ -1082,7 +1082,7 @@ void CHumanTracker::calcOpticalFlow()
         Mat skin_mask = skin_small > 0.7;
         multiply(flowMag, skin_mask, flowMag, 1.0, CV_32FC1);
     } else {
-        threshold(flowMag, flowMag, minFlow, 0.0, THRESH_TOZERO);
+        ;//threshold(flowMag, flowMag, (double) minFlow, 0.0, THRESH_TOZERO);
     }
 //    ROS_INFO("Sum Mag After: %6.f", sum(flowMag)[0]);
 
@@ -1103,8 +1103,15 @@ void CHumanTracker::calcOpticalFlow()
         reg.x = gestureRegion[i].x;// - flowROI.x;
         reg.y = gestureRegion[i].y;// - flowROI.y;
 		
-        float sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ?
-                        mean(flowMag(reg)/*, maskFull(reg)*/)[0] : 0.0;
+        float sFlow = 0.0;
+        if (skinEnabled) {
+            sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ?
+                        mean(flowMag(reg), maskFull(reg))[0] : 0.0;
+        } else {
+            // Threshold and mean over thresholded values
+             sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ?
+                        mean(flowMag(reg), (flowMag(reg) > minFlow) )[0] : 0.0;
+        }
 
 
 		//flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
