@@ -958,6 +958,8 @@ void CHumanTracker::calcOpticalFlow()
         rectangle(maskRegions, gestureRegion[REG_TOPRIGHT].tl(), gestureRegion[REG_TOPRIGHT].br(), 0, CV_FILLED);
 
         double minX, minY, maxX, maxY;
+        float medX = 0.0;
+        float medY = 0.0;
 
         bitwise_and(maskX, maskRegions, maskAugmentedX);
         bitwise_and(maskY, maskRegions, maskAugmentedY);
@@ -965,32 +967,30 @@ void CHumanTracker::calcOpticalFlow()
         minMaxLoc(flowChannels[0], &minX, &maxX, 0, 0, maskAugmentedX);
         minMaxLoc(flowChannels[1], &minY, &maxY, 0, 0, maskAugmentedY);
 
-        float medX = 0.0;
-        float medY = 0.0;
+        if ((maxX > minX) && (maxY > minY)) {
+            try {
+                medX = calcMedian(flowChannels[0], 25, minX, maxX, maskAugmentedX);
+            } catch (cv::Exception &e) {
+                ROS_WARN("Calculate median failed for X flow with %s", e.what());
+            }
 
-        try {
-            float medX = calcMedian(flowChannels[0], 25, minX, maxX, maskAugmentedX);
-        } catch (cv::Exception &e) {
-            ROS_WARN("Calculate median failed for X flow with %s", e.what());
+            try {
+                medY = calcMedian(flowChannels[1], 25, minY, maxY, maskAugmentedY);
+            } catch (cv::Exception &e) {
+                ROS_WARN("Calculate median failed for Yflow with %s", e.what());
+            }
+
+
+
+    ////		ROS_INFO("Number of channls: %d", flowChannels.size());
+    ////        ROS_INFO("Ego");
+    ////        ROS_INFO("X: <%6.4lf..%6.4lf> Y: <%6.4lf..%6.4lf>", minX, maxX, minY, maxY);
+    ////        ROS_INFO("Median X: %6.4f Y: %6.4f", medX, medY);
+
+    //        // Canceling Flow for all valid regions
+            add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskX);
+            add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskY);
         }
-
-        try {
-            float medY = calcMedian(flowChannels[1], 25, minY, maxY, maskAugmentedY);
-        } catch (cv::Exception &e) {
-            ROS_WARN("Calculate median failed for Yflow with %s", e.what());
-        }
-
-
-	
-////		ROS_INFO("Number of channls: %d", flowChannels.size());
-////        ROS_INFO("Ego");
-////        ROS_INFO("X: <%6.4lf..%6.4lf> Y: <%6.4lf..%6.4lf>", minX, maxX, minY, maxY);
-////        ROS_INFO("Median X: %6.4f Y: %6.4f", medX, medY);
-		
-//        // Canceling Flow for all valid regions
-        add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskX);
-        add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskY);
-
 //        // Face Bias
         if (trackingState == STATE_TRACK) {
             Rect fROI = faces.at(0);
@@ -1005,22 +1005,24 @@ void CHumanTracker::calcOpticalFlow()
             Mat faceMaskX = maskX(fROI);
             Mat faceMaskY = maskY(fROI);
 
-            minMaxLoc(faceFlowWindowX, &minX, &maxX, 0, 0, faceMaskX);
-            minMaxLoc(faceFlowWindowY, &minY, &maxY, 0, 0, faceMaskY);
+            if ((maxX > minX) && (maxY > minY)) {
+                minMaxLoc(faceFlowWindowX, &minX, &maxX, 0, 0, faceMaskX);
+                minMaxLoc(faceFlowWindowY, &minY, &maxY, 0, 0, faceMaskY);
 
-            try {
-                medX = calcMedian(faceFlowWindowX, 25, minX, maxX, faceMaskX);
-                medY = calcMedian(faceFlowWindowY, 25, minY, maxY, faceMaskY);
+                try {
+                    medX = calcMedian(faceFlowWindowX, 25, minX, maxX, faceMaskX);
+                    medY = calcMedian(faceFlowWindowY, 25, minY, maxY, faceMaskY);
 
-                // Now we want to cancel motion only in the interesting regions
-                maskRegions = 1 - maskRegions;
-                bitwise_and(maskX, maskRegions, maskAugmentedX);
-                bitwise_and(maskY, maskRegions, maskAugmentedY);
+                    // Now we want to cancel motion only in the interesting regions
+                    maskRegions = 1 - maskRegions;
+                    bitwise_and(maskX, maskRegions, maskAugmentedX);
+                    bitwise_and(maskY, maskRegions, maskAugmentedY);
 
-                add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskAugmentedX);
-                add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskAugmentedY);
-            } catch (cv::Exception &e) {
-                ROS_WARN("Face flow cancellation failed with %s", e.what());
+                    add(flowChannels[0], Scalar::all(-medX), flowChannels[0], maskAugmentedX);
+                    add(flowChannels[1], Scalar::all(-medY), flowChannels[1], maskAugmentedY);
+                } catch (cv::Exception &e) {
+                    ROS_WARN("Face flow cancellation failed with %s", e.what());
+                }
             }
         }
     } else if (stablization == STABLIZE_HOMOGRAPHY) {
