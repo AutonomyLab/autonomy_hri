@@ -901,7 +901,7 @@ void CHumanTracker::calcOpticalFlow()
     Mat _i1 = prevRawFrameGray;//(flowROI);
     Mat _i2 = rawFramGray;//(flowROI);
 
-    int flags = OPTFLOW_USE_INITIAL_FLOW;
+    int flags = 0;//OPTFLOW_USE_INITIAL_FLOW;
     if (firstCancel) {
         flags = 0;
         firstCancel = false;
@@ -1005,10 +1005,9 @@ void CHumanTracker::calcOpticalFlow()
             Mat faceMaskX = maskX(fROI);
             Mat faceMaskY = maskY(fROI);
 
+            minMaxLoc(faceFlowWindowX, &minX, &maxX, 0, 0, faceMaskX);
+            minMaxLoc(faceFlowWindowY, &minY, &maxY, 0, 0, faceMaskY);
             if ((maxX > minX) && (maxY > minY)) {
-                minMaxLoc(faceFlowWindowX, &minX, &maxX, 0, 0, faceMaskX);
-                minMaxLoc(faceFlowWindowY, &minY, &maxY, 0, 0, faceMaskY);
-
                 try {
                     medX = calcMedian(faceFlowWindowX, 25, minX, maxX, faceMaskX);
                     medY = calcMedian(faceFlowWindowY, 25, minY, maxY, faceMaskY);
@@ -1111,7 +1110,6 @@ void CHumanTracker::calcOpticalFlow()
     // Big Question: Why does the below line make the signal so weak?
 //	normalize(flowMag, flowMag, 0.0, 1.0, NORM_MINMAX);
 		
-	float biasInFlow;	
 	Rect r;
 
 	std::swap(prevRawFrameGray, rawFramGray);
