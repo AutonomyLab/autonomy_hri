@@ -634,9 +634,11 @@ void CHumanTracker::detectAndTrackFace()
                     rectangle(debugFrame, center - Point(r.width*0.5, r.height*0.5), center + Point(r.width*0.5, r.height * 0.5), color);
 
                     txtstr.str("");
-                    txtstr << "   Sc:" << rr->neighbors << " S:" << r.width << "x" << r.height;
+                    //txtstr << "   Sc:" << rr->neighbors << " S:" << r.width << "x" << r.height;
+                    txtstr << "FaceScore:" << rr->neighbors;
 
-                    putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, color);
+
+                    putText(debugFrame, txtstr.str(), center - Point(r.width, r.height*0.5), FONT_HERSHEY_PLAIN, 1.5, color);
 //                }
 			}
 
