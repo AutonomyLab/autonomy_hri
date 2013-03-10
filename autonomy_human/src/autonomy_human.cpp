@@ -906,7 +906,7 @@ void CHumanTracker::calcOpticalFlow()
         flags = 0;
         firstCancel = false;
     }
-    calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 20, 3, 9, 1.9, flags);//OPTFLOW_USE_INITIAL_FLOW);
+    calcOpticalFlowFarneback( _i1, _i2 , flow, 0.5, 3, 10, 3, 9, 1.9, flags);//OPTFLOW_USE_INITIAL_FLOW);
 	std::vector<Mat> flowChannels;
 	split(flow, flowChannels);
 
@@ -922,7 +922,7 @@ void CHumanTracker::calcOpticalFlow()
 
 	// Gesture regions update	
 	gestureRegion[REG_TOPLEFT].x = flowROI.x;
-	gestureRegion[REG_TOPLEFT].y = flowROI.y;
+    gestureRegion[REG_TOPLEFT].y = flowROI.y + (0.5 * flowROI.height);
     gestureRegion[REG_TOPLEFT].width = 0.5 * (flowROI.width - (fx * beleif.width));
     gestureRegion[REG_TOPLEFT].height = flowROI.height;
 
