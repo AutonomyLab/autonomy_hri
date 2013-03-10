@@ -638,7 +638,7 @@ void CHumanTracker::detectAndTrackFace()
                     txtstr << "FaceScore:" << rr->neighbors;
 
 
-                    putText(debugFrame, txtstr.str(), center - Point(r.width, r.height*0.5), FONT_HERSHEY_PLAIN, 1.5, color);
+                    putText(debugFrame, txtstr.str(), center - Point(r.width, r.height), FONT_HERSHEY_PLAIN, 1.5, CV_RGB(0,0,255));
 //                }
 			}
 
