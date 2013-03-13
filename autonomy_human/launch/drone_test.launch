@@ -27,7 +27,7 @@
         <param name="autosize" value="true" />
         <remap from="image" to="output_rgb_debug" />
       </node>
-      <node pkg="autonomy_human" name="get_elected" type="get_elected_incremental" output="screen" cwd="node">
+      <node pkg="autonomy_human" name="get_elected" type="get_elected_demo" output="screen" cwd="node">
         <param name="myName" value="$(arg namespace)"/>
       </node>
 <!--
