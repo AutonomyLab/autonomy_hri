@@ -24,7 +24,7 @@ using namespace cv;
 #define ELECTION_TIMEOUT 0.5
 #define FACESCORE_TIMEOUT 0.5
 #define SPEECH_TIMEOUT 5
-#define HOVERING_TIMEOUT 50
+#define HOVERING_TIMEOUT 100
 
 const unsigned int MAX_AVERAGE_ELECTION = 3;
 const unsigned int MAX_AVERAGE_FACESCORE = 5;
