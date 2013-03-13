@@ -23,7 +23,7 @@ using namespace std;
 using namespace cv;
 #define ELECTION_TIMEOUT 0.5
 #define FACESCORE_TIMEOUT 0.5
-#define SPEECH_TIMEOUT 5
+#define SPEECH_TIMEOUT 0.5
 #define HOVERING_TIMEOUT 2
 
 const unsigned int MAX_AVERAGE_ELECTION = 3;
@@ -207,6 +207,7 @@ void sadLED()
     showFaceScore();
     circle(led_vis,Point(lw_height/2,lw_width/2),150,CV_RGB(255,0,0),-1);
     putText(led_vis,"Rejected",Point(90,220),CV_FONT_HERSHEY_PLAIN,3,CV_RGB(255,255,255));
+    playLEDAnimation( 7, 1, 1.0);
 }
 void turnOffLED()
 {
