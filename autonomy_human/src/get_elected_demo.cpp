@@ -102,8 +102,8 @@ ardrone_autonomy::LedAnim ardrone_led;
 ardrone_autonomy::Navdata droneStatus;
 ros::ServiceClient led_serv;
 ros::ServiceClient anim_serv;
-std_msgs::Empty takeoff,land;
-ros::Publisher takeoff_pub,land_pub;
+std_msgs::Empty takeoff,land,reset;
+ros::Publisher takeoff_pub,land_pub, reset_pub;
 
 void playLEDAnimation(const int _type, const int _duration, const float _freq )
 {
@@ -310,7 +310,13 @@ void navdataCallback(const ardrone_autonomy::NavdataConstPtr &msg)
     if (droneMode == MODE_WAITINGFORDRONE)
     {
         droneMode = MODE_RESETTED;
+        if (msg->state == 0)
+        {
+            ROS_WARN("Resetting drone");
+            reset_pub.publish(reset);
+        }
     }
+
     droneStatus = *msg;
 }
 
@@ -526,10 +532,12 @@ int main(int argc, char **argv)
     is_rejected = false;
     ros::param::get("~myName", my_name); // myName gets the robot name from user.
     face_info.faceScore = 0; // default face score
+    droneMode = MODE_WAITINGFORDRONE;
 
     ros::Publisher aver_faceScore_pub = nh.advertise<std_msgs::Float32>("average_facescore",10);
     takeoff_pub = nh.advertise<std_msgs::Empty>("ardrone/takeoff", 100);
     land_pub = nh.advertise<std_msgs::Empty>("ardrone/land", 100);
+    reset_pub = nh.advertise<std_msgs::Empty>("ardrone/reset", 100);
     ros::Subscriber election_sub=nh.subscribe("/election",10,electionResultsCallback);
     ros::Subscriber human_sub=nh.subscribe("human",10,humanCallback);
     ros::Subscriber speech_sub=nh.subscribe("/recognizer/output",10,speechCallback);
@@ -541,11 +549,20 @@ int main(int argc, char **argv)
 
     while(ros::ok())
     {
+        if(droneMode == MODE_WAITINGFORDRONE)
+        {
+            ROS_INFO_THROTTLE(1,"Waiting for drone");
+            ros::spinOnce();
+            loop_rate.sleep();
+            continue;
+        }
         last_election = ros::Time::now() - election_time;
         last_face_info = ros::Time::now() - face_info.header.stamp;
         talker_last_ts = ros::Time::now() - talker.ts;
         if(show_viz) visualizeLed();
         aveFacescoreFunc();
+
+
 
         if(check_election){
             if((last_face_info.toSec() > FACESCORE_TIMEOUT) ) // No - It can not see any face

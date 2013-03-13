@@ -1,6 +1,8 @@
 <launch>
     <arg name="namespace" default="ns1" />
     <arg name="droneip" default="192.168.1.1" />
+    <arg name="freq" default="8" />
+    
     <group ns="$(arg namespace)">
      <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node" >
         <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascade_frontalface_alt.xml" />
@@ -55,6 +57,7 @@
             <param name="realtime_navdata" value="True" />
             <param name="realtime_video" value="True" />
             <param name="looprate" value="30" />
+	    <param name="ultrasound_freq" value="$(arg freq)" />
  
         <remap from="ardrone/image_raw" to="image_raw" />
       </node>
