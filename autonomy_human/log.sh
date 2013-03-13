@@ -4,8 +4,8 @@ then
     echo "Please provide the folder name."
 else
     if [ -z "$2" ]
-        echo "Please provide namespace."
     then
+        echo "Please provide namespace."
     else
         mkdir $2-$1
         cd $2-$1
