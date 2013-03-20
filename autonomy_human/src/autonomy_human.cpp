@@ -1112,7 +1112,8 @@ void CHumanTracker::calcOpticalFlow()
 		
 	Rect r;
 
-	std::swap(prevRawFrameGray, rawFramGray);
+    //std::swap(prevRawFrameGray, rawFramGray);
+    prevRawFrameGray = rawFramGray.clone();
 		
 	for (int i = 0; i < 2; i++)
 	{
