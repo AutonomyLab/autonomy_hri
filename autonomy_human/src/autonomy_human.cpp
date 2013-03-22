@@ -702,7 +702,7 @@ void CHumanTracker::detectAndTrackFace()
 				r.y += searchROI.y;
 				double nr = rr->neighbors;
 				Point center;
-				Scalar color = colors[i%8];
+                Scalar color = CV_RGB(0,0,0); //colors[i%8];
 
 				float normFaceScore = 1.0 - (nr / 40.0);
 				if (normFaceScore > 1.0) normFaceScore = 1.0;
@@ -737,7 +737,7 @@ void CHumanTracker::detectAndTrackFace()
                     txtstr.str("");
                     txtstr << "   Sc:" << rr->neighbors << " S:" << r.width << "x" << r.height;
 
-                    putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, color);
+                    //putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, color);
 //                }
 			}
 
@@ -875,6 +875,8 @@ void CHumanTracker::calcOpticalFlow()
     const double fx = 0.5;
     const double fy = 0.5;
     resize(rawFrame, rawFrameResized, Size(), fx, fy,  INTER_LINEAR);
+
+
 
 	if (first)
 	{
@@ -1139,20 +1141,23 @@ void CHumanTracker::calcOpticalFlow()
 	}
 	
 	// Visulization	
-	if ((debugLevel & 0x10) == 0x10)
-	{
-		std::vector<Mat> channels;		
+
+
+	
+    if ((debugLevel & 0x10) == 0x10)
+    {
+        std::vector<Mat> channels;
         split(rawFrameResized, channels);
-		
-		// HSV Color Space
-		// Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)
+
+        // HSV Color Space
+        // Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)
         flowMag.convertTo(channels[0], CV_8UC1, 10);
         channels[0] = Scalar::all(255) - channels[0];
-		//flowMag = 120 - flowMag;
-		channels[1] = Scalar::all(255.0);
-		channels[2] = _i2;//Scalar::all(255.0);
+        //flowMag = 120 - flowMag;
+        channels[1] = Scalar::all(255.0);
+        channels[2] = _i2;//Scalar::all(255.0);
         merge(channels, opticalFrame);
-		cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);		
+        cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);
         if (false){//(stablization == STABLIZE_HOMOGRAPHY) {
             for (unsigned int i = 0; i < prev.size(); i++) {
                 line(debugFrame, prev[i], curr[i], CV_RGB(0,255,0));
@@ -1160,34 +1165,40 @@ void CHumanTracker::calcOpticalFlow()
     //            circle(opticalFrame, curr[i], 1, CV_RGB(255,255,255));
             }
         }
-	}
-	
-	if ((debugLevel & 0x02) == 0x02)
-	{
+    }
+
+    if ((debugLevel & 0x02) == 0x02)
+    {
         if (stablization == STABLIZE_HOMOGRAPHY)
             cv::warpPerspective(debugFrame, debugFrame, homography, Size(debugFrame.cols, debugFrame.rows), cv::WARP_INVERSE_MAP);
         //cv::warpAffine(debugFrame, debugFrame, homography(Rect(0,0,3,2)), Size(debugFrame.cols, debugFrame.rows), cv::WARP_INVERSE_MAP);
 
         //rectangle(debugFrame, Rect(flowROI.x / fx, flowROI.y / fy, flowROI.width / fx, flowROI.height / fy), CV_RGB(255, 0, 0));
         for (int i = 0; i < 2; i++)
-		{
+        {
             // Only for visualization
             gestureRegion[i].x /= fx;
             gestureRegion[i].y /= fy;
             gestureRegion[i].width /= fx;
             gestureRegion[i].height /= fy;
 
-			std::stringstream txtstr;
+            std::stringstream txtstr;
             rectangle(debugFrame, gestureRegion[i], CV_RGB(0,0,0));
-			Point2d center;
-			center.x = gestureRegion[i].x + gestureRegion[i].width / 2;
-			center.y = gestureRegion[i].y + gestureRegion[i].height / 2;
-			txtstr << fixed << setprecision(3) << flowScoreInRegion[i];
+            Point2d center;
+            center.x = gestureRegion[i].x + gestureRegion[i].width / 2;
+            center.y = gestureRegion[i].y + gestureRegion[i].height / 2;
+            txtstr << fixed << setprecision(3) << flowScoreInRegion[i];
 //			putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, CV_RGB(0,0,255));
-		}
-	}
-	
 
+        }
+
+        if (true)
+        {
+            Mat opticalFrameResized;
+            resize(opticalFrame, opticalFrameResized, Size(), 1.0/fx, 1.0/fy,  CV_INTER_CUBIC);
+            addWeighted(debugFrame, 0.4, opticalFrameResized, 0.6, 0.0, debugFrame);
+        }
+    }
 	
 }
 
