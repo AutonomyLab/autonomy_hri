@@ -423,6 +423,7 @@ void electedFunc()
                                                             (strcmp(talker.speech.data.c_str(),"start election") == 0) ||
                                                             (strcmp(talker.speech.data.c_str(),"restart election") == 0) ||
                                                             (strcmp(talker.speech.data.c_str(),"restart") == 0) ||
+                                                          (strcmp(talker.speech.data.c_str(),"robots") == 0) ||
                                                             (strcmp(talker.speech.data.c_str(),"again") == 0)))// if yes --> reset the election
     {
         is_elected = false;
@@ -466,6 +467,7 @@ void rejectedFunc()
                                                             (strcmp(talker.speech.data.c_str(),"start election") == 0) ||
                                                             (strcmp(talker.speech.data.c_str(),"restart election") == 0) ||
                                                             (strcmp(talker.speech.data.c_str(),"restart") == 0) ||
+                                                          (strcmp(talker.speech.data.c_str(),"robots") == 0) ||
                                                             (strcmp(talker.speech.data.c_str(),"again") == 0)))// if yes --> reset the election
     {
         is_elected = false;
