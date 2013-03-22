@@ -287,7 +287,7 @@ void electionResultsCallback(const autonomy_human::election& msg) // Retreive In
         election_time = msg.header.stamp;
         if(msg.is_valid) valid_election = true;
         else if(!msg.is_valid) valid_election = false;
-        ROS_INFO("The User wants: [ %d ]  robots",number_robot);
+        ROS_INFO_THROTTLE(1, "The User wants: [ %d ]  robots",number_robot);
 }
 
 void humanCallback(const autonomy_human::human& msg) // Get recent face score and put it in the faceScore to get average on FS
@@ -295,14 +295,14 @@ void humanCallback(const autonomy_human::human& msg) // Get recent face score an
     face_info.faceScore = msg.faceScore;
     face_info.header.stamp = ros::Time::now();
     cq.insert(msg.faceScore);
-    ROS_INFO("My Face score: %d",face_info.faceScore);
+    ROS_INFO_THROTTLE(1, "My Face score: %d",face_info.faceScore);
 }
 
 void speechCallback (const std_msgs::String& msg) // Speech commands
 {
     talker.speech.data = msg.data;
     talker.ts = ros::Time::now();
-    ROS_INFO("*********************  I heard: %s",talker.speech.data.c_str());
+    ROS_INFO_THROTTLE(1, "*********************  I heard: %s",talker.speech.data.c_str());
 }
 
 void navdataCallback(const ardrone_autonomy::NavdataConstPtr &msg)
@@ -340,7 +340,7 @@ void aveFacescoreFunc(){
     {
          average_fs.data = 0;
     }
-    ROS_INFO("My Face score: %d",face_info.faceScore);
+    ROS_INFO_THROTTLE(1, "My Face score: %d",face_info.faceScore);
 }
 
 void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsigned int& myposition)
@@ -348,7 +348,7 @@ void isElected(vector<string> sorted_ns, string& myname, bool& iselected, unsign
     iselected = false;
     if (!sorted_ns.empty() && (myname == sorted_ns.front()) && valid_election && check_election && (number_robot > 0)) {
         elected_counter += 1;
-        ROS_INFO("Elected Counter:    %d", elected_counter);
+        ROS_INFO_THROTTLE(1, "Elected Counter:    %d", elected_counter);
         if(elected_counter > MAX_AVERAGE_ELECTION)
         {
         iselected = true;
@@ -362,7 +362,7 @@ void isRejected(vector<string> sorted_ns, string& myname, bool& isrejected)
     if (!sorted_ns.empty() && (myname == sorted_ns.back()))
     {
         rejected_counter = rejected_counter + 1;
-        ROS_INFO("Rejected Counter:    %d", rejected_counter);
+        ROS_INFO_THROTTLE(1, "Rejected Counter:    %d", rejected_counter);
         if(rejected_counter > MAX_AVERAGE_ELECTION)
         {
         isrejected = true;
@@ -385,7 +385,7 @@ void wait4ElectionFunc()
     // Does it get the recent election result?
     if (last_election.toSec() > ELECTION_TIMEOUT)  // No - Either the election node is off or the result is too old
     {
-        ROS_ERROR("Last election happened %f seconds ago",last_election.toSec());
+        ROS_ERROR_THROTTLE(1, "Last election happened %f seconds ago",last_election.toSec());
         is_elected = false;
         blueLED();
     }
@@ -605,10 +605,10 @@ int main(int argc, char **argv)
 
 
 
-        ROS_INFO("***************************************************");
-        ROS_INFO("Robot State: >>> %s <<<", state_names[robot_state].c_str());
-        ROS_INFO("Am I elected? [ %d ]",is_elected);
-         ROS_INFO("Am I rejected? [ %d ]",is_elected);
+        ROS_INFO_THROTTLE(1,"***************************************************");
+       ROS_INFO_THROTTLE(1,"Robot State: >>> %s <<<", state_names[robot_state].c_str());
+        ROS_INFO_THROTTLE(1,"Am I elected? [ %d ]",is_elected);
+         ROS_INFO_THROTTLE(1,"Am I rejected? [ %d ]",is_elected);
          //ROS_ERROR("Averege Face Score: [%f] ", average_fs.data);
         aver_faceScore_pub.publish(average_fs);
         ros::spinOnce();

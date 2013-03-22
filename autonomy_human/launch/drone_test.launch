@@ -4,7 +4,7 @@
     <arg name="freq" default="8" />
     
     <group ns="$(arg namespace)">
-     <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node" >
+     <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="log" cwd="node" >
         <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascade_frontalface_alt.xml" />
         <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
         <param name="profile_hack_enabled" value="false" />
@@ -29,11 +29,11 @@
         <param name="autosize" value="true" />
         <remap from="image" to="output_rgb_debug" />
       </node>
-      <node pkg="autonomy_human" name="get_elected" type="get_elected_demo" output="screen" cwd="node">
+      <node pkg="autonomy_human" name="get_elected" type="get_elected_demo" output="log" cwd="node">
         <param name="myName" value="$(arg namespace)"/>
       </node>
 <!--
-      <node pkg="uvc_camera" type="camera_node" name="uvc_camera" output="screen">
+      <node pkg="uvc_camera" type="camera_node" name="uvc_camera" output="log">
         <param name="width" type="int" value="320" />
         <param name="height" type="int" value="240" />
         <param name="fps" type="int" value="30" />
