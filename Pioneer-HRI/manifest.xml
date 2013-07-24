@@ -1,0 +1,20 @@
+<package>
+  <description brief="explore_pioneer_roy">
+     explore_pioneer_roy
+  </description>
+  <author></author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/explore_pioneer_roy</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+  <depend package="geometry_msgs"/>
+  <depend package="p2os_driver"/>
+  <depend package="sound_play"/>
+  <depend package="pi_tracker"/>
+  <depend package="cv_bridge"/>
+  <rosdep name="opencv2.3" />
+</package>
+
+

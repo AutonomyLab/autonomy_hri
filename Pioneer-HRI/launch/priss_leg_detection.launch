@@ -1,0 +1,3 @@
+<launch>
+<node pkg="explore_pioneer_roy" name="findLegs" type="findLegs" ns="priss" output="screen"/>
+</launch>
