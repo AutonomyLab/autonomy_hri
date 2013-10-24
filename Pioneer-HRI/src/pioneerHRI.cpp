@@ -260,7 +260,7 @@ void updateKinectConfirm() {
 
 } /* End of updateKinectConfirm */
 
-void legsInLaserData(vector<float> ranges, int startRange, int endRange, int &numLegs, vector<float> &legDist, vector<float> &legAng, vector<float> &legNearestP, vector<int> &legStart, vector<int> &legEnd) {
+void legsInLaserData(vector<float> ranges, unsigned int startRange, unsigned int endRange, int &numLegs, vector<float> &legDist, vector<float> &legAng, vector<float> &legNearestP, vector<int> &legStart, vector<int> &legEnd) {
 
     float diffLaserData[ranges.size()];
     double threshold = 0.1;
@@ -278,7 +278,7 @@ void legsInLaserData(vector<float> ranges, int startRange, int endRange, int &nu
     legStart.clear();
     legEnd.clear();
 
-    for (int i = 0; i < ranges.size(); i++) {
+    for (unsigned int i = 0; i < ranges.size(); i++) {
         if (ranges.at(i) > LASER_MAX_RANGE) ranges.at(i) = LASER_MAX_RANGE;
     }
 
@@ -302,7 +302,7 @@ void legsInLaserData(vector<float> ranges, int startRange, int endRange, int &nu
     }
 
     /*filter out some noises*/
-    for (int k = 0; k < ranges.size() - 1; k++) {
+    for (unsigned int k = 0; k < ranges.size() - 1; k++) {
         if ((filter[k] - filter[k + 1] > LASER_MAX_RANGE) && (filter[k] - filter[k + 1] < -LASER_MAX_RANGE)) {
             filter[k + 1] = 0.0;
         }
@@ -1108,9 +1108,9 @@ void obstacle_avoidance() {
 
 
 // *********************  CALL BACK FUNCTIONS
-
 void sonar_cb(const p2os_driver::SonarArray & msg) {
-    msg.get_ranges_vec(sonar_ranges);
+   // msg.get_ranges_vec(sonar_ranges);
+    sonar_ranges = msg.ranges;
     //    ROS_INFO("SONAR DATA CAME");
 }
 
@@ -1120,14 +1120,17 @@ void laser_cb(const sensor_msgs::LaserScan & msg) {
     laser_ranges.clear();
     ls_count++;
     lastLaserTime = ros::Time::now();
-    msg.get_ranges_vec(now_range);
-    if (now_range.size() > 0) {
-        msg.get_ranges_vec(laser_ranges);
+    //now_range = msg.ranges;
+    //msg.get_ranges_vec(now_range);
+    //if (now_range.size() > 0) {
+    if (msg.ranges.size() > 0) {
+        //msg.get_ranges_vec(laser_ranges);
+        laser_ranges = msg.ranges;
         //Plot laser data
-        for (int i = 0; i < laser_ranges.size(); i++) {
+        for (unsigned int i = 0; i < laser_ranges.size(); i++) {
             insertPoint(laser_ranges.at(i) * 1000.0, (float) i, CV_RGB(255, 255, 255));
         }
-        
+
     }
 }
 
@@ -1157,7 +1160,8 @@ void controlCHandler(int signal) {
 
 void soundDiag_cb (const diagnostic_msgs::DiagnosticArray & msg){
     soundDiag = msg;
-    soundDiag.get_status_vec(Status);
+    // soundDiag.get_status_vec(Status);
+    Status = soundDiag.status;
     soundStatus = Status.front();
 }
 
