@@ -10,26 +10,26 @@
 
 using namespace std;
 #define JOINTS_NUM 15
+#define PI 3.1415
 deque<pi_tracker::Skeleton> past_persons;
 ros::Publisher pub_gesture;
 void mean_p(deque<pi_tracker::Skeleton>, pi_tracker::Skeleton &);
 void person_edges(pi_tracker::Skeleton, float &, float &, float &, float &);
 void hand_gesture(pi_tracker::Skeleton);
-float sr = 1.00; // Sphere Radius
+float sr = 1.50; // Sphere Radius
 geometry_msgs::Point sphereCenter;
+string gest,last_gest;
+unsigned int gest_counter;
+
 
 bool reachingGesture(const geometry_msgs::Vector3 &p1, const geometry_msgs::Vector3 &p2)
 {
-    // Joint data:  [1:'head', 2:'neck', 3:'torso', 4:'left_shoulder', 5:'left_elbow',
-    //               6:'left_hand', 7:'right_shoulder', 8:'right_elbow', 9:'right_hand', 10:'left_hip',
-    //               11:'left_knee', 12:'left_foot', 13:'right_hip', 14:'right_knee', 15:'right_foot']
-    geometry_msgs::Point  p3; // sphere center
-    p3.x = 0.0;
-    p3.y = 0.0;
-    p3.z = 0.0;
-    float  a,b,c,delta;
+    /*
+      Joint data:  [1:'head', 2:'neck', 3:'torso', 4:'left_shoulder', 5:'left_elbow',
+                    6:'left_hand', 7:'right_shoulder', 8:'right_elbow', 9:'right_hand', 10:'left_hip',
+                    11:'left_knee', 12:'left_foot', 13:'right_hip', 14:'right_knee', 15:'right_foot']
 
-    /* Calculating the line-sphere intersection:
+      Calculating the line-sphere intersection:
       P1 (x1,y1,z1), P2 (x2,y2,z2) : line points
       P3 (x3,y3,z3) : sphere center
       r : sphere radius
@@ -39,6 +39,11 @@ bool reachingGesture(const geometry_msgs::Vector3 &p1, const geometry_msgs::Vect
       delta = b * b - 4 * a * c;
       */
 
+    geometry_msgs::Point  p3; // sphere center
+    p3.x = 0.0;
+    p3.y = 0.0;
+    p3.z = 0.0;
+    float  a,b,c,delta;
       a = (p2.x - p1.x)*(p2.x - p1.x) + (p2.y - p1.y)*(p2.y - p1.y) + (p2.z - p1.z)*(p2.z - p1.z);
       b = 2*((p2.x - p1.x)*(p1.x - p3.x) + (p2.y - p1.y)*(p1.y - p3.y) + (p2.z - p1.z)*(p1.z - p3.z));
       c = p3.x * p3.x + p3.y * p3.y + p3.z*p3.z + p1.x*p1.x + p1.y*p1.y + p1.z*p1.z - 2*(p3.x*p1.x + p3.y*p1.y + p3.z*p1.z) - sr*sr;
@@ -46,12 +51,23 @@ bool reachingGesture(const geometry_msgs::Vector3 &p1, const geometry_msgs::Vect
 
     if(delta >= 0.0)
     {
-        ROS_INFO("              *** REACHING GESTURE DETECTED  ***");
+        ROS_INFO("***** REACHING GESTURE DETECTED  *****");
         return true;
     }
     else
 
         return false;
+}
+
+void slope(const geometry_msgs::Vector3 &p1, const geometry_msgs::Vector3 &p2, float &alpha, float &beta, float &gama)
+{
+    float x = fabs(p1.x - p2.x);
+    float y = fabs(p1.y - p2.y);
+    float z = fabs(p1.z - p2.z);
+    float lineSize = sqrt(x*x + y*y + z*z);
+    alpha = acos(x/lineSize)*180.0/PI;
+    beta = acos(y/lineSize)*180.0/PI;
+    gama = acos(z/lineSize)*180.0/PI;
 }
 
 
@@ -123,23 +139,28 @@ void mean_p(deque<pi_tracker::Skeleton> past_persons, pi_tracker::Skeleton & mea
 void hand_gesture(pi_tracker::Skeleton mean_person)
 {
 
-    geometry_msgs::Vector3  rightHand, head,leftHand;
-    float d_min, d_max, h_min, h_max;
-    string gest;
+    geometry_msgs::Vector3  rightHand, head,leftHand, rightElbow, leftElbow;
+    float d_min, d_max, h_min, h_max, Lalpha, Lbeta, Lgama, Ralpha, Rbeta, Rgama;
     std_msgs::String msg_gesture;
     stringstream str_gesture;
     person_edges(mean_person, d_min, d_max, h_min, h_max);
-   /* float r_hand_sh2el, r_hand_el2ha, r_hand_ha2hip, l_hand_sh2el, l_hand_el2ha, l_hand_ha2hip; // different between joints
-    r_hand_sh2el = mean_person.position.at(6).y - mean_person.position.at(7).y;
-    r_hand_el2ha = mean_person.position.at(7).y - mean_person.position.at(8).y;
-    r_hand_ha2hip = mean_person.position.at(8).y - mean_person.position.at(12).y;
-    l_hand_sh2el = mean_person.position.at(3).y - mean_person.position.at(4).y;
-    l_hand_el2ha = mean_person.position.at(4).y - mean_person.position.at(5).y;
-    l_hand_ha2hip = mean_person.position.at(5).y - mean_person.position.at(9).y; */
 
     rightHand = mean_person.position.at(8);
     leftHand = mean_person.position.at(5);
     head = mean_person.position.at(0);
+    rightElbow = mean_person.position.at(7);
+    leftElbow = mean_person.position.at(4);
+    slope(leftHand, leftElbow, Lalpha, Lbeta, Lgama);
+    ROS_INFO("Left Alpha: [%f]", Lalpha);
+    ROS_INFO("Left Beta: [%f]", Lbeta);
+    ROS_INFO("Left Gama: [%f]", Lgama);
+
+    slope(rightHand, rightElbow, Ralpha, Rbeta, Rgama);
+    ROS_INFO("Right Alpha: [%f]", Ralpha);
+    ROS_INFO("Right Beta: [%f]", Rbeta);
+    ROS_INFO("Right Gama: [%f]", Rgama);
+
+
     if(reachingGesture(head,rightHand))
     {
         ROS_INFO("              *** REACHING GESTURE DETECTED (RIGHT HAND) ***");
@@ -148,24 +169,41 @@ void hand_gesture(pi_tracker::Skeleton mean_person)
     else if(reachingGesture(head,leftHand))
     {
         ROS_INFO("              *** REACHING GESTURE DETECTED (Left HAND) ***");
-        gest = "left right";
+        gest = "reach left";
+    }
+    else
+    {
+        gest = "";
+        slope(rightHand, rightElbow, Ralpha, Rbeta, Rgama);
+        if((Ralpha < 30)&&(Rbeta > 60)&&(Rgama >60))
+        {
+            ROS_INFO("              *** POINTING GESTURE DETECTED (RIGHT HAND) ***");
+            gest = "point right";
+        }
+        slope(leftHand, leftElbow, Lalpha, Lbeta, Lgama);
+        if((Lalpha < 30)&&(Lbeta > 60)&&(Lgama >60))
+        {
+            ROS_INFO("              *** POINTING GESTURE DETECTED (LEFT HAND) ***");
+            gest = "point left";
+        }
+
     }
 
+    if(gest.compare("") != 0)
+    {
+        if(last_gest.compare(gest) != 0)
+            gest_counter = 1;
+        else
+            gest_counter ++;
+    } else gest_counter = 0;
 
-
-/*    if ((fabs(d_min - mean_person.position.at(8).z) < 0.01) && (r_hand_sh2el < l_hand_sh2el) && (r_hand_el2ha < l_hand_el2ha) && (r_hand_ha2hip > 0)) {
-        ROS_INFO("              *** RIGHT HAND GESTURE DETECTED ***");
-        gest = "right";
-    }
-
-    if ((fabs(d_min - mean_person.position.at(5).z) < 0.01) && (r_hand_sh2el > l_hand_sh2el) && (r_hand_el2ha > l_hand_el2ha) && (l_hand_ha2hip > 0)) {
-        ROS_INFO("              *** Left HAND GESTURE DETECTED ***");
-        gest = "left";
-    }
-*/
-    str_gesture << gest;
+    if(gest_counter > 10)
+        str_gesture << gest;
+    else
+        str_gesture << "";
     msg_gesture.data = str_gesture.str();
     pub_gesture.publish(msg_gesture);
+    last_gest = gest;
 }
 
 void person_edges(pi_tracker::Skeleton person, float & depth_min, float & depth_max, float & height_min, float & height_max)
