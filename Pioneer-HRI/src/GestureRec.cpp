@@ -20,6 +20,9 @@ float sr = 1.50; // Sphere Radius
 geometry_msgs::Point sphereCenter;
 string gest,last_gest;
 unsigned int gest_counter;
+ros::Time last_skel;
+std_msgs::String no_gesture;
+
 
 
 bool reachingGesture(const geometry_msgs::Vector3 &p1, const geometry_msgs::Vector3 &p2)
@@ -73,6 +76,8 @@ void slope(const geometry_msgs::Vector3 &p1, const geometry_msgs::Vector3 &p2, f
 
 void skeleton_cb(const pi_tracker::Skeleton &msg)
 {
+    //last_skel = msg.header.stamp;
+    last_skel = ros::Time::now();
     pi_tracker::Skeleton Persons, mean_person;
     bool allConf = true;
     Persons = msg;
@@ -80,9 +85,13 @@ void skeleton_cb(const pi_tracker::Skeleton &msg)
     unsigned int counter = 10;
     Names = Persons.name;
     float depth_min, depth_max, height_min, height_max;
+    for(unsigned int i = 0; i < JOINTS_NUM ; i++)
+    {
+        allConf = allConf && Persons.confidence.at(i);
+    }
     if (Persons.confidence.size() > 0) {
-        //allConf = true;
-        //if (allConf) {
+        //ROS_INFO("CONFIDENCE? [%d]",allConf);
+        if (allConf) {
 
             if (past_persons.size() < counter) {
                 past_persons.push_back(Persons);
@@ -90,12 +99,15 @@ void skeleton_cb(const pi_tracker::Skeleton &msg)
                 past_persons.pop_front();
                 past_persons.push_back(Persons);
             }
-        //}
-        if (past_persons.size() == counter) {
-            mean_p(past_persons, mean_person);
-            person_edges(mean_person, depth_min, depth_max, height_min, height_max);
-            hand_gesture(mean_person);
+
+            if (past_persons.size() == counter) {
+                mean_p(past_persons, mean_person);
+                person_edges(mean_person, depth_min, depth_max, height_min, height_max);
+                hand_gesture(mean_person);
+            }
         }
+        else
+            pub_gesture.publish(no_gesture);
     }
 } // End of skeleton_cb
 
@@ -150,16 +162,8 @@ void hand_gesture(pi_tracker::Skeleton mean_person)
     head = mean_person.position.at(0);
     rightElbow = mean_person.position.at(7);
     leftElbow = mean_person.position.at(4);
-    slope(leftHand, leftElbow, Lalpha, Lbeta, Lgama);
-    ROS_INFO("Left Alpha: [%f]", Lalpha);
-    ROS_INFO("Left Beta: [%f]", Lbeta);
-    ROS_INFO("Left Gama: [%f]", Lgama);
-
-    slope(rightHand, rightElbow, Ralpha, Rbeta, Rgama);
-    ROS_INFO("Right Alpha: [%f]", Ralpha);
-    ROS_INFO("Right Beta: [%f]", Rbeta);
-    ROS_INFO("Right Gama: [%f]", Rgama);
-
+    // slope(leftHand, leftElbow, Lalpha, Lbeta, Lgama);
+    // slope(rightHand, rightElbow, Ralpha, Rbeta, Rgama);
 
     if(reachingGesture(head,rightHand))
     {
@@ -189,18 +193,16 @@ void hand_gesture(pi_tracker::Skeleton mean_person)
 
     }
 
-    if(gest.compare("") != 0)
+    if(gest.size() > 0)
     {
         if(last_gest.compare(gest) != 0)
             gest_counter = 1;
         else
             gest_counter ++;
     } else gest_counter = 0;
-
+    str_gesture.str("");
     if(gest_counter > 10)
         str_gesture << gest;
-    else
-        str_gesture << "";
     msg_gesture.data = str_gesture.str();
     pub_gesture.publish(msg_gesture);
     last_gest = gest;
@@ -229,9 +231,16 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub_skel = n.subscribe("skeleton", 100, skeleton_cb);
     pub_gesture = n.advertise<std_msgs::String>("gesture", 100);
-
+    last_skel = ros::Time(0);
+    no_gesture.data = "";
+    gest_counter = 0;
     ros::Rate loop_rate(30);
     while (ros::ok()) {
+        if ((ros::Time::now()-last_skel).toSec() > 2.0)
+        {
+            pub_gesture.publish(no_gesture);
+            gest_counter = 0;
+        }
         ros::spinOnce();
         loop_rate.sleep();
     }
