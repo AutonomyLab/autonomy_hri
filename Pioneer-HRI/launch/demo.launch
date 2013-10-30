@@ -1,0 +1,6 @@
+<launch>
+	<node pkg="Pioneer-HRI" name="GestureRec" type="GestureRec" output="screen"/>
+	<node pkg="Pioneer-HRI" name="pioneerHRI" type="pioneerHRI" output="screen"/>
+	<include file="$(find skeleton_markers)/launch/markers.launch" />
+	<node pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find Pioneer-HRI)/markers.vcg" />
+</launch>

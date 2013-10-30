@@ -1299,7 +1299,7 @@ int main(int argc, char **argv) {
 
         if ((diffPerson.toSec() > 2.0)) {
             resetCounter(confirmCounter);
-            ROS_INFO("temp 1");
+            // ROS_INFO("temp 1");
         }
 
         // ----------- VISUALIZATION ------------
@@ -1344,8 +1344,8 @@ int main(int argc, char **argv) {
         ROS_INFO("***************************************************");
         ROS_INFO("Robot State:    >>> %s <<<", state_names[robot_state].c_str());
         //ROS_INFO("LegCounters: %d       %d", IsLegCounter, IsNotLegCounter);
-        ROS_INFO("cmd_vel: x:%6.2f    z:%6.2f", cmd_vel.linear.x, cmd_vel.angular.z);
-        ROS_INFO("targetLeg.dist: %f     targetLeg.angle: %f", targetLeg.dist, targetLeg.angle);
+        // ROS_INFO("cmd_vel: x:%6.2f    z:%6.2f", cmd_vel.linear.x, cmd_vel.angular.z);
+        // ROS_INFO("targetLeg.dist: %f     targetLeg.angle: %f", targetLeg.dist, targetLeg.angle);
         //ROS_INFO("targetLeg.start_angle: %d     targetLeg.end_angle: %d", targetLeg.start_angle, targetLeg.end_angle);
         //ROS_INFO("FOV: %d    %d", start_range, end_range);
         //ROS_INFO("confrimCounter: %d", confirmCounter);
@@ -1353,7 +1353,7 @@ int main(int argc, char **argv) {
        // ROS_INFO("kinectConfirm: %d", IsKinectConfirm);
         //ROS_INFO("Gesture: %s", gest.data.c_str());
         //ROS_INFO("exitIgnoring: %d", exitIgnoring);
-        ROS_INFO("diffStateTime: %f", diffStateTime.toSec());
+        // ROS_INFO("diffStateTime: %f", diffStateTime.toSec());
         //ROS_ERROR("Message sound: %s ",soundStatus.message.c_str());
 
         if(soundStatus.message == "1 sounds playing"){

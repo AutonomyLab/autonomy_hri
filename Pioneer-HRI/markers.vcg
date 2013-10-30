@@ -1,0 +1,55 @@
+Axes.Enabled=0
+Axes.Length=1
+Axes.Radius=0.1
+Axes.Reference\ Frame=/openni_depth_frame
+Background\ ColorB=0
+Background\ ColorG=0
+Background\ ColorR=0
+Camera\ Config=1.3798 4.71858 6.11871 0 0 0
+Camera\ Type=rviz::XYOrbitViewController
+Fixed\ Frame=/openni_depth_frame
+Grid.Alpha=0.5
+Grid.Cell\ Size=1
+Grid.ColorB=0.5
+Grid.ColorG=0.5
+Grid.ColorR=0.5
+Grid.Enabled=1
+Grid.Line\ Style=0
+Grid.Line\ Width=0.03
+Grid.Normal\ Cell\ Count=0
+Grid.OffsetX=0
+Grid.OffsetY=-1
+Grid.OffsetZ=0
+Grid.Plane=1
+Grid.Plane\ Cell\ Count=10
+Grid.Reference\ Frame=<Fixed Frame>
+Marker.Enabled=1
+Marker.Marker\ Topic=/skeleton_markers
+Marker.Queue\ Size=10
+Marker.skeleton_markers=1
+Property\ Grid\ Splitter=1,0
+Property\ Grid\ State=expanded=.Global Options,.Global Status,Axes.Enabled,Grid.Enabled,Marker.Enabled;splitterratio=0.5
+QMainWindow=000000ff00000000fd00000003000000000000011d000002e1fc0200000001fb000000100044006900730070006c006100790073000000001d000002e1000000ee00ffffff0000000100000131000002bdfc0200000003fb0000001e0054006f006f006c002000500072006f0070006500720074006900650073000000001d0000015c0000006700fffffffb0000000a0056006900650077007300000000d700000149000000bb00fffffffb0000001200530065006c0065006300740069006f006e000000001d000002bd0000006700ffffff00000003000003a40000003efc0100000001fb0000000800540069006d00650000000000000003a4000002bf00ffffff000003a4000002f200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+Target\ Frame=<Fixed Frame>
+Tool\ 2D\ Nav\ GoalTopic=/move_base_simple/goal
+Tool\ 2D\ Pose\ EstimateTopic=initialpose
+[Display0]
+ClassName=rviz::AxesDisplay
+Name=Axes
+[Display1]
+ClassName=rviz::GridDisplay
+Name=Grid
+[Display2]
+ClassName=rviz::MarkerDisplay
+Name=Marker
+[Views]
+0Name=My View
+[Views/0]
+Config=1.3948 4.69358 8.97867 0 0 0
+Target=<Fixed Frame>
+Type=rviz::XYOrbitViewController
+[Window]
+Height=819
+Width=948
+X=459
+Y=24
