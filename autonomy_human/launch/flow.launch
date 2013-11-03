@@ -1,9 +1,0 @@
-<launch>
-    <node pkg="autonomy_human" name="test_flow" type="test_flow" output="screen" cwd="node" >
-        <remap from="input_rgb_image" to="ardrone/image_raw" />
-    </node>
-    <node pkg="image_view" name="debug_image" type="image_view" output="log">
-        <param name="autosize" value="true" />
-        <remap from="image" to="output_rgb_debug" />
-    </node>
-</launch>
