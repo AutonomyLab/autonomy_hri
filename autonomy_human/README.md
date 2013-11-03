@@ -11,15 +11,15 @@ In brief this package provides the following functionalities:
 
 Please refer to the paper for more information about the implementation details.
 
-## Notes on Compiling
+### Notes on Compiling
 
 This package has external dependency to OpenCV which is handled by `rosdep`. This package also depends on ROS packages `cv_bridge` and `image_transport`.
 
-## Subscribed Topics
+### Subscribed Topics
 
 - `input_rgb_image`: The input image stream of type [image transport](http://www.ros.org/wiki/image_transport).
 
-## Published Topics
+### Published Topics
 
 - `output_rgb_debug`, `output_rgb_optical` and `output_rgb_skin`: Debug image streams of type [image transport](http://www.ros.org/wiki/image_transport) for debug, skin and optical flow respectively.
 
@@ -31,7 +31,7 @@ This package has external dependency to OpenCV which is handled by `rosdep`. Thi
 	- `faceScore`: The quality of the currently tracked face. Please refer to the paper for more details. The type is `uint32`.
 	- `flowScore`: This `float32[2]` array represents the average optical flow for all pixels in the  left and right regions around the tracked face. These values can be used to detect human hand waves by thresholding. You may also need to use low-pass or median filters for more robust detection.
 
-## Parameters
+### Parameters
 
 - `~debug_mode`: Integer value the determines debug images to be published: (Default is set to `2`)
 	- bit 0: Unused
