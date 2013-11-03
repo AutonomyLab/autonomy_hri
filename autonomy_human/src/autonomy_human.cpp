@@ -1333,9 +1333,7 @@ int main(int argc, char **argv)
 	
     ros::Rate loopRate(30);
 
-    
 	while (ros::ok()){
-		      
 		ros::spinOnce();
 		loopRate.sleep();
 	}

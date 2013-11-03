@@ -1,8 +1,6 @@
 <package>
   <description brief="autonomy_human">
-
-     Autonomy lab, human features (face, skin) extraction package.
-
+      OpenCV based human face detector, tracker, hand-wave gesture recognizer with Optical Flow based ego-motion cancellation.
   </description>
   <author>Mani Monajjemi (mmonajje@cs.sfu.ca)</author>
   <license>BSD</license>

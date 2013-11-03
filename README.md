@@ -1,19 +1,7 @@
-To migrate from `autonomy_human` to `autonomy_hri`
+## AutonomyLab's HRI Repository
 
-```bash
-roscd autonomy_human
-make clean
-cd ..
-mv autonomy_human autonomy_hri
-cd autonomy_hri
-git remote set-url origin git@github.com:AutonomyLab/autonomy_hri.git 
-[or]
-git remote set-url origin https://github.com/AutonomyLab/autonomy_hri.git
-git pull
-```
+This repository contains some of ROS packages developed in Simon Fraser University's [Autonomy Lab](http://autonomy.cs.sfu.ca) for Human Robot Interaction projects.
 
-get rid of any residual folder, `ls` should show something like this:
+### Packages
 
-<pre>
-autonomy_human  README.md  stack.xml
-</pre>
+- **autonomy_human**: OpenCV based Face detector, tracker and hand-wave gesture recognizer with Optical Flow based ego-motion cancellation.
