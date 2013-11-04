@@ -2,18 +2,25 @@
 
 "autonomy_human" is a [ROS](http://ros.org) package that includes the Human Robot Interaction code developed for the following paper:
 
-***
+> Valiallah(Mani) Monajjemi, Jens Wawerla, Richard T. Vaughan, and Greg Mori. "HRI in The Sky: Creating and 
+> Commanding Teams of UAVs With a Vision-Mediated Gestural Unterface", In Proceedings of the IEEE
+> International Conference on Intelligent Robots and Systems (IROS'13), Tokyo, Japan, November 2013.
 
 In brief this package provides the following functionalities:
 
 - Human face tracking: OpenCV based face detection combined with a Kalman filter to robustly track a single human face. The face tracker also reports the quality of detected face, AKA as the "face score". (more info in [1])
-- ***: Optical flow based hand wave recognition with ego motion cancellation.
+- Optical flow based hand wave recognition with ego motion cancellation
+- Probabilistic skin segmentation for tracked user [Experimental]
 
 Please refer to the paper for more information about the implementation details.
 
 ### Notes on Compiling
 
-This package has external dependency to OpenCV which is handled by `rosdep`. This package also depends on ROS packages `cv_bridge` and `image_transport`.
+This package has external dependency on [OpenCV](http://*) which can be handled by `rosdep`. This package also depends on ROS packages `cv_bridge` and `image_transport`. You can alternatively use the OpenCV binary packages shipped with ROS: `ros-*-opencv2` and `ros-*-vision-opencv`. For example for ROS Groovy: `sudo apt-get install ros-groovy-opencv2 ros-groovy-vision-opencv`. To compile package simple run `rosmake autonomy_human`. 
+
+#### Execution
+
+You need to execute the `autonomy_human` executable with appropriate parameters (described in the next section). You can look into `launch/demo_usbcam.launch` for sample configuration. 
 
 ### Subscribed Topics
 
@@ -27,7 +34,7 @@ This package has external dependency to OpenCV which is handled by `rosdep`. Thi
 
 	- `header`: Standard ROS header.
 	- `numFaces`: The number of detected faces in the current frame (regardless of tracker's stated). The type is `uint32`.
-	- `faceROI`: The bounding box for the currently tracked face in pixels represented in image coordinate frame. The type is [sensor_msgs/RegionOfInterest](http://***). 
+	- `faceROI`: The bounding box for the currently tracked face in pixels represented in image coordinate frame. The type is [sensor_msgs/RegionOfInterest](http://http://docs.ros.org/api/sensor_msgs/html/msg/RegionOfInterest.html). 
 	- `faceScore`: The quality of the currently tracked face. Please refer to the paper for more details. The type is `uint32`.
 	- `flowScore`: This `float32[2]` array represents the average optical flow for all pixels in the  left and right regions around the tracked face. These values can be used to detect human hand waves by thresholding. You may also need to use low-pass or median filters for more robust detection.
 
@@ -40,7 +47,7 @@ This package has external dependency to OpenCV which is handled by `rosdep`. Thi
 	- bit 3: Unused
 	- bit 4: Enables publishing the optical flow calculation result to `output_rgb_optical`
 
-- `~cascade_file`: The absolute path to the Cascade Classifier `XML` or `YAML` file. "Frontal Face" databases from `OpenCV` is shipped with this package. Please consult the `launch/demo.launch` file for how to use those. More information about cascade classifiers in OpenCV can be found [here](http://***).
+- `~cascade_file`: The absolute path to the Cascade Classifier `XML` or `YAML` file. "Frontal Face" databases from `OpenCV` is shipped with this package. Please consult the `launch/demo_usbcam.launch` file for how to use those. More information about cascade classifiers in OpenCV can be found [here](http://http://docs.opencv.org/modules/objdetect/doc/cascade_classification.html).
 
 - `~profile_hack_enabled`: Determines if the detector should look for the `profile` faces as well as `frontal` faces. The default value is `False`.
 
@@ -66,4 +73,8 @@ This package has external dependency to OpenCV which is handled by `rosdep`. Thi
 
 **Note**: The bigger the range for face detector's `width` and `height`, the more computation intensive the face detection would be.
 
-- `meas_cov` and `proc_cov`: Kalman filter parameters. Default is 1.0 and 0.05 respectively.
+- `meas_cov` and `proc_cov`: Kalman filter parameters for measurement and process covariances. Defaults are 1.0 and 0.05 respectively.
+
+### References 
+
+[1] Alex Couture-Beil, Richard T. Vaughan, and Greg Mori. "Selecting and commanding individual robots in a vision-based multi-robot system", In Proceedings of the Canadian Conference on Computer and Robot Vision, May 2010.
