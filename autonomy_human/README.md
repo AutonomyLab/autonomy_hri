@@ -33,14 +33,14 @@ You need to execute the `autonomy_human` executable with appropriate parameters 
 - `human`: Information about the detected human. The type of this message is custom and is defined in `msg/human.msg` file. The details are as follows:
 
 	- `header`: Standard ROS header.
-	- `numFaces`: The number of detected faces in the current frame (regardless of tracker's stated). The type is `uint32`.
-	- `faceROI`: The bounding box for the currently tracked face in pixels represented in image coordinate frame. The type is [sensor_msgs/RegionOfInterest](http://http://docs.ros.org/api/sensor_msgs/html/msg/RegionOfInterest.html). 
-	- `faceScore`: The quality of the currently tracked face. Please refer to the paper for more details. The type is `uint32`.
-	- `flowScore`: This `float32[2]` array represents the average optical flow for all pixels in the  left and right regions around the tracked face. These values can be used to detect human hand waves by thresholding. You may also need to use low-pass or median filters for more robust detection.
+	- `numFaces`: The number of detected faces in the current frame (regardless of tracker's state). The type is `uint32`.
+	- `faceROI`: The bounding box for the currently tracked face in pixels in image coordinate frame. The type is [sensor_msgs/RegionOfInterest](http://http://docs.ros.org/api/sensor_msgs/html/msg/RegionOfInterest.html). 
+	- `faceScore`: The quality of the currently tracked face. Please refer to the paper or [1] for more details. The type is `uint32`.
+	- `flowScore`: This `float32[2]` array represents the average optical flow (after stabilization) for all pixels in the  left and right regions around the tracked face. These values can be used to detect human hand waves by thresholding. You may also need to use low-pass or other type of filters for more robust detection. (TBA: Sample Filter Code)
 
 ### Parameters
 
-- `~debug_mode`: Integer value the determines debug images to be published: (Default is set to `2`)
+- `~debug_mode`: Bits of this integer value determine different debug or information streams to be published: (Default is set to `2`)
 	- bit 0: Unused
 	- bit 1: Enables publishing the general debug image to `output_rgb_debug`
 	- bit 2: Enables publishing the skin segmentation result to `output_rgb_skin`
@@ -53,7 +53,7 @@ You need to execute the `autonomy_human` executable with appropriate parameters 
 
 - `~cascade_profile_file`: Similar to `~cascade_file`. Should only be set if `~profile_hack_enabled` is set to `True`
 
-- `~skin_enabled`: Determines if probabilistic skin segmentation should be performed. The default value is `False`. If set to `True`, the pixels in the detected facial area would be first thresholded, then used to determine the human skin's histogram. This histogram is then used to determine probabilistically (using a Bayesian filter) the likelihood of each pixel in the image to be human's skin. The `output_rgb_skin` is a grayscale image created from that probability distribution.
+- `~skin_enabled`: Determines if probabilistic skin segmentation should be performed. The default value is `False`. If set to `True`, the pixels in the detected facial area would be first thresholded, then used to determine the human skin's histogram. This histogram is then used to determine probabilistically (using a Bayesian filter) the likelihood of each pixel in the image to be from human's skin. The `output_rgb_skin` is a grayscale image created from that probability distribution.
 
 - `~gesture_enabled`: Enables the optical flow calculation in two regions around human's face. Default is `False`.
 
@@ -63,12 +63,19 @@ You need to execute the `autonomy_human` executable with appropriate parameters 
 	- `2`: (Very Experimental), do the stabilization by calculating camera homography transformation from Optical Flow.
 
 - `~initial_min_score`: Minimum quality of detected face to be considered as legitimate. Default is `5`.
+
 - `~initial_detect_frames`: The minimum number of consecutive frames that the face should be detected before starting the face tracker. Default is `6`. 
+
 - `~initial_reject_frames`: If the face is being tracked by the Kalman filter but is not be detected for this number of frames, the face is considered lost. Default is `6`.
+
 - `~min_flow`: Value of min cut-off value for optical flow. Default is `10`. Start with smaller values.
+
 - `~min_face_width`: Minimum acceptable width for detected face. Default is `12` pixels.
+
 - `~min_face_height`: Minimum acceptable height for detected face. Default is `18` pixels.
+
 - `~max_face_width`: Maximum acceptable width for detected face. Default is `60` pixels.
+
 - `~max_face_height`: Maximum acceptable height for detected face. Default is `80` pixels.
 
 **Note**: The bigger the range for face detector's `width` and `height`, the more computation intensive the face detection would be.
@@ -77,7 +84,7 @@ You need to execute the `autonomy_human` executable with appropriate parameters 
 
 ### Notes on `demo_usbcam.launch` file
 
-To launch this you need to install ROS packages [usb_cam](http://wiki.ros.org/usb_cam) and [image_pipeline](http://wiki.ros.org/image_pipeline). For groovy you can `sudo aptitude install ros-groovy-usb-cam ros-groovy-image-pipeline`. You may also need to modify the camera parameters for `usb_cam` for your particular camera.
+To launch this you need to install ROS packages [usb_cam](http://wiki.ros.org/usb_cam) and [image_pipeline](http://wiki.ros.org/image_pipeline). For groovy you can `sudo aptitude install ros-groovy-usb-cam ros-groovy-image-pipeline`. You may also need to modify `usb_cam`'s camera parameters for your particular camera.
 
 ### References 
 
