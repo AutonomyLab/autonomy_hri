@@ -8,15 +8,15 @@
 
 In brief this package provides the following functionalities:
 
-- Human face tracking: OpenCV based face detection combined with a Kalman filter to robustly track a single human face. The face tracker also reports the quality of detected face, AKA as the "face score". (more info in [1])
-- Optical flow based hand wave recognition with ego motion cancellation
+- Human face tracking: OpenCV based face detection combined with a Kalman filter to robustly track a single human's face. The face tracker also reports the quality of detected face, AKA as the "face score". (more info in [1])
+- Optical flow calculation with stabilization to be used for hand wave gesture recognition
 - Probabilistic skin segmentation for tracked user [Experimental]
 
 Please refer to the paper for more information about the implementation details.
 
 ### Notes on Compiling
 
-This package has external dependency on [OpenCV](http://*) which can be handled by `rosdep`. This package also depends on ROS packages `cv_bridge` and `image_transport`. You can alternatively use the OpenCV binary packages shipped with ROS: `ros-*-opencv2` and `ros-*-vision-opencv`. For example for ROS Groovy: `sudo apt-get install ros-groovy-opencv2 ros-groovy-vision-opencv`. To compile package simple run `rosmake autonomy_human`. 
+This package has external dependency on [OpenCV](http://opencv.org/) which can be handled by `rosdep`. This package also depends on ROS packages [cv_bridge](http://wiki.ros.org/cv_bridge) and [image_transport](http://wiki.ros.org/image_transport). You can alternatively use the OpenCV binary packages shipped with ROS: `ros-*-opencv2` and `ros-*-vision-opencv`. For example for ROS Groovy on Ubuntu: `sudo apt-get install ros-groovy-opencv2 ros-groovy-vision-opencv`. To compile package simply run `rosmake autonomy_human`. 
 
 #### Execution
 
