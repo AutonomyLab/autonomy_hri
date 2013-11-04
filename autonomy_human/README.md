@@ -75,6 +75,10 @@ You need to execute the `autonomy_human` executable with appropriate parameters 
 
 - `meas_cov` and `proc_cov`: Kalman filter parameters for measurement and process covariances. Defaults are 1.0 and 0.05 respectively.
 
+### Notes on `demo_usbcam.launch` file
+
+To launch this you need to install ROS packages [usb_cam](http://wiki.ros.org/usb_cam) and [image_pipeline](http://wiki.ros.org/image_pipeline). For groovy you can `sudo aptitude install ros-groovy-usb-cam ros-groovy-image-pipeline`. You may also need to modify the camera parameters for `usb_cam` for your particular camera.
+
 ### References 
 
 [1] Alex Couture-Beil, Richard T. Vaughan, and Greg Mori. "Selecting and commanding individual robots in a vision-based multi-robot system", In Proceedings of the Canadian Conference on Computer and Robot Vision, May 2010.
