@@ -12,7 +12,7 @@ In brief this package provides the following functionalities:
 - Optical flow calculation with stabilization to be used for hand wave gesture recognition
 - Probabilistic skin segmentation for tracked user [Experimental]
 
-Please refer to the paper for more information about the implementation details.
+Please refer to the paper for more information about the implementation details. This package is written by [Mani Monajjemi](http://sfu.ca/~mmonajje) and is released under [BSD](http://www.opensource.org/licenses/BSD-3-Clause) licence.
 
 ### Notes on Compiling
 
