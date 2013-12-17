@@ -14,7 +14,7 @@ using namespace std;
 deque<pi_tracker::Skeleton> past_persons;
 ros::Publisher pub_gesture;
 void mean_p(deque<pi_tracker::Skeleton>, pi_tracker::Skeleton &);
-void person_edges(pi_tracker::Skeleton, float &, float &, float &, float &);
+//void person_edges(pi_tracker::Skeleton, float &, float &, float &, float &);
 void hand_gesture(pi_tracker::Skeleton);
 float sr = 1.50; // Sphere Radius
 geometry_msgs::Point sphereCenter;
@@ -22,7 +22,6 @@ string gest,last_gest;
 unsigned int gest_counter;
 ros::Time last_skel;
 std_msgs::String no_gesture;
-
 
 
 bool reachingGesture(const geometry_msgs::Vector3 &p1, const geometry_msgs::Vector3 &p2)
@@ -84,8 +83,8 @@ void skeleton_cb(const pi_tracker::Skeleton &msg)
     vector<string> Names;
     unsigned int counter = 10;
     Names = Persons.name;
-    float depth_min, depth_max, height_min, height_max;
-    for(unsigned int i = 0; i < JOINTS_NUM ; i++)
+    //float depth_min, depth_max, height_min, height_max;
+    for(unsigned int i = 0; i < (JOINTS_NUM - 6) ; i++)
     {
         allConf = allConf && Persons.confidence.at(i);
     }
@@ -102,7 +101,7 @@ void skeleton_cb(const pi_tracker::Skeleton &msg)
 
             if (past_persons.size() == counter) {
                 mean_p(past_persons, mean_person);
-                person_edges(mean_person, depth_min, depth_max, height_min, height_max);
+                //person_edges(mean_person, depth_min, depth_max, height_min, height_max);
                 hand_gesture(mean_person);
             }
         }
@@ -113,7 +112,6 @@ void skeleton_cb(const pi_tracker::Skeleton &msg)
 
 void mean_p(deque<pi_tracker::Skeleton> past_persons, pi_tracker::Skeleton & mean_person)
 {
-
     int mean_size = past_persons.size(); // 10
     mean_person.confidence.resize(15.0);
     mean_person.name.resize(15.0);
@@ -155,7 +153,7 @@ void hand_gesture(pi_tracker::Skeleton mean_person)
     float d_min, d_max, h_min, h_max, Lalpha, Lbeta, Lgama, Ralpha, Rbeta, Rgama;
     std_msgs::String msg_gesture;
     stringstream str_gesture;
-    person_edges(mean_person, d_min, d_max, h_min, h_max);
+    //person_edges(mean_person, d_min, d_max, h_min, h_max);
 
     rightHand = mean_person.position.at(8);
     leftHand = mean_person.position.at(5);
@@ -207,7 +205,7 @@ void hand_gesture(pi_tracker::Skeleton mean_person)
     pub_gesture.publish(msg_gesture);
     last_gest = gest;
 }
-
+/*
 void person_edges(pi_tracker::Skeleton person, float & depth_min, float & depth_max, float & height_min, float & height_max)
 {
     depth_min = person.position.at(0).z;
@@ -221,20 +219,19 @@ void person_edges(pi_tracker::Skeleton person, float & depth_min, float & depth_
         if (person.position.at(i).y > height_max) height_max = person.position.at(i).y;
     }
 
-}
+} */
 
 int main(int argc, char **argv)
 {
-
     ros::init(argc, argv, "GestureRec");
     ros::NodeHandle n;
-
     ros::Subscriber sub_skel = n.subscribe("skeleton", 100, skeleton_cb);
     pub_gesture = n.advertise<std_msgs::String>("gesture", 100);
     last_skel = ros::Time(0);
     no_gesture.data = "";
     gest_counter = 0;
     ros::Rate loop_rate(30);
+
     while (ros::ok()) {
         if ((ros::Time::now()-last_skel).toSec() > 2.0)
         {

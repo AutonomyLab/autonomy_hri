@@ -775,8 +775,6 @@ void wait4CommandFunc() {
             }
         }
 
-
-
         if ((gest.data == "reach right") || (gest.data == "reach left")) {
             ROS_INFO(" **** Gesture Detected ****");
             ROS_INFO(" **** Go to reach user state ****");
@@ -887,15 +885,6 @@ void reachUserFunc() {
     user_dist = user_dist5;
     start_range = targetLeg.start_angle - 10;
     end_range = targetLeg.end_angle + 10;
-
-    //    legsInLaserData(laser_ranges, start_range, end_range, numLegs, legDist, legAng, legNearestP);
-    //    legSelection();
-//    ROS_INFO("Nearest Point 1: %6.2f %d",user_dist1, user_angle1);
-//    ROS_INFO("Nearest Point 2: %6.2f %d",user_dist2, user_angle2);
-//    ROS_INFO("Nearest Point 3: %6.2f %d",user_dist3, user_angle3);
-//    ROS_INFO("Nearest Point 4: %6.2f %d",user_dist4, user_angle4);
-//    ROS_INFO("Nearest Point 5: %6.2f %d",user_dist5, user_angle5);
-    //ROS_ERROR("Nearest USER: %6.2f %d",user_dist, user_angle);
     reachUser(user_angle, user_dist);
     last_state = reachUserSTATE;
 } //End of reachUserFunc()
