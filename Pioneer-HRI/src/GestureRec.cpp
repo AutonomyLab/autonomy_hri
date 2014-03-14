@@ -150,7 +150,7 @@ void hand_gesture(pi_tracker::Skeleton mean_person)
 {
 
     geometry_msgs::Vector3  rightHand, head,leftHand, rightElbow, leftElbow;
-    float d_min, d_max, h_min, h_max, Lalpha, Lbeta, Lgama, Ralpha, Rbeta, Rgama;
+    float Lalpha, Lbeta, Lgama, Ralpha, Rbeta, Rgama;
     std_msgs::String msg_gesture;
     stringstream str_gesture;
     //person_edges(mean_person, d_min, d_max, h_min, h_max);

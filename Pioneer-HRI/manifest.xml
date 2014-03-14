@@ -15,6 +15,7 @@
   <depend package="pi_tracker"/>
   <depend package="cv_bridge"/>
   <rosdep name="opencv2.3" />
+  <depend package="hark_msgs"/>
 </package>
 
 

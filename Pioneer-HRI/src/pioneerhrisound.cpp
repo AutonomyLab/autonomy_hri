@@ -1,5 +1,6 @@
 #include <vector>
 #include <algorithm>
+#include <stdint.h>
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include "std_msgs/Int32.h"
@@ -16,7 +17,9 @@
 #include <signal.h>
 #include <deque>
 #include <math.h>
+//#include <random>
 #include "diagnostic_msgs/DiagnosticArray.h"
+#include "nav_msgs/OccupancyGrid.h"
 
 #define FPS_BUF_SIZE 10
 #define LASER_DATA 180 
@@ -32,16 +35,22 @@
 using namespace cv;
 using namespace std;
 
-// **************************** VARABLES (start)
+// **************************** VARIABLES (start)
 
-typedef struct _leg {
+typedef struct  {
     float angle;
     float dist;
     float nearestDist;
     bool isValid;
     int start_angle;
     int end_angle;
-};
+}_leg;
+
+typedef struct {
+    uint8_t width; // Grid range [cells]
+    uint8_t hight; // Grid angle [cells]
+    uint8_t data[]; // The likelihood of human presence [0..100]
+}_polarGrid_t;
 
 bool show_viz = true;
 bool wall = false;
@@ -129,6 +138,7 @@ ros::Time lastLaserTime;
 ros::Time stateTime;
 ros::Publisher robotsound_pub;
 ros::Publisher userID_pub;
+//ros::Publisher laserGrid_pub;
 
 cv::Mat laser_vis;
 
@@ -142,11 +152,12 @@ p2os_driver::GripperState gripper_state;
 diagnostic_msgs::DiagnosticArray soundDiag;
 vector <diagnostic_msgs::DiagnosticStatus> Status;
 diagnostic_msgs::DiagnosticStatus soundStatus;
+nav_msgs::OccupancyGrid laserGrid;
 
 _leg targetLeg; // Target Leg for tracking
 _leg ignoreLeg;
 
-enum {
+enum state_t{
     wait4laserSTATE,
     wanderSTATE,
     wait4CommandSTATE,
@@ -236,6 +247,10 @@ int resetCounter(int & C) {
     return(C = 0);
 }
 
+float normalDistribution(const float x, const float u,const float s){
+    return((1/(s*sqrt(2*PI)))*exp(-(x-u)*(x-u)/(2*s*s)));
+}
+
 void updateKinectConfirm() {
     int userNum;
     userNum = Persons.name.size();
@@ -278,7 +293,7 @@ void legsInLaserData(vector<float> ranges, unsigned int startRange, unsigned int
     legStart.clear();
     legEnd.clear();
 
-    for (unsigned int i = 0; i < ranges.size(); i++) {
+    for (uint8_t i = 0; i < ranges.size(); i++) {
         if (ranges.at(i) > LASER_MAX_RANGE) ranges.at(i) = LASER_MAX_RANGE;
     }
 
@@ -442,11 +457,25 @@ void getObject() {
 } // End of getObject() Function
 
 int plotAllLegs() {
-    if (laser_ranges.size() == 0) return 0; // temporary! TODO: FIX ME
+    if (laser_ranges.empty()) return 0;
+    //laserGrid.data.assign(laserGrid.data.size(),0); // reset the laser grid
     legsInLaserData(laser_ranges, 0, LASER_DATA - 1, tempNumLegs, tempLegsDist, tempLegAng, tempLegNP, templegStart, templegEnd);
     /* Plot all legs in laser FOV in grey */
-    for (int i = 0; i < tempNumLegs; i++) {
+    float gridTest[16*18];
+    for(uint16_t j=0;j<16*18;j++) gridTest[j]=0; // TODO: use memset
+    for (uint8_t i = 0; i < tempNumLegs; i++) {
         insertPoint(tempLegsDist.at(i)* 1000.0, tempLegAng.at(i), CV_RGB(127, 127, 127), 20); // GREY
+        ROS_INFO("Angle: %.2f  Distance: %.2f",tempLegAng.at(i),tempLegsDist.at(i));
+        ROS_INFO("Angle Likelihood is: %.2f",normalDistribution(tempLegAng.at(i)/10+0.5,tempLegAng.at(i)/10,sqrt(0.2)));
+        ROS_INFO("Distance Likelihood is: %.2f",normalDistribution(tempLegsDist.at(i)+0.5,tempLegsDist.at(i),sqrt(0.2)));
+        for(uint8_t d_index=0;d_index<16;d_index++){
+            for(uint8_t a_index=0;a_index<18;a_index++){
+                float a2 = normalDistribution(d_index*0.5+0.25,tempLegsDist.at(i),sqrt(0.2))+0.1;
+                float a1 = normalDistribution((a_index*10.0+5.0)/10,tempLegAng.at(i)/10,sqrt(0.2))+0.1; // Angle
+                gridTest[a_index + d_index*18] = a1*a2;
+                //ROS_INFO("a1: %.2f   a2: %.2f  ang:%.2f   dist:%.2f   gridCell: %.2f",a1,a2,a_index*10.0+5.0,d_index*0.5+0.25,gridTest[a_index + d_index*18]);
+            }
+        }
     }
     return 0;
 }
@@ -1098,13 +1127,10 @@ void obstacle_avoidance() {
 
 // *********************  CALL BACK FUNCTIONS
 void sonar_cb(const p2os_driver::SonarArray & msg) {
-   // msg.get_ranges_vec(sonar_ranges);
     sonar_ranges = msg.ranges;
-    //    ROS_INFO("SONAR DATA CAME");
 }
 
 void laser_cb(const sensor_msgs::LaserScan & msg) {
-    //    ROS_INFO("LASER DATA CAME");
     clearVisWindow();
     laser_ranges.clear();
     ls_count++;
@@ -1175,7 +1201,21 @@ int main(int argc, char **argv) {
     stateTime = ros::Time::now();
     last_state = wait4laserSTATE;
     robot_state = wait4laserSTATE;
+/*
+    laserGrid.info.resolution = 0.25;
+    laserGrid.header.frame_id = "laser";
+    laserGrid.info.width = LASER_MAX_RANGE/laserGrid.info.resolution; //left and right
+    laserGrid.info.height = LASER_MAX_RANGE*2/laserGrid.info.resolution;
+    laserGrid.info.map_load_time = ros::Time::now();
+    laserGrid.info.origin.position.x = 0;
+    laserGrid.info.origin.position.y = -8;
+    laserGrid.data.assign(laserGrid.info.width*laserGrid.info.height,0);
 
+    _polarGrid_t laserLikelihoodField;
+    laserLikelihoodField.width = LASER_MAX_RANGE*2;
+    laserLikelihoodField.hight = LASER_DATA/10;
+    //memset(laserLikelihoodField.data,1,laserLikelihoodField.width*laserLikelihoodField.hight*sizeof(uint8_t));
+*/
 
     //    n.param<string > ("play_req", play_req, "Please raise your hand.");
     n.param<string > ("play_findLeg", play_findLeg, "/home/autolab/ros/workspace/RobotSounds/I/IAha1Vol.ogg");
@@ -1205,6 +1245,7 @@ int main(int argc, char **argv) {
     ros::Publisher robotState_pub = n.advertise<std_msgs::String > ("robotState", 10);
     userID_pub = n.advertise<std_msgs::Int32 > ("userID", 5);
     robotsound_pub = n.advertise<sound_play::SoundRequest > ("robotsound", 1);
+    //laserGrid_pub = n.advertise<nav_msgs::OccupancyGrid>("laserGrid",10);
 
     sound_findUser.sound = sound_play::SoundRequest::PLAY_FILE;
     sound_findUser.command = sound_play::SoundRequest::PLAY_ONCE;
@@ -1281,6 +1322,7 @@ int main(int argc, char **argv) {
         }
 
         plotAllLegs();
+        //laserGrid_pub.publish(laserGrid);
         if ((diffSkel.toSec() > 1.0) && (go_cb != 0)) {
             resetCounter(go_cb);
             resetCounter(exUser);
