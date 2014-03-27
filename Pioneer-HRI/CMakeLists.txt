@@ -33,6 +33,7 @@ rosbuild_add_executable(pioneerHRI src/pioneerHRI.cpp)
 rosbuild_add_executable(gethark src/get-hark.cpp)
 rosbuild_add_executable(pioneerhrisound src/pioneerhrisound.cpp)
 rosbuild_add_executable(leg_detection src/leg_detection.cpp)
-rosbuild_add_executable(likelihood_field src/likelihood_field.cpp)
+rosbuild_add_executable(likelihood_field src/likelihood_field.cpp src/lkgrid.cpp)
+#rosbuild_add_executable(lkgrid src/lkgrid.cpp)
 rosbuild_add_executable(pioneer_teleop src/pioneer_teleop.cpp)
 

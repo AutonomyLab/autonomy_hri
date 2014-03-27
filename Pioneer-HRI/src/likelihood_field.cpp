@@ -13,18 +13,10 @@
 #include <sensor_msgs/LaserScan.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include "likelihood_field.h"
+#include "lkgrid.h"
 
 
 #define _USE_MATH_DEFINES
-//#define _GRID_ANGLE_MIN -90.0
-//#define _GRID_ANGLE_MAX 90.0
-//#define _GRID_ANGLE_RESOLUTION 10.0
-
-//#define _GRID_RANGE_MIN 0.0
-//#define _GRID_RANGE_MAX 8.0
-//#define _GRID_RANGE_RESOLUTION 0.5
-
 #define _PIXEL_RESOLUTION 100
 #define _SHOW_GRIDS true
 #define FREE_CELL_PROBABILITY 0.1
@@ -117,7 +109,6 @@ void fill_grid(Mat &img,
 
             float r = (rr + 0.5)*_GRID_RANGE_RESOLUTION;
             float t = (cc + 0.5)*_GRID_ANGLE_RESOLUTION;
-            //ROS_INFO("[%.2f] away and in [%.2f] degree",r,t);
             fill_cell(img, r,t,grid.data[rr][cc]);
         }
     }
@@ -169,9 +160,7 @@ void legs_cb(const geometry_msgs::PoseArray &msg)
             legPoses.push_back(tempPos);
         }
         ROS_INFO("*** LASER ***");
-//        update_likelihood(laserGrid,legPoses);
-//        free_likelihood(laserGrid);
-        laserGrid.update(legPoses);
+        laserGrid.assign(legPoses);
         laserGrid.free_lk(FREE_CELL_PROBABILITY);
         fill_grid(laser_grid_img, laserGrid);
         base_gridlines(laser_grid_img);
@@ -192,9 +181,7 @@ void user_cb(const pi_tracker::Skeleton &msg){
             }
         }
         ROS_INFO("*** SKELETON ***");
-//        update_likelihood(userGrid,userPoses);
-//        free_likelihood(userGrid);
-        userGrid.update(userPoses);
+        userGrid.assign(userPoses);
         userGrid.free_lk(FREE_CELL_PROBABILITY);
         fill_grid(user_grid_img, userGrid);
         base_gridlines(user_grid_img);
@@ -221,7 +208,7 @@ void hark_cb(const hark_msgs::HarkSource &msg){
 
         //        update_likelihood(harkGrid,harkPoses);
         //        free_likelihood(harkGrid);
-        harkGrid.update(harkPoses);
+        harkGrid.assign(harkPoses);
         harkGrid.free_lk(FREE_CELL_PROBABILITY);
         fill_grid(hark_grid_img, harkGrid);
         base_gridlines(hark_grid_img);
@@ -233,11 +220,11 @@ int main(int argc, char** argv)
     ros::init(argc,argv,"likelihood_field");
     ros::NodeHandle n;
     ROS_INFO("Creating the likelihood field ...");
-    ros::Rate looprate(30);
+    ros::Rate looprate(5);
 
-    ros::Subscriber legs_sub = n.subscribe("legs",10,legs_cb);
-    ros::Subscriber user_sub = n.subscribe("user",10,user_cb);
-    ros::Subscriber hark_sub = n.subscribe("HarkSource", 10, hark_cb);
+    ros::Subscriber legs_sub = n.subscribe("legs",1,legs_cb);
+    ros::Subscriber user_sub = n.subscribe("user",1,user_cb);
+    ros::Subscriber hark_sub = n.subscribe("HarkSource", 1, hark_cb);
 
     laser_grid_img = create_img_grid(FREE_CELL_PROBABILITY);
     user_grid_img = create_img_grid(FREE_CELL_PROBABILITY);
@@ -265,7 +252,11 @@ int main(int argc, char** argv)
         }
 
         ros::spinOnce();
-        looprate.sleep();
+        if(looprate.cycleTime() > looprate.expectedCycleTime())
+            ROS_ERROR("It is taking too long!");
+        if(!looprate.sleep())
+            ROS_INFO("Not enough time left");
+                //looprate.sleep();
     }
     return 0;
 }
