@@ -28,22 +28,23 @@
 #define LOOP_RATE 20
 #define STATE_TIME 25
 #define PI 3.14
+#define LEG_WIDTH  10
+
 
 using namespace cv;
 using namespace std;
 
 // **************************** VARABLES (start)
 
-typedef struct _leg {
+typedef struct  {
     float angle;
     float dist;
     float nearestDist;
     bool isValid;
-    int start_angle;
-    int end_angle;
-};
+    uint16_t start_angle;
+    uint16_t end_angle;
+}_leg;
 
-bool show_viz = true;
 bool wall = false;
 bool IsTracking;
 bool reachTarget = false; // True if robot is in 3 meters of legs.
@@ -54,47 +55,40 @@ bool should_exit = false;
 bool giveOK = false;
 bool pEStop = false;
 
-int IsLegCounter = 0;
-int last_IsLegCounter;
-int IsNotLegCounter = 0;
-int last_IsNotLegCounter;
-int exUser = 0;
-int go_cb = 0;
-int skel_cb_counter = 0;
-int say_aha = 0;
-int ls_count = 0;
-int rejectCounter = 0;
-int confirmCounter = 0;
-int last_confirmCounter = 0;
-int last_rejectCounter = 0;
-int exitIgnoring = 0;
-int wanderDir = 1;
-int TurnDir = 1;
-int wait4CommandCounter = 0;
-int wait4ObjectCounter = 0;
-int tempNumLegs;
-int start_range, end_range;
-int lw_width = 900;
-int lw_height = 500;
-int lw_mm_width = 18000; //mm
-int lw_mm_height = 9000; //mm
-int numLegs;
-int LEG_COUNTER = (LOOP_RATE)/2;
-int last_gripper_cmd = 0;
-int exitIgnoringCounter = 0;
-int legFOV;
-int givingCounter = 0;
-int soundRankCounter = 0;
-int soundRank = 10;
+unsigned int IsLegCounter = 0;
+unsigned int last_IsLegCounter;
+unsigned int IsNotLegCounter = 0;
+unsigned int last_IsNotLegCounter;
+unsigned int exUser = 0;
+unsigned int go_cb = 0;
+unsigned int skel_cb_counter = 0;
+unsigned int say_aha = 0;
+unsigned int ls_count = 0;
+unsigned int rejectCounter = 0;
+unsigned int confirmCounter = 0;
+unsigned int last_confirmCounter = 0;
+unsigned int last_rejectCounter = 0;
+unsigned int exitIgnoring = 0;
+int8_t wanderDir = 1;
+int8_t TurnDir = 1;
+unsigned int wait4CommandCounter = 0;
+unsigned int wait4ObjectCounter = 0;
+uint8_t tempNumLegs;
+uint16_t start_range, end_range;
 
-
-
-float fps;
+uint8_t numLegs;
+uint8_t LEG_COUNTER = (LOOP_RATE)/2;
+int8_t last_gripper_cmd = 0;
+unsigned int exitIgnoringCounter = 0;
+unsigned int legFOV;
+unsigned int givingCounter = 0;
+unsigned int soundRankCounter = 0;
+uint8_t soundRank = 10;
 float pre_legAng = 0.0;
 
 string play_req, play_findLeg, play_ignore, play_aha, play_reachgesture, play_noGest;
 string play_wander, play_reachuser, play_pointgesture, play_np, play_es, play_noJoints, play_allJoints;
-string lw_window = "laser";
+
 
 vector<float> laser_ranges; //Raw Laser data
 // Always hold all legs regardless of state
@@ -105,7 +99,7 @@ vector<double> sonar_ranges; //Raw Laser data
 vector<float> now_range, old_range, oldest_range;
 vector<float> legDist, legAng;
 vector<float> legNearestP;
-vector<int> legStart, legEnd, templegStart, templegEnd;
+vector<uint16_t> legStart, legEnd, templegStart, templegEnd;
 deque< vector<float> > hist_laser;
 
 sound_play::SoundRequest sound_stop;
@@ -130,8 +124,6 @@ ros::Time stateTime;
 ros::Publisher robotsound_pub;
 ros::Publisher userID_pub;
 
-cv::Mat laser_vis;
-
 pi_tracker::Skeleton Persons;
 
 std_msgs::String gest;
@@ -146,7 +138,7 @@ diagnostic_msgs::DiagnosticStatus soundStatus;
 _leg targetLeg; // Target Leg for tracking
 _leg ignoreLeg;
 
-enum {
+enum _state{
     wait4laserSTATE,
     wanderSTATE,
     wait4CommandSTATE,
@@ -156,7 +148,11 @@ enum {
     gettingObjectSTATE,
     backOffSTATE,
     givingObjectSTATE,
-} robot_state, last_state;
+};
+//robot_state, last_state;
+
+_state robot_state ;
+_state last_state ;
 
 string state_names[9] = {
     "Waiting 4 Laser Data",
@@ -172,8 +168,15 @@ string state_names[9] = {
 
 // **************************** VARABLES (end)
 
-// **************************** OPEN CV (start)
-
+// **************************** LASER-VISUALIZATION (start)
+bool show_viz = true;
+float fps;
+const uint16_t LW_WIDTH = 900;
+const uint16_t LW_HEIGHT = 500;
+const uint16_t lw_mm_width = 18000; //mm
+const uint16_t lw_mm_height = 9000; //mm
+string lw_window = "laser";
+cv::Mat laser_vis;
 class CPolarCord {
 public:
     float r;
@@ -204,51 +207,50 @@ void visualizeLaser() {
 }
 
 void clearVisWindow() {
-    laser_vis = Mat::zeros(lw_height, lw_width, CV_8UC3);
+    laser_vis = Mat::zeros(LW_HEIGHT, LW_WIDTH, CV_8UC3);
     char buff[25];
     sprintf(buff, "%4.2f fps", fps);
     string str = buff;
     putText(laser_vis, str, Point(20, 20), CV_FONT_HERSHEY_PLAIN, 1, CV_RGB(255, 0, 0));
 }
 
-void insertPoint(float r, float th, const Scalar& color, int rad = 2) {
+void insertPoint(float r, float th, const Scalar& color, uint16_t rad = 2) {
     th = (th / 180.0) * 3.141596;
     CPolarCord pr(r, th);
     float x_mm, y_mm;
     pr.toCart(x_mm, y_mm);
-    float x_px = (x_mm / lw_mm_width) * lw_width;
-    float y_px = (y_mm / lw_mm_height) * lw_height;
+    float x_px = (x_mm / lw_mm_width) * LW_WIDTH;
+    float y_px = (y_mm / lw_mm_height) * LW_HEIGHT;
 
-    float row = -y_px + lw_height;
-    float col = x_px + (lw_width / 2.0);
+    float row = -y_px + LW_HEIGHT;
+    float col = x_px + (LW_WIDTH / 2.0);
 
     circle(laser_vis, Point(col, row), rad, color);
 
 }
 
-// **************************** OPEN CV (end)
+// **************************** LASER-VISUALIZATION (end)
 
 
-void nearestPoint(vector<float>, int, int, float &, int &);
-void IsLeg(vector<float>, int, int, int, int, bool &);
+void nearestPoint(vector<float>, uint16_t, uint16_t, float &, uint16_t &);
+void IsLeg(vector<float>, uint16_t, uint16_t, uint16_t, uint16_t, bool &);
 
-int resetCounter(int & C) {
+template<typename T>
+T resetCounter(T &C) {
     return(C = 0);
 }
 
 void updateKinectConfirm() {
-    int userNum;
-    userNum = Persons.name.size();
-    ROS_INFO("userNum: %d", userNum);
+    ROS_INFO("userNum: %lu", Persons.name.size());
     IsKinectConfirm = false;
 
-    for (int i = 0; i < userNum; i++) {
+    for (uint8_t i = 0; i < Persons.name.size(); i++) {
         if (fabs(Persons.position.at(i).z) < 1.0) {
             Persons.name.at(i) = "invalid";
         }
     }
 
-    for (int i = 0; i < userNum; i++) {/* TODO: FIX The parameters*/
+    for (uint8_t i = 0; i < Persons.name.size(); i++) {/* TODO: FIX The parameters*/
         if ((fabs(Persons.position.at(i).z / 1000.0 - targetLeg.dist) < 1.0) && (fabs(((Persons.position.at(i).x / 10.0) + 60.0) - targetLeg.angle) < 15.0) && (Persons.name.at(i) != "invalid")) {
             ROS_INFO("There is a person at %6.0f Degree !", targetLeg.angle);
             //            ROS_INFO("Persons.name.at(i): %s", Persons.name.at(i).c_str());
@@ -260,16 +262,15 @@ void updateKinectConfirm() {
 
 } /* End of updateKinectConfirm */
 
-void legsInLaserData(vector<float> ranges, unsigned int startRange, unsigned int endRange, int &numLegs, vector<float> &legDist, vector<float> &legAng, vector<float> &legNearestP, vector<int> &legStart, vector<int> &legEnd) {
+void legsInLaserData(vector<float> ranges, uint16_t startRange, uint16_t endRange, uint8_t &numLegs, vector<float> &legDist, vector<float> &legAng, vector<float> &legNearestP, vector<uint16_t> &legStart, vector<uint16_t> &legEnd) {
 
     float diffLaserData[ranges.size()];
     double threshold = 0.1;
     float filter[ranges.size()];
-    unsigned int i, laserIndex, firstNeg, firstPos, secondNeg, secondPos;
+    uint16_t i, laserIndex, firstNeg, firstPos, secondNeg, secondPos, nearestP;
     resetCounter(numLegs);
-    int LegWidth = 10;
-    float Ang2Leg, PreLegPos, NearestDist;
-    int nearestP;
+    float Ang2Leg, NearestDist;
+    float PreLegPos = -360;
     bool isLeg;
 
     legAng.clear();
@@ -278,7 +279,7 @@ void legsInLaserData(vector<float> ranges, unsigned int startRange, unsigned int
     legStart.clear();
     legEnd.clear();
 
-    for (unsigned int i = 0; i < ranges.size(); i++) {
+    for (size_t i = 0; i < ranges.size(); i++) {
         if (ranges.at(i) > LASER_MAX_RANGE) ranges.at(i) = LASER_MAX_RANGE;
     }
 
@@ -302,7 +303,7 @@ void legsInLaserData(vector<float> ranges, unsigned int startRange, unsigned int
     }
 
     /*filter out some noises*/
-    for (unsigned int k = 0; k < ranges.size() - 1; k++) {
+    for (size_t k = 0; k < ranges.size() - 1; k++) {
         if ((filter[k] - filter[k + 1] > LASER_MAX_RANGE) && (filter[k] - filter[k + 1] < -LASER_MAX_RANGE)) {
             filter[k + 1] = 0.0;
         }
@@ -315,13 +316,13 @@ void legsInLaserData(vector<float> ranges, unsigned int startRange, unsigned int
     while (firstNeg < endRange) {
         if (filter[firstNeg] < 0.0) {
             firstPos = firstNeg + 1;
-            while ((firstPos < (firstNeg + LegWidth)) && (firstPos < endRange)) {
+            while ((firstPos < (firstNeg + LEG_WIDTH)) && (firstPos < endRange)) {
                 if (filter[firstPos] > 0.0) {
                     secondNeg = firstPos + 1;
-                    while ((secondNeg < (firstPos + LegWidth)) && (secondNeg < endRange)) {
+                    while ((secondNeg < (firstPos + LEG_WIDTH)) && (secondNeg < endRange)) {
                         if (filter[secondNeg] < 0.0) {
                             secondPos = secondNeg + 1;
-                            while ((secondPos < (secondNeg + LegWidth)) && (secondPos < endRange)) {
+                            while ((secondPos < (secondNeg + LEG_WIDTH)) && (secondPos < endRange)) {
                                 if (filter[secondPos] > 0.0) {
 
                                     IsLeg(ranges, firstNeg, firstPos, secondNeg, secondPos, isLeg);
@@ -367,20 +368,19 @@ void legsInLaserData(vector<float> ranges, unsigned int startRange, unsigned int
 
 } /* end of legsInLaserData function */
 
-void nearestPoint(vector<float> ranges, int a, int d, float & nearestDist, int & nearestP) {
-    int n;
-    n = a;
-    for (int i = a; i < d + 1; i++) {
-        if (ranges.at(i) <= ranges.at(n)) n = i;
-    }
+void nearestPoint(vector<float> ranges, uint16_t a, uint16_t d, float & nearestDist, uint16_t & nearestP) {
+    uint16_t n = a;
+    for (uint16_t i = a; i < d + 1; i++)
+        if (ranges.at(i) <= ranges.at(n))
+            n = i;
     nearestDist = ranges.at(n);
     nearestP = n;
 } // End of nearestPoint Function
 
-void IsLeg(vector<float> ranges, int a, int b, int c, int d, bool & isLeg) {
+void IsLeg(vector<float> ranges, uint16_t a, uint16_t b, uint16_t c, uint16_t d, bool & isLeg) {
 
     float D1, D2;
-    int P1, P2;
+    uint16_t P1, P2;
     nearestPoint(ranges, a, b, D1, P1);
     nearestPoint(ranges, c, d, D2, P2);
     if (fabs(D1 - D2) > 1.00) {
@@ -442,7 +442,7 @@ void getObject() {
 } // End of getObject() Function
 
 int plotAllLegs() {
-    if (laser_ranges.size() == 0) return 0; // temporary! TODO: FIX ME
+    if (laser_ranges.empty()) return 0; // temporary! TODO: FIX ME
     legsInLaserData(laser_ranges, 0, LASER_DATA - 1, tempNumLegs, tempLegsDist, tempLegAng, tempLegNP, templegStart, templegEnd);
     /* Plot all legs in laser FOV in grey */
     for (int i = 0; i < tempNumLegs; i++) {
@@ -482,9 +482,9 @@ void legSelection() {
             }
             /* Not in kinectFOV - Pick the most ahead leg and put it at the begining of array. */
             if (!inKinectFOV) {
-                int minIndex = 0;
+                uint8_t minIndex = 0;
                 minAng = fabs(legAng.at(0) - ROBOT_HEAD_ANGLE);
-                for (int legIndex = 1; legIndex < numLegs; legIndex++) {
+                for (uint8_t legIndex = 1; legIndex < numLegs; legIndex++) {
                     if (fabs(legAng.at(legIndex) - ROBOT_HEAD_ANGLE) < minAng) {
                         minAng = fabs(legAng.at(legIndex) - ROBOT_HEAD_ANGLE);
                         minIndex = legIndex;
@@ -619,10 +619,10 @@ void wanderFunc() {
 } // End of wanderFunc
 
 void doubtFunc() {
-    start_range = targetLeg.start_angle - 10;
+    if (targetLeg.start_angle < 10) start_range = 0;
+    else start_range = targetLeg.start_angle - 10;
     end_range = targetLeg.end_angle + 10;
-    if (start_range < 0) start_range = 0;
-    if (end_range > 179) end_range = 179;
+    if (end_range > LASER_DATA -1) end_range = LASER_DATA -1;
 
     if (last_state != doubtTrackSTATE) {
         stateTime = ros::Time::now();
@@ -677,8 +677,8 @@ void doubtFunc() {
             robot_state = doubtTrackSTATE;
         }
     }
-
-    if ((IsNotLegCounter > LEG_COUNTER + 10) || ((IsLegCounter < LEG_COUNTER) && (IsNotLegCounter < LEG_COUNTER + 10))) {
+    uint8_t switchCounter = 10;
+    if ((IsNotLegCounter > LEG_COUNTER + switchCounter) || ((IsLegCounter < LEG_COUNTER) && (IsNotLegCounter < LEG_COUNTER + switchCounter))) {
         robot_state = wanderSTATE;
         if (cmd_vel.angular.z > 0.0) wanderDir = 1;
         else wanderDir = 0;
@@ -716,10 +716,10 @@ void wait4CommandFunc() {
     cmd_vel.linear.x = 0.0;
     
     resetCounter(rejectCounter);
-    start_range = targetLeg.start_angle - 10;
+    if (targetLeg.start_angle < 10) start_range = 0;
+    else start_range = targetLeg.start_angle - 10;
     end_range = targetLeg.end_angle + 10;
-    if (start_range < 0) start_range = 0;
-    if (end_range > 179) end_range = 179;
+    if (end_range > LASER_DATA-1) end_range = LASER_DATA-1;
     legsInLaserData(laser_ranges, start_range, end_range, numLegs, legDist, legAng, legNearestP, legStart, legEnd);
     legSelection();
     insertPoint(targetLeg.dist * 1000.0, targetLeg.angle, CV_RGB(255, 165, 0), 35); // ORANGE
@@ -733,8 +733,10 @@ void wait4CommandFunc() {
         }
     }
     if ((last_confirmCounter < confirmCounter) && (last_rejectCounter == rejectCounter)) resetCounter(rejectCounter);
-    if ((last_rejectCounter < rejectCounter) && (last_confirmCounter == confirmCounter)) resetCounter(confirmCounter);
-    if ((IsNotLegCounter > LEG_COUNTER + 10) || (rejectCounter > 10)) {
+
+   if ((last_rejectCounter < rejectCounter) && (last_confirmCounter == confirmCounter)) resetCounter(confirmCounter);
+   uint8_t switchCounter = 10;
+   if ((IsNotLegCounter > LEG_COUNTER + switchCounter) || (rejectCounter > switchCounter)) {
         robot_state = wanderSTATE;
         IsLegCounter = 0;
     }
@@ -742,7 +744,7 @@ void wait4CommandFunc() {
         ROS_INFO("WAITING FOR GESTURE....   %d", wait4CommandCounter);
         wait4CommandCounter++;
 
-        for (int i = 1; i < 7; i++) {
+        for (uint8_t i = 1; i < 7; i++) {
             if ((wait4CommandCounter == (LOOP_RATE * 2 * i))) {
                 if(soundRank >= 4){
                     robotsound_pub.publish(sound_noGest); // I can't see gesture (Rank 4)
@@ -871,7 +873,7 @@ void reachUser(int user_angle, float user_dist) {
 
 void reachUserFunc() {
     if (last_state != reachUserSTATE) stateTime = ros::Time::now();
-    int user_angle, user_angle1, user_angle2, user_angle3, user_angle4,user_angle5;
+    uint16_t user_angle, user_angle1, user_angle2, user_angle3, user_angle4,user_angle5;
     float middle = targetLeg.angle;
     float user_dist, user_dist1, user_dist2,user_dist3,user_dist4,user_dist5;
     nearestPoint(laser_ranges,start_range,end_range,user_dist5,user_angle5);
@@ -1058,13 +1060,13 @@ void obstacle_avoidance() {
     float a = 0.3;
     float b = 0.4;
     float r[LASER_DATA];
-    int safeAngle = 0;
+    uint16_t safeAngle = 0;
 
-    for (int i = 0; i < LASER_DATA; i++) {
+    for (uint16_t i = 0; i < LASER_DATA; i++) {
         r[i] = sqrt((a * cos(i * PI / 180))*(a * cos(i * PI / 180)) + (b * sin(i * PI / 180))*(b * sin(i * PI / 180)));
     }
     if (laser_ranges.size() > 0) {
-        for (int i = 0; i < LASER_DATA; i++) {
+        for (uint16_t i = 0; i < LASER_DATA; i++) {
             //            ROS_INFO("r[%d] = %f",i*10, r[i*10]); 
             if ((laser_ranges.at(i) < r[i]) && ((cmd_vel.angular.z != 0.0) || (cmd_vel.linear.x != 0.0))) {
                 ROS_INFO(" *********** DANGER ***********");
@@ -1116,7 +1118,7 @@ void laser_cb(const sensor_msgs::LaserScan & msg) {
         //msg.get_ranges_vec(laser_ranges);
         laser_ranges = msg.ranges;
         //Plot laser data
-        for (unsigned int i = 0; i < laser_ranges.size(); i++) {
+        for (size_t i = 0; i < laser_ranges.size(); i++) {
             insertPoint(laser_ranges.at(i) * 1000.0, (float) i, CV_RGB(255, 255, 255));
         }
 
@@ -1171,7 +1173,6 @@ int main(int argc, char **argv) {
     lastSkelTime = ros::Time::now() - ros::Duration(3600);
     lastPersonTime = ros::Time::now() - ros::Duration(3600);
     lastLaserTime = ros::Time::now() - ros::Duration(3600);
-    lastSkelTime = ros::Time::now() - ros::Duration(3600);
     stateTime = ros::Time::now();
     last_state = wait4laserSTATE;
     robot_state = wait4laserSTATE;
@@ -1245,10 +1246,8 @@ int main(int argc, char **argv) {
 
     namedWindow(lw_window);
     clearVisWindow();
-    //    std_msgs::String msg_debug;
-    //    stringstream str_debug;
     float fps_ts[FPS_BUF_SIZE];
-    int counter = 0;
+    unsigned int counter = 0;
     ros::Time _now = ros::Time::now();
 
     while (ros::ok()) {

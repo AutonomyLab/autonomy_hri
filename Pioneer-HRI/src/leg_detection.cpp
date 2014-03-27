@@ -7,11 +7,86 @@
 #include <vector>
 #include <algorithm>
 #include <assert.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <sstream>
 
+#define FPS_BUF_SIZE 10
 #define LASER_MAX_RANGE 8.0
 #define FILTER_THRESHOLD 0.1
 #define LEG_WIDTH 10
-#define PI 3.1415
+#define PI 3.141596
+#define LW_WIDTH  1200
+#define LW_HEIGHT  600
+#define PIXEL_RATIO 20
+
+// **************************** LASER-VISUALIZATION (start)
+bool show_viz = true;
+float fps;
+
+//const uint16_t lw_mm_width = lw_width*20; //18000; //mm
+//const uint16_t lw_mm_height = lw_height*20; //9000; //mm
+std::string lw_window = "laser";
+cv::Mat laser_vis;
+class CPolarCord {
+public:
+    float r;
+    float th;
+    CPolarCord(float _r, float _th);
+    void fromCart(float x, float y);
+    void toCart(float &x, float &y);
+};
+
+CPolarCord::CPolarCord(float _r, float _th) {
+    this->r = _r;
+    this->th = _th;
+}
+
+void CPolarCord::fromCart(float x, float y) {
+    this->r = sqrt((x * x) + (y * y));
+    this->th = atan2(y, x);
+}
+
+void CPolarCord::toCart(float &x, float &y) {
+    x = r * cos(th);
+    y = r * sin(th);
+}
+
+void visualizeLaser() {
+    cv::imshow(lw_window, laser_vis);
+    cv::waitKey(1);
+}
+
+void clearVisWindow() {
+    laser_vis = cv::Mat::zeros(LW_HEIGHT, LW_WIDTH, CV_8UC3);
+    char buff[25];
+    sprintf(buff, "%4.2f fps", fps);
+    std::string str = buff;
+    cv::putText(laser_vis, str, cv::Point(20, 20), CV_FONT_HERSHEY_PLAIN, 1, CV_RGB(255, 0, 0));
+}
+
+void insertPoint(float r,
+                 float th,
+                 const cv::Scalar& color,
+                 uint16_t rad = 1,
+                 uint8_t thickness = 1)
+{
+    th = (th / 180.0) * PI;
+    CPolarCord pr(r, th);
+    float x_mm, y_mm;
+    pr.toCart(x_mm, y_mm);
+
+    float x_px = x_mm / PIXEL_RATIO;
+    float y_px = y_mm / PIXEL_RATIO;
+
+    float row = -y_px + LW_HEIGHT;
+    float col = x_px + (LW_WIDTH / 2.0);
+
+    circle(laser_vis, cv::Point(col, row), rad, color, thickness);
+
+}
+
+// **************************** LASER-VISUALIZATION (end)
 
 struct leg_t{
     float x;
@@ -72,13 +147,13 @@ void filter_laser(const std::vector<float> &ranges,
     assert(filterRanges.empty());
     assert(!ranges.empty());
     filterRanges = ranges;
-    for (uint8_t i = 0; i < (ranges.size()); i++) {
+    for (uint16_t i = 0; i < (ranges.size()); i++) {
         if (ranges.at(i) > LASER_MAX_RANGE) filterRanges.at(i) = LASER_MAX_RANGE;
     }
 
     vector_derivative(ranges,filterRanges);
 
-    for (uint8_t j = 0; j < (filterRanges.size()); j++) {
+    for (uint16_t j = 0; j < (filterRanges.size()); j++) {
         if(fabs(filterRanges.at(j)) < threshold ){
             filterRanges.at(j) = 0.0;
         }
@@ -94,7 +169,7 @@ void filter_laser(const std::vector<float> &ranges,
     std::vector<float> temp;
     temp = filterRanges;
     vector_derivative(filterRanges,temp);
-    for(uint8_t k=0;k<filterRanges.size()-1;k++){
+    for(uint16_t k=0;k<filterRanges.size()-1;k++){
         if(fabs(temp.at(k))>LASER_MAX_RANGE)
             filterRanges.at(k+1) = 0.0;
     }
@@ -102,30 +177,29 @@ void filter_laser(const std::vector<float> &ranges,
 
 void detect_leg(const std::vector<float> &ranges,
                 std::vector<leg_t> &legLaser,
-                uint8_t startRange,
-                uint8_t endRange)
+                uint16_t startRange,
+                uint16_t endRange)
 {
     if(ranges.empty()) return;
     uint8_t firstNeg, firstPos, secondNeg, secondPos;
-    uint8_t LegWidth = 10;
     float preLegAng;
     std::vector<float> filter;
     filter_laser(ranges,filter,FILTER_THRESHOLD);
     if(endRange > filter.size()) endRange = filter.size();
     firstNeg = startRange;
-    for(int i = 0;i<filter.size();i++)
+    for(size_t i = 0;i<filter.size();i++)
          if (filter.at(i) != 0.0)
 
     while (firstNeg < endRange) {
         if (filter.at(firstNeg) < 0.0) {
             firstPos = firstNeg + 1;
-            while ((firstPos < (firstNeg + LegWidth)) && (firstPos < endRange)) {
+            while ((firstPos < (firstNeg + LEG_WIDTH)) && (firstPos < endRange)) {
                 if (filter.at(firstPos) > 0.0) {
                     secondNeg = firstPos + 1;
-                    while ((secondNeg < (firstPos + LegWidth)) && (secondNeg < endRange)) {
+                    while ((secondNeg < (firstPos + LEG_WIDTH)) && (secondNeg < endRange)) {
                         if (filter.at(secondNeg) < 0.0) {
                             secondPos = secondNeg + 1;
-                            while ((secondPos < (secondNeg + LegWidth)) && (secondPos < endRange)) {
+                            while ((secondPos < (secondNeg + LEG_WIDTH)) && (secondPos < endRange)) {
                                 if (filter.at(secondPos) > 0.0) {
                                     if (!IsLeg(ranges, firstNeg, firstPos, secondNeg, secondPos)) break;
                                     //ROS_INFO("I think I saw a leg: %d",legLaser.size());
@@ -173,7 +247,7 @@ void detect_leg(const std::vector<float> &ranges,
 
 void laser_cb(const sensor_msgs::LaserScan & msg)
 {
-    ROS_INFO("LASER DATA CAME");
+    //ROS_INFO("LASER DATA CAME");
     std::vector<float> ranges;
     ranges.clear();
     if (!msg.ranges.empty()) {
@@ -193,13 +267,12 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
             legs.poses.push_back(legPoses);
         }
         leg_pub.publish(legs);
-        /*
-         * //Plot laser data
-         * clearVisWindow();
-        for (unsigned int i = 0; i < laser_ranges.size(); i++) {
-            insertPoint(laser_ranges.at(i) * 1000.0, (float) i, CV_RGB(255, 255, 255));
-        }
-        */
+
+        //Plot laser data
+        clearVisWindow();
+        //insertPoint(0.0, 0.0, CV_RGB(190, 190, 190), (float)LASER_MAX_RANGE*100/2);
+        for (size_t i = 0; i < ranges.size(); i++)
+            insertPoint(ranges.at(i) * 1000.0, (float) i, CV_RGB(255, 255, 255),1,2);
     }
 }
 
@@ -208,11 +281,27 @@ int main(int argc, char **argv)
     ros::init(argc,argv,"leg_detection");
     ros::NodeHandle n;
     ROS_INFO("Starting Leg Detection ...");
-    ros:: Rate loopRate(30);
+    ros::Rate loopRate(30);
+    cv::namedWindow(lw_window);
+    clearVisWindow();
+    float fps_ts[FPS_BUF_SIZE];
+    unsigned int counter = 0;
+    ros::Time _now = ros::Time::now();
+
     ros::Subscriber laser_sub = n.subscribe("scan", 10, laser_cb);
     leg_pub = n.advertise<geometry_msgs::PoseArray>("legs",10);
 
     while(ros::ok()){
+        // ----------- VISUALIZATION ------------
+        float sum = 0.0;
+        if (show_viz) visualizeLaser();
+        fps_ts[counter] = (ros::Time::now() - _now).toNSec();
+        _now = ros::Time::now();
+        counter = (counter + 1) % FPS_BUF_SIZE;
+        for (unsigned int i = 0; i < FPS_BUF_SIZE; i++)
+            sum += fps_ts[i];
+        fps = 1e9 / (sum / ((double) FPS_BUF_SIZE));
+        // ----------- VISUALIZATION ------------
         ros::spinOnce();
         loopRate.sleep();
     }
