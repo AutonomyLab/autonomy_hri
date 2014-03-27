@@ -1,4 +1,3 @@
 Pioneer-HRI
 ===========
 
-Experimental Package.
