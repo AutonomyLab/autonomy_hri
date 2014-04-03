@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include "polarcord.h"
 
 
 #define _GRID_ANGLE_MIN -90.0
@@ -17,19 +18,14 @@
 #define FREE_CELL_PROBABILITY 0.1
 
 
-class PolarPose
-{
-public:
-    float range;
-    float angle;
-    PolarPose():range(0.0), angle(0.0){;}
-    PolarPose(const float r, const float a ):range(r), angle(a){;}
-    inline void fromCart(const float x, const float y)
-    {
-        range = sqrt((x * x) + (y * y));
-        angle = atan2(y, x)*180/M_PI;
-    }
-};
+/*Geometry_msgs/PoseArray.msg
+ * std_msgs/Header header
+ * geometry_msgs/Pose[] poses
+ *      geometry_msgs/Pose.msg
+ *          geometry_msgs/Point position (in ros coordinate frame convention)
+ *          geometry_msgs/Quaternion orientation
+ * /*/
+
 
 
 
@@ -52,9 +48,10 @@ private:
     unsigned int rowStop;
     void init(const float val);
 public:
-    //float data[GRID_ROWS][GRID_COLS];// The likelihood [0..100] for convinience
     float** data;
-
+    float** pastdata;
+    float** newdata;
+    bool flag;
     LikelihoodGrid(const unsigned int rows,
                    const unsigned int cols);
     LikelihoodGrid(const unsigned int rows,
@@ -69,9 +66,15 @@ public:
                    const float tres,
                    const float val);
     ~LikelihoodGrid();
-    void set(const float val);
+    void set(float** data, const float val);
     void free_lk(float pFree);
     void assign(const std::vector<PolarPose>& pose);
+    void update(float rate);
+    void fuse(float** input);
+    void scale(float** data, float s);
+    void normalize();
+    float min(float** data);
+    float max(float** data);
 };
 
 #endif

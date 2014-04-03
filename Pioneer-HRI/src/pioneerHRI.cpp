@@ -177,26 +177,26 @@ const uint16_t lw_mm_width = 18000; //mm
 const uint16_t lw_mm_height = 9000; //mm
 string lw_window = "laser";
 cv::Mat laser_vis;
-class CPolarCord {
+class PolarPose {
 public:
     float r;
     float th;
-    CPolarCord(float _r, float _th);
+    PolarPose(float _r, float _th);
     void fromCart(float x, float y);
     void toCart(float &x, float &y);
 };
 
-CPolarCord::CPolarCord(float _r, float _th) {
+PolarPose::PolarPose(float _r, float _th) {
     this->r = _r;
     this->th = _th;
 }
 
-void CPolarCord::fromCart(float x, float y) {
+void PolarPose::fromCart(float x, float y) {
     this->r = sqrt((x * x) + (y * y));
     this->th = atan2(y, x);
 }
 
-void CPolarCord::toCart(float &x, float &y) {
+void PolarPose::toCart(float &x, float &y) {
     x = r * cos(th);
     y = r * sin(th);
 }
@@ -216,7 +216,7 @@ void clearVisWindow() {
 
 void insertPoint(float r, float th, const Scalar& color, uint16_t rad = 2) {
     th = (th / 180.0) * 3.141596;
-    CPolarCord pr(r, th);
+    PolarPose pr(r, th);
     float x_mm, y_mm;
     pr.toCart(x_mm, y_mm);
     float x_px = (x_mm / lw_mm_width) * LW_WIDTH;
@@ -266,8 +266,8 @@ void legsInLaserData(vector<float> ranges, uint16_t startRange, uint16_t endRang
 
     float diffLaserData[ranges.size()];
     double threshold = 0.1;
-    float filter[ranges.size()];
-    uint16_t i, laserIndex, firstNeg, firstPos, secondNeg, secondPos, nearestP;
+
+    uint16_t i, li, firstNeg, firstPos, secondNeg, secondPos, nearestP;
     resetCounter(numLegs);
     float Ang2Leg, NearestDist;
     float PreLegPos = -360;
@@ -278,7 +278,7 @@ void legsInLaserData(vector<float> ranges, uint16_t startRange, uint16_t endRang
     legNearestP.clear();
     legStart.clear();
     legEnd.clear();
-
+    float filter[ranges.size()];
     for (size_t i = 0; i < ranges.size(); i++) {
         if (ranges.at(i) > LASER_MAX_RANGE) ranges.at(i) = LASER_MAX_RANGE;
     }
@@ -293,12 +293,12 @@ void legsInLaserData(vector<float> ranges, uint16_t startRange, uint16_t endRang
      Laser Data will be more than the threshold, this quantity will be saved in
      * filter array, if not, the filter will be zero for that difference.
      * */
-    for (laserIndex = 0; laserIndex < (ranges.size() - 1); laserIndex++) {
-        diffLaserData[laserIndex] = ranges.at(laserIndex + 1) - ranges.at(laserIndex);
-        if ((diffLaserData[laserIndex] < threshold) && ((diffLaserData[laserIndex] > -threshold))) {
-            filter[laserIndex] = 0;
+    for (li = 0; li < (ranges.size() - 1); li++) {
+        diffLaserData[li] = ranges.at(li + 1) - ranges.at(li);
+        if ((diffLaserData[li] < threshold) && ((diffLaserData[li] > -threshold))) {
+            filter[li] = 0;
         } else {
-            filter[laserIndex] = diffLaserData[laserIndex];
+            filter[li] = diffLaserData[li];
         }
     }
 
@@ -307,6 +307,10 @@ void legsInLaserData(vector<float> ranges, uint16_t startRange, uint16_t endRang
         if ((filter[k] - filter[k + 1] > LASER_MAX_RANGE) && (filter[k] - filter[k + 1] < -LASER_MAX_RANGE)) {
             filter[k + 1] = 0.0;
         }
+    }
+
+    for (size_t i = 0; i < ranges.size(); i++) {
+        insertPoint(filter[i] * 1000.0, (float) i, CV_RGB(255, 0, 0));
     }
 
     /* Searching for the legs */

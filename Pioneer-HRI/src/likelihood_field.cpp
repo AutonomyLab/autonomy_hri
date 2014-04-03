@@ -19,7 +19,11 @@
 #define _USE_MATH_DEFINES
 #define _PIXEL_RESOLUTION 100
 #define _SHOW_GRIDS true
-#define FREE_CELL_PROBABILITY 0.1
+#define _FREE_CELL_PROBABILITY 0.1
+#define _UPDATE_RATE 0.5
+#define _UPDATE_TIME_RATIO 10
+#define _LOOPRATE 5
+
 
 using namespace cv;
 
@@ -29,20 +33,13 @@ const unsigned int GRID_SIZE = GRID_COLS*GRID_ROWS;
 
 Mat laser_grid_img, user_grid_img, hark_grid_img, human_grid_img;
 
-/*Geometry_msgs/PoseArray.msg
- * std_msgs/Header header
- * geometry_msgs/Pose[] poses
- *      geometry_msgs/Pose.msg
- *          geometry_msgs/Point position (in ros coordinate frame convention)
- *          geometry_msgs/Quaternion orientation
- * /*/
-
 
 LikelihoodGrid laserGrid(GRID_ROWS, GRID_COLS);
 LikelihoodGrid userGrid(GRID_ROWS, GRID_COLS,0.5, 5.00, _GRID_RANGE_RESOLUTION,-30.0, 30.0, _GRID_ANGLE_RESOLUTION, 0.0);
 LikelihoodGrid harkGrid(GRID_ROWS, GRID_COLS);
 LikelihoodGrid humanGrid(GRID_ROWS, GRID_COLS);
 
+ros::Time lastLegsTime, lastUserTime, lastHarkTime;
 
 void show_grid(const std::string& imgname,
                Mat img)
@@ -114,19 +111,11 @@ void fill_grid(Mat &img,
     }
 }
 
-//void clear_grid(Mat &img,
-//                const float p = 0.0,
-//                const float h = _GRID_RANGE_MAX*_PIXEL_RESOLUTION,
-//                const float w = 2*_GRID_RANGE_MAX*_PIXEL_RESOLUTION)
-//{
-//    img = Mat::zeros(h, w, CV_8UC3)*p;
-//}
+
 Mat create_img_grid(const float p = 0.0,
                     const float height = _GRID_RANGE_MAX*_PIXEL_RESOLUTION,
                     const float width = 2*_GRID_RANGE_MAX*_PIXEL_RESOLUTION)
 {
-    //float width = 2*_GRID_RANGE_MAX*_PIXEL_RESOLUTION;
-    //float height = _GRID_RANGE_MAX*_PIXEL_RESOLUTION;
     Mat img = Mat::ones(height,width,CV_8UC1)*p;
     base_gridlines(img);
     return img;
@@ -152,18 +141,19 @@ void legs_cb(const geometry_msgs::PoseArray &msg)
     std::vector<geometry_msgs::Pose> legs;
     std::vector<PolarPose> legPoses;
     if(!msg.poses.empty()){
+        lastLegsTime = ros::Time::now();
         legs = msg.poses;
-        //legPoses.clear();
-        for(unsigned int i = 0; i < legs.size(); i++){
-            PolarPose tempPos;
+        legPoses.clear();
+        PolarPose tempPos;
+        for(size_t i = 0; i < legs.size(); i++){
             tempPos.fromCart(legs.at(i).position.x, legs.at(i).position.y);
             legPoses.push_back(tempPos);
-        }
+        }      
+        assert(legPoses.size() == legs.size());
         ROS_INFO("*** LASER ***");
         laserGrid.assign(legPoses);
-        laserGrid.free_lk(FREE_CELL_PROBABILITY);
-        fill_grid(laser_grid_img, laserGrid);
-        base_gridlines(laser_grid_img);
+        //laserGrid.free_lk(FREE_CELL_PROBABILITY);
+        legPoses.clear();
     }
 }
 
@@ -171,20 +161,20 @@ void user_cb(const pi_tracker::Skeleton &msg){
     std::vector<geometry_msgs::Vector3> user;
     std::vector<PolarPose> userPoses;
     if(!msg.position.empty()){
+        lastUserTime = ros::Time::now();
         user = msg.position;
-        //userPoses.clear();
+        PolarPose tempPos;
         for(unsigned int i = 0; i < user.size(); i++){
-            PolarPose tempPos;
             if(user.at(i).z != 0){
                 tempPos.fromCart(user.at(i).z/1000, user.at(i).x/1000);
                 userPoses.push_back(tempPos);
             }
         }
+        //assert(userPoses.size() == user.size());
         ROS_INFO("*** SKELETON ***");
         userGrid.assign(userPoses);
-        userGrid.free_lk(FREE_CELL_PROBABILITY);
-        fill_grid(user_grid_img, userGrid);
-        base_gridlines(user_grid_img);
+        //userGrid.free_lk(FREE_CELL_PROBABILITY);
+        userPoses.clear();
     }
 }
 
@@ -192,26 +182,23 @@ void hark_cb(const hark_msgs::HarkSource &msg){
     std::vector<hark_msgs::HarkSourceVal> src;
     std::vector<PolarPose > harkPoses;
     if(!msg.src.empty()){
+        lastHarkTime = ros::Time::now();
         src = msg.src;
         //harkPoses.clear();
 
         for(unsigned int i = 0; i < src.size(); i++){
             PolarPose tempPos;
             for(float j = 0; j < harkGrid.rangeMax; j += harkGrid.rangeRes ){
-
                 tempPos.angle = src.at(i).azimuth;
                 tempPos.range = j + (harkGrid.rangeRes)/2;
                 harkPoses.push_back(tempPos);
             }
         }
-        ROS_INFO("*** SOUND ***");
 
-        //        update_likelihood(harkGrid,harkPoses);
-        //        free_likelihood(harkGrid);
+        ROS_INFO("*** SOUND ***");
         harkGrid.assign(harkPoses);
-        harkGrid.free_lk(FREE_CELL_PROBABILITY);
-        fill_grid(hark_grid_img, harkGrid);
-        base_gridlines(hark_grid_img);
+        //harkGrid.free_lk(FREE_CELL_PROBABILITY);
+        harkPoses.clear();
     }
 }
 
@@ -219,36 +206,75 @@ int main(int argc, char** argv)
 {
     ros::init(argc,argv,"likelihood_field");
     ros::NodeHandle n;
-    ROS_INFO("Creating the likelihood field ...");
-    ros::Rate looprate(5);
+    ros::Rate looprate(_LOOPRATE);
+
+    lastLegsTime = ros::Time::now() - ros::Duration(3600);
+    lastUserTime = ros::Time::now() - ros::Duration(3600);
+    lastHarkTime = ros::Time::now() - ros::Duration(3600);
+
+    ros::Duration diffLegs, diffUsers, diffHark;
 
     ros::Subscriber legs_sub = n.subscribe("legs",1,legs_cb);
     ros::Subscriber user_sub = n.subscribe("user",1,user_cb);
     ros::Subscriber hark_sub = n.subscribe("HarkSource", 1, hark_cb);
 
-    laser_grid_img = create_img_grid(FREE_CELL_PROBABILITY);
-    user_grid_img = create_img_grid(FREE_CELL_PROBABILITY);
-    hark_grid_img = create_img_grid(FREE_CELL_PROBABILITY);
-    human_grid_img = create_img_grid();
+    laser_grid_img = create_img_grid(_FREE_CELL_PROBABILITY);
+    user_grid_img = create_img_grid(_FREE_CELL_PROBABILITY);
+    hark_grid_img = create_img_grid(_FREE_CELL_PROBABILITY);
+    human_grid_img = create_img_grid(_FREE_CELL_PROBABILITY);
 
 
     while (ros::ok()) {
+        humanGrid.set(humanGrid.data, 1.0);
+
+        diffLegs = ros::Time::now() - lastLegsTime;
+        if(diffLegs.toSec() > _UPDATE_TIME_RATIO*looprate.cycleTime().toSec())
+            laserGrid.flag = false;
+
+        laserGrid.update(_UPDATE_RATE);
+        //laserGrid.normalize();
+
+        diffUsers = ros::Time::now() - lastUserTime;
+        if(diffUsers.toSec() >  _UPDATE_TIME_RATIO*looprate.cycleTime().toSec())
+            userGrid.flag = false;
+
+        userGrid.update(_UPDATE_RATE);
+        //userGrid.normalize();
+        //ROS_INFO("user: max: [%f]   min: [%f]", userGrid.max(userGrid.data), userGrid.min(userGrid.data));
 
 
-//    float width = 2*_GRID_RANGE_MAX*_PIXEL_RESOLUTION;
-//    float height = _GRID_RANGE_MAX*_PIXEL_RESOLUTION;
-//    for(unsigned int i = 0; i < height; i ++){
-//        for(unsigned int j = 0; j < width; j++){
 
-//        }
-//    }
+        diffHark = ros::Time::now() - lastHarkTime;
+        if(diffHark.toSec() > _UPDATE_TIME_RATIO*looprate.cycleTime().toSec())
+            harkGrid.flag = false;
+
+        harkGrid.update(_UPDATE_RATE);
+        //harkGrid.normalize();
+
+        humanGrid.fuse(laserGrid.data);
+        humanGrid.fuse(userGrid.data);
+        humanGrid.fuse(harkGrid.data);
+        humanGrid.normalize();
+
+        fill_grid(laser_grid_img, laserGrid);
+        base_gridlines(laser_grid_img);
+
+        fill_grid(user_grid_img, userGrid);
+        base_gridlines(user_grid_img);
+
+        fill_grid(hark_grid_img, harkGrid);
+        base_gridlines(hark_grid_img);
+
+        fill_grid(human_grid_img,humanGrid);
+        base_gridlines(human_grid_img);
+
 
 
         if (_SHOW_GRIDS){
             show_grid("LASER GRID VISUALIZATION",laser_grid_img);
             show_grid("SKELETON GRID VISUALIZATION",user_grid_img);
             show_grid("HARK GRID VISUALIZATION",hark_grid_img);
-            //show_grid("HUMAN GRID VISUALIZATION",human_grid_img);
+            show_grid("HUMAN GRID VISUALIZATION",human_grid_img);
         }
 
         ros::spinOnce();
@@ -256,7 +282,6 @@ int main(int argc, char** argv)
             ROS_ERROR("It is taking too long!");
         if(!looprate.sleep())
             ROS_INFO("Not enough time left");
-                //looprate.sleep();
     }
     return 0;
 }

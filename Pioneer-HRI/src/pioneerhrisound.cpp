@@ -185,26 +185,26 @@ string state_names[9] = {
 
 // **************************** OPEN CV (start)
 
-class CPolarCord {
+class PolarPose {
 public:
     float r;
     float th;
-    CPolarCord(float _r, float _th);
+    PolarPose(float _r, float _th);
     void fromCart(float x, float y);
     void toCart(float &x, float &y);
 };
 
-CPolarCord::CPolarCord(float _r, float _th) {
+PolarPose::PolarPose(float _r, float _th) {
     this->r = _r;
     this->th = _th;
 }
 
-void CPolarCord::fromCart(float x, float y) {
+void PolarPose::fromCart(float x, float y) {
     this->r = sqrt((x * x) + (y * y));
     this->th = atan2(y, x);
 }
 
-void CPolarCord::toCart(float &x, float &y) {
+void PolarPose::toCart(float &x, float &y) {
     x = r * cos(th);
     y = r * sin(th);
 }
@@ -224,7 +224,7 @@ void clearVisWindow() {
 
 void insertPoint(float r, float th, const Scalar& color, int rad = 2) {
     th = (th / 180.0) * 3.141596;
-    CPolarCord pr(r, th);
+    PolarPose pr(r, th);
     float x_mm, y_mm;
     pr.toCart(x_mm, y_mm);
     float x_px = (x_mm / lw_mm_width) * lw_width;
