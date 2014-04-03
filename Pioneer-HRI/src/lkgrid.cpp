@@ -12,6 +12,53 @@ float normalDistribution(const float x, const float u,const float s)
 }
 
 
+template <class T>
+Array2D<T>::Array2D(const unsigned int r, const unsigned int c):
+    rows(r),
+    cols(c),
+    arr(0)
+{
+    init(0.0);
+}
+
+template <class T>
+Array2D<T>::Array2D(const unsigned int r, const unsigned int c, const T val):
+    rows(r),
+    cols(c),
+    arr(0)
+{
+    init(val);
+}
+
+template <class T>
+void Array2D<T>::resize(const unsigned int r, const unsigned int c)
+{
+    rows = 0;
+    cols = 0;
+    if(!arr){
+        init(0.0);
+    }
+}
+
+template <class T>
+void Array2D<T>::init(const float val)
+{
+    arr = new T*[rows];
+    for(unsigned int i = 0; i < rows; i++){
+        arr[i] = new T[cols];
+        std::fill(arr[i],arr[i]+cols,val);
+    }
+}
+
+template <class T>
+Array2D<T>::~Array2D()
+{
+    for(unsigned int i = 0; i < rows; i++)
+        delete [] arr[i];
+
+    delete [] arr;
+}
+
 
 LikelihoodGrid::LikelihoodGrid(const unsigned int rows,
                                const unsigned int cols,
@@ -53,12 +100,12 @@ LikelihoodGrid::LikelihoodGrid(const unsigned int rows, const unsigned int cols)
 LikelihoodGrid::LikelihoodGrid(const unsigned int rows,
                                const unsigned int cols,
                                const float rmin,
-                                 const float rmax,
-                                 const float rres,
-                                 const float tmin,
-                                 const float tmax,
-                                 const float tres,
-                                 const float val):
+                               const float rmax,
+                               const float rres,
+                               const float tmin,
+                               const float tmax,
+                               const float tres,
+                               const float val):
     rows(rows),
     cols(cols),
     rangeMin(rmin),
@@ -213,6 +260,7 @@ LikelihoodGrid::~LikelihoodGrid()
     delete [] pastdata;
     delete [] newdata;
 }
+
 
 
 

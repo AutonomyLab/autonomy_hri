@@ -34,10 +34,10 @@ const unsigned int GRID_SIZE = GRID_COLS*GRID_ROWS;
 Mat laser_grid_img, user_grid_img, hark_grid_img, human_grid_img;
 
 
-LikelihoodGrid laserGrid(GRID_ROWS, GRID_COLS);
+LikelihoodGrid laserGrid(GRID_ROWS, GRID_COLS,_GRID_RANGE_MIN,_GRID_RANGE_MAX,_GRID_RANGE_RESOLUTION,_GRID_ANGLE_MIN/2,_GRID_ANGLE_MAX/2,_GRID_ANGLE_RESOLUTION,0.0);
 LikelihoodGrid userGrid(GRID_ROWS, GRID_COLS,0.5, 5.00, _GRID_RANGE_RESOLUTION,-30.0, 30.0, _GRID_ANGLE_RESOLUTION, 0.0);
-LikelihoodGrid harkGrid(GRID_ROWS, GRID_COLS);
-LikelihoodGrid humanGrid(GRID_ROWS, GRID_COLS);
+LikelihoodGrid harkGrid(GRID_ROWS, GRID_COLS,_GRID_RANGE_MIN,_GRID_RANGE_MAX,_GRID_RANGE_RESOLUTION,_GRID_ANGLE_MIN/2,_GRID_ANGLE_MAX/2,_GRID_ANGLE_RESOLUTION,0.0);
+LikelihoodGrid humanGrid(GRID_ROWS, GRID_COLS,_GRID_RANGE_MIN,_GRID_RANGE_MAX,_GRID_RANGE_RESOLUTION,_GRID_ANGLE_MIN/2,_GRID_ANGLE_MAX/2,_GRID_ANGLE_RESOLUTION,0.0);
 
 ros::Time lastLegsTime, lastUserTime, lastHarkTime;
 
@@ -48,15 +48,33 @@ void show_grid(const std::string& imgname,
     waitKey(1);
 }
 
-void base_gridlines(Mat img,
+void base_gridlines(Mat &img,
                     const float h = _GRID_RANGE_MAX*_PIXEL_RESOLUTION,
                     const float w = 2*_GRID_RANGE_MAX*_PIXEL_RESOLUTION)
 {
     for(unsigned int i = 0; i <= _GRID_RANGE_MAX*2; i++)
-        circle(img, Point(w/2,h),(i*_GRID_RANGE_RESOLUTION)*_PIXEL_RESOLUTION,Scalar(255));
-    for(unsigned int i = 1; i < _GRID_ANGLE_MAX*2/_GRID_ANGLE_RESOLUTION; i ++)
-        line(img,Point(w/2,h), Point(h*cos(i*_GRID_ANGLE_RESOLUTION*M_PI/180) + (w/2),h - h*sin(i*_GRID_ANGLE_RESOLUTION*M_PI/180)),Scalar(255));
+        circle(img, Point(w/2,h),
+               (i*_GRID_RANGE_RESOLUTION)*_PIXEL_RESOLUTION,
+               Scalar(255));
+
+    for(unsigned int i = 0; i < _GRID_ANGLE_MAX*2/_GRID_ANGLE_RESOLUTION; i ++)
+        line(img,Point(w/2,h),
+             Point(h*cos(i*_GRID_ANGLE_RESOLUTION*M_PI/180) + (w/2),h - h*sin(i*_GRID_ANGLE_RESOLUTION*M_PI/180)),
+             Scalar(255));
 }
+
+
+//void fov_gridlines(Mat &img,
+//               const LikelihoodGrid& grid)
+//{
+//    line(img,Point(w/2,h),
+//         Point(h*cos(i*_GRID_ANGLE_RESOLUTION*M_PI/180) + (w/2),h - h*sin(i*_GRID_ANGLE_RESOLUTION*M_PI/180)),
+//         Scalar(255));
+//    line(img,Point(w/2,h),
+//         Point(h*cos(i*_GRID_ANGLE_RESOLUTION*M_PI/180) + (w/2),h - h*sin(i*_GRID_ANGLE_RESOLUTION*M_PI/180)),
+//         Scalar(255));
+
+//}
 
 void clearVisWindow(Mat& img)
 {
@@ -70,7 +88,7 @@ void clearVisWindow(Mat& img)
 
 void fill_cell(Mat &img,
                const float rr,
-               const float tt,
+               float tt,
                const float score = 1,
                const float h = _GRID_RANGE_MAX*_PIXEL_RESOLUTION,
                const float w = 2*_GRID_RANGE_MAX*_PIXEL_RESOLUTION)
@@ -78,8 +96,10 @@ void fill_cell(Mat &img,
     float r,t;
     Point PointArray[4];
 
+    tt = tt - _GRID_ANGLE_MAX/2; // For -180:180 visualization -- FIX ME
+
     r = rr - _GRID_RANGE_RESOLUTION/2;
-    t = tt - _GRID_ANGLE_RESOLUTION/2;
+    t = tt - _GRID_ANGLE_RESOLUTION/2 ;
     PointArray[0].x = r*cos(t*M_PI/180)*_PIXEL_RESOLUTION + (w/2);
     PointArray[0].y = h - r*sin(t*M_PI/180)*_PIXEL_RESOLUTION;
     r = rr + _GRID_RANGE_RESOLUTION/2;
@@ -101,8 +121,8 @@ void fill_cell(Mat &img,
 void fill_grid(Mat &img,
                const LikelihoodGrid& grid)
 {
-    for(unsigned int rr = 0; rr < GRID_ROWS; rr++){
-        for(unsigned int cc = 0; cc < GRID_COLS; cc++){
+    for(unsigned int rr = 0; rr < grid.rows; rr++){
+        for(unsigned int cc = 0; cc < grid.cols; cc++){
 
             float r = (rr + 0.5)*_GRID_RANGE_RESOLUTION;
             float t = (cc + 0.5)*_GRID_ANGLE_RESOLUTION;
@@ -113,7 +133,7 @@ void fill_grid(Mat &img,
 
 
 Mat create_img_grid(const float p = 0.0,
-                    const float height = _GRID_RANGE_MAX*_PIXEL_RESOLUTION,
+                    const float height = 2*_GRID_RANGE_MAX*_PIXEL_RESOLUTION,
                     const float width = 2*_GRID_RANGE_MAX*_PIXEL_RESOLUTION)
 {
     Mat img = Mat::ones(height,width,CV_8UC1)*p;

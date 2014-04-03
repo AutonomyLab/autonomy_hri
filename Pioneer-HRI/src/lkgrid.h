@@ -7,8 +7,8 @@
 #include "polarcord.h"
 
 
-#define _GRID_ANGLE_MIN -90.0
-#define _GRID_ANGLE_MAX 90.0
+#define _GRID_ANGLE_MIN -180.0
+#define _GRID_ANGLE_MAX 180.0
 #define _GRID_ANGLE_RESOLUTION 10.0
 
 #define _GRID_RANGE_MIN 0.0
@@ -27,7 +27,26 @@
  * /*/
 
 
+template <class T>
+class Array2D
+{
+public:
+    const unsigned int rows;
+    const unsigned int cols;
+    T** arr;
+private:
+    void init(const float val);
 
+public:
+    Array2D(const unsigned int r,
+            const unsigned int c);
+    Array2D(const unsigned int r,
+            const unsigned int c,
+            const T val);
+    void resize(const unsigned int r,
+                const unsigned int c);
+    ~Array2D();
+};
 
 class LikelihoodGrid
 {
@@ -76,5 +95,7 @@ public:
     float min(float** data);
     float max(float** data);
 };
+
+
 
 #endif
