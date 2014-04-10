@@ -19,10 +19,12 @@
         <param name="debug_mode" value="2" />
         <remap from="input_rgb_image" to="ardrone/image_raw" />
       </node>
+      <!--
 
       <node pkg="image_view" name="debugimage" type="image_view">
         <param name="autosize" value="true" />
         <remap from="image" to="output_rgb_debug" />
-      </node>     
+      </node>\
+      -->
 
 </launch>

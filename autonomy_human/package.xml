@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package>
+  <name>autonomy_human</name>
+  <version>1.0.0</version>
+  <description>autonomy_human -- OpenCV based human face detector, tracker, hand-wave gesture recognizer with Optical Flow based ego-motion cancellation.
+  </description>
+  <maintainer email="mmonajje@cs.sfu.ca">Mani Monajjemi</maintainer>
+  <license>BSD</license>
+  <url type="website">https://github.com/AutonomyLab/autonomy_hri/tree/master/autonomy_human</url>
+  <author email="mmonajje@cs.sfu.ca">Mani Monajjemi</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>image_transport</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+  <run_depend>message_runtime</run_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>image_transport</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+
+  <export>
+
+  </export>
+</package>
