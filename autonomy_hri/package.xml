@@ -42,6 +42,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <run_depend>autonomy_human</run_depend>
   <run_depend>autonomy_legdetection</run_depend>
+  <run_depend>likelihhood_field</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

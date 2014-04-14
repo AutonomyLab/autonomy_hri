@@ -27,7 +27,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES autonomy_human
+  #LIBRARIES autonomy_human
   CATKIN_DEPENDS cv_bridge geometry_msgs image_transport roscpp std_msgs
   DEPENDS system_lib opencv message_runtime
 )

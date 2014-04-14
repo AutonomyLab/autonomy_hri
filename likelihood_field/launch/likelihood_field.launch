@@ -1,0 +1,14 @@
+<launch>
+    <node pkg="likelihood_field" type="likelihood_field" name="likelihood_field" output="screen">
+        <param name="LikelihoodGrid/grid_angle_min" value="-3.14159265359"/>
+        <param name="LikelihoodGrid/grid_angle_max" value="3.14159265359"/>
+        <param name="LikelihoodGrid/grid_angle_resolution" value="0.17453292519"/>
+        <param name="LikelihoodGrid/grid_range_min" value="0.5"/>
+        <param name="LikelihoodGrid/grid_range_max" value="10.0"/>
+        <param name="LikelihoodGrid/grid_range_resolution" value="0.25"/>
+        <param name="LikelihoodGrid/update_rate" value="0.5"/>
+        <param name="LikelihoodGrid/free_cell_probability" value="0.1"/>
+        <param name="update_time_ratio" value="10.0"/>
+    </node>
+</launch>
+

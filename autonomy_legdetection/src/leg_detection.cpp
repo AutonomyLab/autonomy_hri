@@ -288,8 +288,8 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
             if(distance(pose1,pose2) < laserFeature.max_leg_diameter &&
                     distance(pose1,pose2) > laserFeature.min_leg_diameter){
 
-                tmp_leg_pose.position.x = (pose1.x + pose2.x)/2;
-                tmp_leg_pose.position.y = (pose1.y + pose2.y)/2;
+                tmp_leg_pose.position.x = (pose1.x + pose2.x)/2/M2MM_RATIO;
+                tmp_leg_pose.position.y = (pose1.y + pose2.y)/2/M2MM_RATIO;
                 tmp_leg_pose.position.z = 0.0;
                 legs.poses.push_back(tmp_leg_pose);
                 insertPoint(sqrt(tmp_leg_pose.position.x*tmp_leg_pose.position.x + tmp_leg_pose.position.y*tmp_leg_pose.position.y),
@@ -300,7 +300,8 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
     }
     legs.header.frame_id = msg.header.frame_id;
     legs.header.stamp = ros::Time::now();
-    if(!legs.poses.empty()) leg_pub.publish(legs);
+
+    leg_pub.publish(legs);
 }
 
 
