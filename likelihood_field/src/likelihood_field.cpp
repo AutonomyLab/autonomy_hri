@@ -51,13 +51,25 @@ int main(int argc, char** argv)
 
     // DEFINE THE SENSOR FOV
     GridFOV_t legGridFOV = _globalGridFOV;
+    GridFOV_t faceGridFOV = _globalGridFOV;
+    faceGridFOV.range.min = 1.00;
+    faceGridFOV.range.max = 5.00;
+    faceGridFOV.angle.min = 0; // 0 degree
+    faceGridFOV.angle.max = 1.0471975512; // 60 degree
+
 
     // UPDATE THE SPECIFIC HUMAN GRID FOV
-    lkGridInterface.update_legs(legGridFOV);
+    lkGridInterface.init_legs(legGridFOV);
+    lkGridInterface.init_faces(faceGridFOV);
+    lkGridInterface.init_human();
 
     // SUBSCRIBE TO THE PROPER TOPIC
     ros::Subscriber legs_sub = n.subscribe("legs",10,
                                            &LikelihoodGridInterface::legs_cb,
+                                           &lkGridInterface);
+
+    ros::Subscriber faces_sub = n.subscribe("human",10,
+                                           &LikelihoodGridInterface::faces_cb,
                                            &lkGridInterface);
 
     while (ros::ok()) {

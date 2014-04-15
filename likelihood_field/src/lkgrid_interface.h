@@ -14,11 +14,24 @@ class LikelihoodGridInterface
 {
 private:
     ros::NodeHandle n;
+    // Leg
     ros::Publisher legsLKGrid_pub;
     std::string leg_frame;
     LikelihoodGrid* legGrid;
     ros::Time lastLegsTime;
     ros::Duration diffLegs;
+    // Face
+    ros::Publisher facesLKGrid_pub;
+    std::string face_frame;
+    LikelihoodGrid* faceGrid;
+    ros::Time lastFacesTime;
+    ros::Duration diffFaces;
+    // Human
+    ros::Publisher humanLKGrid_pub;
+    std::string human_frame;
+    LikelihoodGrid* humanGrid;
+    //ros::Time lastFacesTime;
+    //ros::Duration diffFaces;
     float update_rate;
     float update_time_ratio;
     float free_cell_probability;
@@ -29,13 +42,16 @@ public:
                             GridFOV_t _globalGridFOV,
                             float _update_rate,
                             float _update_time_ratio,
-                            float _free_cell_probability);
-    void update_legs(GridFOV_t sensorGridFOV);
-    void legs_cb(const geometry_msgs::PoseArray& msg);
-    //void legs_lkgrid_pub
-    void spin(float cycle_time);
-    void publish();
-    ~LikelihoodGridInterface();
+                            float _free_cell_probability);   // TO BE MODIFIED FOR EVERY HUMAN FEATURE
+    void init_legs(GridFOV_t sensorGridFOV);              //NEEDED FOR EVERY HUMAN FEATURE
+    void legs_cb(const geometry_msgs::PoseArray& msg);      //NEEDED FOR EVERY HUMAN FEATURE
+    void init_faces(GridFOV_t sensorGridFOV);
+    void faces_cb(const autonomy_human::human& msg);
+    void init_human();
+    void spin(float cycle_time);                            // TO BE MODIFIED FOR EVERY HUMAN FEATURE
+    void publish();                                         // TO BE MODIFIED FOR EVERY HUMAN FEATURE
+    sensor_msgs::PointCloud pc_grid(LikelihoodGrid *polar_grid);
+    ~LikelihoodGridInterface();                             // TO BE MODIFIED FOR EVERY HUMAN FEATURE
 };
 
 

@@ -18,20 +18,22 @@
         <param name="debug_mode" value="2" />
     <remap from="input_rgb_image" to="/axis/image_raw" />
   </node>
-  <node pkg="image_view" name="rawimage" type="image_view">
-    <param name="autosize" value="true" />
-    <remap from="image" to="/axis/image_raw" />
-  </node>
-  <node pkg="image_view" name="debugimage" type="image_view">
+    <node pkg="image_view" name="debugimage" type="image_view">
     <param name="autosize" value="true" />
     <remap from="image" to="/output_rgb_debug" />
   </node>
-  <node pkg="image_view" name="skinimage" type="image_view">
-    <param name="autosize" value="true" />
-    <remap from="image" to="/output_rgb_skin" />
-  </node>
-  <node pkg="image_view" name="flowimage" type="image_view">
-    <param name="autosize" value="true" />
-    <remap from="image" to="/output_rgb_optical" />
-  </node>
+  <!--
+    <node pkg="image_view" name="rawimage" type="image_view">
+      <param name="autosize" value="true" />
+      <remap from="image" to="/axis/image_raw" />
+    </node>
+    <node pkg="image_view" name="skinimage" type="image_view">
+      <param name="autosize" value="true" />
+      <remap from="image" to="/output_rgb_skin" />
+    </node>
+    <node pkg="image_view" name="flowimage" type="image_view">
+      <param name="autosize" value="true" />
+      <remap from="image" to="/output_rgb_optical" />
+    </node>
+  -->
 </launch>

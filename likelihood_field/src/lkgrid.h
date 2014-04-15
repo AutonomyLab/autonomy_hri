@@ -34,13 +34,6 @@ public:
     GridFOV_t sensorGridFOV;
     double free_cell_probability;
 private:
-
-    unsigned int colStart;
-    unsigned int colStop;
-    unsigned int rowStart;
-    unsigned int rowStop;
-    unsigned int colStep;
-    unsigned int rowStep;
     unsigned int globalRows;
     unsigned int globalCols;
     PointRAP_t* old_data;
@@ -63,7 +56,7 @@ public:
     void scale(PointRAP_t* data, float s);
     float min_probability(PointRAP_t* data);
     float max_probability(PointRAP_t* data);
-    void normalize(float pFree);
+    void normalize();
     void output();
 };
 
