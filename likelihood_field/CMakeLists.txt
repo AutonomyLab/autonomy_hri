@@ -3,6 +3,7 @@ project(likelihood_field)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   sensor_msgs
+  tf
   autonomy_human
 )
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -22,7 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   #LIBRARIES likelihood_field
-  CATKIN_DEPENDS geometry_msgs sensor_msgs autonomy_human
+  CATKIN_DEPENDS geometry_msgs sensor_msgs tf autonomy_human
   DEPENDS system_lib opencv
 )
 include_directories(include
@@ -36,7 +37,7 @@ include_directories(include
 #   src/${PROJECT_NAME}/likelihood_field.cpp
 # )
 
-add_executable(likelihood_field src/likelihood_field.cpp src/lkgrid.cpp src/lkgrid_interface.cpp)
+add_executable(likelihood_field src/likelihood_field.cpp src/lkgrid.cpp src/lkgrid_interface.cpp )
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(likelihood_field

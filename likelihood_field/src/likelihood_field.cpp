@@ -4,12 +4,13 @@
 #define _USE_MATH_DEFINES
 #define _LOOPRATE 5
 
-
 int main(int argc, char** argv)
 {
     ros::init(argc,argv,"likelihood_field");
     ros::NodeHandle n;
     ros::Rate looprate(_LOOPRATE);
+    tf::TransformListener *tf_listener;
+
 
     GridFOV_t _globalGridFOV;
 
@@ -22,7 +23,7 @@ int main(int argc, char** argv)
              _globalGridFOV.angle.resolution);
 
     ros::param::param("~/LikelihoodGrid/grid_range_min",_globalGridFOV.range.min, 0.0);
-    ros::param::param("~/LikelihoodGrid/grid_range_max",_globalGridFOV.range.max, 10.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_max",_globalGridFOV.range.max, 20.0);
     ros::param::param("~/LikelihoodGrid/grid_range_resolution",_globalGridFOV.range.resolution, 0.5);
     ROS_INFO("/LikelihoodGrid/grid_range min: %.2lf max: %.2lf: resolution: %.2lf",
              _globalGridFOV.range.min,
@@ -41,8 +42,9 @@ int main(int argc, char** argv)
     ros::param::param("~/update_time_ratio",_update_time_ratio, 10.0);
     ROS_INFO("/update_time_ratio is set to %.2lf",_update_time_ratio);
 
-    // CREATE AN INSTANCE OF LIKELIHOOD GRID INTERFACE WITH PROPER PARAMETERS
+// CREATE AN INSTANCE OF LIKELIHOOD GRID INTERFACE WITH PROPER PARAMETERS
     LikelihoodGridInterface lkGridInterface(n,
+                                            tf_listener,
                                             _globalGridFOV,
                                             _update_rate,
                                             _update_time_ratio,
@@ -52,10 +54,10 @@ int main(int argc, char** argv)
     // DEFINE THE SENSOR FOV
     GridFOV_t legGridFOV = _globalGridFOV;
     GridFOV_t faceGridFOV = _globalGridFOV;
-    faceGridFOV.range.min = 1.00;
-    faceGridFOV.range.max = 5.00;
-    faceGridFOV.angle.min = 0; // 0 degree
-    faceGridFOV.angle.max = 1.0471975512; // 60 degree
+    faceGridFOV.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
+    faceGridFOV.range.max = 5.00; // TODO: MAKE SURE OF THE REAL FOV
+    faceGridFOV.angle.min = toRadian(-65.0/2); // -65/2 degree
+    faceGridFOV.angle.max = toRadian(65.0/2); // 65/2 degree
 
 
     // UPDATE THE SPECIFIC HUMAN GRID FOV
@@ -73,16 +75,19 @@ int main(int argc, char** argv)
                                            &lkGridInterface);
 
     while (ros::ok()) {
+
+
         // IN EVERY LOOP:
             // UPDATE ALL THE AVAILABLE HUMAN FEATURE LIKELIHOOD GRIDS AND PUBLISH THEM
             // FUSE THEM AND UPDATE THE GLOBAL HUMAN LIKELIHOOD GRID AND PUBLISH IT
        // lkGridInterface.spin(looprate.cycleTime().toSec());
-        lkGridInterface.spin(2.0);
+        lkGridInterface.spin();
         ros::spinOnce();
         if(looprate.cycleTime() > looprate.expectedCycleTime())
-            ROS_ERROR("It is taking too long!");
+            ROS_ERROR("It is taking too long! %f", looprate.cycleTime().toSec());
         if(!looprate.sleep())
             ROS_INFO("Not enough time left");
+
     }
     return 0;
 }

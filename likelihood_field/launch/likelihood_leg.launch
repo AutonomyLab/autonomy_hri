@@ -1,4 +1,5 @@
 <launch>
+    <include file="$(find autonomy_legdetection)/launch/leg_detection.launch"/>
     <node pkg="likelihood_field" type="likelihood_field" name="likelihood_field" output="screen">
         <param name="LikelihoodGrid/grid_angle_min" value="-3.14159265359"/>
         <param name="LikelihoodGrid/grid_angle_max" value="3.14159265359"/>
@@ -11,4 +12,3 @@
         <param name="update_time_ratio" value="10.0"/>
     </node>
 </launch>
-

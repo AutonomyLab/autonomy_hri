@@ -7,6 +7,7 @@
 #include <iostream>
 #include "polarcord.h"
 
+float toRadian(float t);
 
 struct PointRAP_t{
     float range;

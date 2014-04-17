@@ -4,6 +4,10 @@
 
 #define _USE_MATH_DEFINES
 
+float toRadian(float t)
+{
+    return t*M_PI/180;
+}
 
 float normalDistribution(const float x, const float u,const float s)
 {
@@ -90,15 +94,17 @@ void LikelihoodGrid::assign(const std::vector<PolarPose>& poses)
         }
     }
 
+    float correct_angle, meanDistance, meanAngle, pr, pt;
+
     for(size_t p = 0; p < poses.size(); p++){ // on number of legs
-        float correct_angle = poses.at(p).angle - globalGridFOV.angle.min; //TODO: this should be unnecessary!
-        float meanDistance = poses.at(p).range - fmod( poses.at(p).range,globalGridFOV.range.resolution) + (globalGridFOV.range.resolution/2);
-        float meanAngle = poses.at(p).angle - fmod(fabs(correct_angle),globalGridFOV.angle.resolution) + (globalGridFOV.angle.resolution/2);
+        correct_angle = poses.at(p).angle - globalGridFOV.angle.min; //TODO: this should be unnecessary!
+        meanDistance = poses.at(p).range - fmod( poses.at(p).range,globalGridFOV.range.resolution) + (globalGridFOV.range.resolution/2);
+        meanAngle = poses.at(p).angle - fmod(fabs(correct_angle),globalGridFOV.angle.resolution) + (globalGridFOV.angle.resolution/2);
 
         for(size_t j = start; j <= stop; j++){
 
-            float pr = normalDistribution((new_data[j].range + sensorGridFOV.range.resolution/2),meanDistance,sqrt(globalGridFOV.range.resolution/4));
-            float pt = normalDistribution((new_data[j].angle + sensorGridFOV.angle.resolution/2),meanAngle,sqrt(globalGridFOV.angle.resolution/4));
+            pr = normalDistribution((new_data[j].range + sensorGridFOV.range.resolution/2),meanDistance,sqrt(globalGridFOV.range.resolution/2));
+            pt = normalDistribution((new_data[j].angle + sensorGridFOV.angle.resolution/2),meanAngle,sqrt(globalGridFOV.angle.resolution/2));
             new_data[j].probability += pr*pt;
         }
 
