@@ -36,6 +36,7 @@ private:
     float update_rate;
     float update_time_ratio;
     float free_cell_probability;
+    float unknown_cell_probability;
     GridFOV_t globalGridFOV;
 public:
     LikelihoodGridInterface();
@@ -44,7 +45,8 @@ public:
                             GridFOV_t _globalGridFOV,
                             float _update_rate,
                             float _update_time_ratio,
-                            float _free_cell_probability);   // TO BE MODIFIED FOR EVERY HUMAN FEATURE
+                            float _free_cell_probability,
+                            float _unknown_cell_probability);   // TO BE MODIFIED FOR EVERY HUMAN FEATURE
     geometry_msgs::PointStamped transform_to_base_footprint(geometry_msgs::PointStamped& tmp_point);
     void init_legs(GridFOV_t sensorGridFOV);              //NEEDED FOR EVERY HUMAN FEATURE
     void legs_cb(const geometry_msgs::PoseArray& msg);      //NEEDED FOR EVERY HUMAN FEATURE

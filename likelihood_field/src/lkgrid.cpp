@@ -17,10 +17,12 @@ float normalDistribution(const float x, const float u,const float s)
 
 LikelihoodGrid::LikelihoodGrid(const GridFOV_t _sensorGridFOV,
                                const GridFOV_t _globalGridFOV,
-                   const double _free_cell_probability):
+                               const double _free_cell_probability,
+                               const double _unknown_cell_probability):
     globalGridFOV(_globalGridFOV),
     sensorGridFOV(_sensorGridFOV),
     free_cell_probability(_free_cell_probability),
+    unknown_cell_probability(_unknown_cell_probability),
     flag(false)
 {
     init();
@@ -37,6 +39,7 @@ void LikelihoodGrid::init()
         data = new PointRAP_t[globalGridSize];
         old_data = new PointRAP_t[globalGridSize];
         new_data = new PointRAP_t[globalGridSize];
+        isKnown = new bool[globalGridSize];
     }
     catch (std::bad_alloc& ba)
     {
@@ -48,13 +51,23 @@ void LikelihoodGrid::init()
         for(unsigned int c = 0; c < globalCols; c++){
             data[i].range = globalGridFOV.range.min + globalGridFOV.range.resolution*r;
             data[i].angle = globalGridFOV.angle.min + globalGridFOV.angle.resolution*c;
-            data[i].probability = 0.0;
+            data[i].probability = 1.0;
             new_data[i].range = globalGridFOV.range.min + globalGridFOV.range.resolution*r;
             new_data[i].angle = globalGridFOV.angle.min + globalGridFOV.angle.resolution*c;
-            new_data[i].probability = 0.0;
+            new_data[i].probability = 1.0;
             old_data[i].range = globalGridFOV.range.min + globalGridFOV.range.resolution*r;
             old_data[i].angle = globalGridFOV.angle.min + globalGridFOV.angle.resolution*c;
-            old_data[i].probability = 0.0;
+            old_data[i].probability = 1.0;
+            if(data[i].range >= sensorGridFOV.range.min &&
+                    data[i].range <= sensorGridFOV.range.max &&
+                    data[i].angle >= sensorGridFOV.angle.min &&
+                    data[i].angle <= sensorGridFOV.angle.max)
+            {
+                isKnown[i] = true;
+            } else
+            {
+                isKnown[i] = false;
+            }
             i++;
         }
     }
@@ -68,10 +81,17 @@ void LikelihoodGrid::set(PointRAP_t* result, const float val)
     }
 }
 
-void LikelihoodGrid::free_lk(float pFree)
+void LikelihoodGrid::free_lk()
 {
     for(size_t i = 0; i < globalGridSize; i++){
-        if(data[i].probability < pFree) data[i].probability = pFree;
+        if(data[i].probability < free_cell_probability) data[i].probability = free_cell_probability;
+    }
+}
+
+void LikelihoodGrid::unknown_lk()
+{
+    for(size_t i = 0; i < globalGridSize; i++){
+        if(isKnown[i] == false) data[i].probability = unknown_cell_probability;
     }
 }
 
@@ -80,34 +100,26 @@ void LikelihoodGrid::assign(const std::vector<PolarPose>& poses)
     if(poses.empty()) return;
     set(new_data, 0.0);
     if(poses.size() && !flag) flag = true;
-    size_t start = 0;
-    size_t stop = globalGridSize;
 
-
-    for(size_t i = 0; i < globalGridSize; i++){
-
-        if(fabs(new_data[i].angle - sensorGridFOV.angle.min) < 0.00001 && fabs(new_data[i].range - sensorGridFOV.range.min)<0.00001){
-            start = i;
-        }
-        if(fabs(new_data[i].angle - sensorGridFOV.angle.max) < 0.00001 && fabs(new_data[i].range - sensorGridFOV.range.max)<0.00001){
-            stop = i;
-        }
-    }
-
-    float correct_angle, meanDistance, meanAngle, pr, pt;
+    float correct_angle, meanDistance, meanAngle, pr, pt, tmp_probability;
 
     for(size_t p = 0; p < poses.size(); p++){ // on number of legs
-        correct_angle = poses.at(p).angle - globalGridFOV.angle.min; //TODO: this should be unnecessary!
+        //correct_angle = poses.at(p).angle - globalGridFOV.angle.min; //TODO: this should be unnecessary!
+        meanAngle = poses.at(p).angle;
         meanDistance = poses.at(p).range - fmod( poses.at(p).range,globalGridFOV.range.resolution) + (globalGridFOV.range.resolution/2);
         meanAngle = poses.at(p).angle - fmod(fabs(correct_angle),globalGridFOV.angle.resolution) + (globalGridFOV.angle.resolution/2);
 
-        for(size_t j = start; j <= stop; j++){
-
-            pr = normalDistribution((new_data[j].range + sensorGridFOV.range.resolution/2),meanDistance,sqrt(globalGridFOV.range.resolution/2));
-            pt = normalDistribution((new_data[j].angle + sensorGridFOV.angle.resolution/2),meanAngle,sqrt(globalGridFOV.angle.resolution/2));
-            new_data[j].probability += pr*pt;
+        for(size_t j = 0; j < globalGridSize; j++)
+        {
+            if(isKnown[j]){
+                pr = normalDistribution((new_data[j].range + sensorGridFOV.range.resolution/2),meanDistance,sqrt(globalGridFOV.range.resolution/2));
+                pt = normalDistribution((new_data[j].angle + sensorGridFOV.angle.resolution/2),meanAngle,sqrt(globalGridFOV.angle.resolution/2));
+                tmp_probability = pr*pt;
+                new_data[j].probability = ((tmp_probability > free_cell_probability) ? tmp_probability : free_cell_probability);
+                //new_data[j].probability += pr*pt;
+            } else
+                new_data[j].probability = unknown_cell_probability;
         }
-
     }
 }
 
@@ -116,12 +128,10 @@ void LikelihoodGrid::update(float rate)
     assert(rate > 0.0);
     assert(rate < 1.0);
     for(size_t i = 0; i < globalGridSize; i++){
-        if(flag)
-            data[i].probability = rate*old_data[i].probability + (1-rate)*new_data[i].probability;
-        else
-            data[i].probability = rate*old_data[i].probability;
+        data[i].probability = rate*old_data[i].probability + ((flag) ? (1-rate)*new_data[i].probability : 0.0);
     }
-    free_lk(free_cell_probability);
+    free_lk();
+    unknown_lk();
     for(size_t i = 0; i < globalGridSize; i++){
         old_data[i].probability = data[i].probability;
     }
@@ -132,6 +142,15 @@ void LikelihoodGrid::fuse(PointRAP_t* input)
 {
     for(size_t i = 0; i < globalGridSize; i++){
         data[i].probability = data[i].probability*input[i].probability;
+    }
+}
+
+//TEMPORARY
+void LikelihoodGrid::fuse(PointRAP_t* in1, PointRAP_t* in2)
+{
+    for(size_t i = 0; i < globalGridSize; i++){
+        data[i].probability = 1 - ((1 - in1[i].probability)*(1 - in2[i].probability));
+        //data[i].probability = in1[i].probability/2+in2[i].probability/2;
     }
 }
 
@@ -188,6 +207,7 @@ LikelihoodGrid::~LikelihoodGrid()
     delete[] data;
     delete[] old_data;
     delete[] new_data;
+    delete[] isKnown;
 }
 
 

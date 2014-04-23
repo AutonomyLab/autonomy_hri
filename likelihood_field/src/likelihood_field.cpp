@@ -23,7 +23,7 @@ int main(int argc, char** argv)
              _globalGridFOV.angle.resolution);
 
     ros::param::param("~/LikelihoodGrid/grid_range_min",_globalGridFOV.range.min, 0.0);
-    ros::param::param("~/LikelihoodGrid/grid_range_max",_globalGridFOV.range.max, 20.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_max",_globalGridFOV.range.max, 40.0);
     ros::param::param("~/LikelihoodGrid/grid_range_resolution",_globalGridFOV.range.resolution, 0.5);
     ROS_INFO("/LikelihoodGrid/grid_range min: %.2lf max: %.2lf: resolution: %.2lf",
              _globalGridFOV.range.min,
@@ -38,6 +38,10 @@ int main(int argc, char** argv)
     ros::param::param("~/LikelihoodGrid/free_cell_probability",_free_cell_probability, 0.1);
     ROS_INFO("/LikelihoodGrid/free_cell_probability is set to %.2lf",_free_cell_probability);
 
+    double _unknown_cell_probability;
+    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",_unknown_cell_probability, 0.5);
+    ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2lf",_unknown_cell_probability);
+
     double _update_time_ratio;
     ros::param::param("~/update_time_ratio",_update_time_ratio, 10.0);
     ROS_INFO("/update_time_ratio is set to %.2lf",_update_time_ratio);
@@ -48,14 +52,18 @@ int main(int argc, char** argv)
                                             _globalGridFOV,
                                             _update_rate,
                                             _update_time_ratio,
-                                            _free_cell_probability);
+                                            _free_cell_probability,
+                                            _unknown_cell_probability);
     // FOR EVERY HUMAN FEATURE DATA (E.G. LEGS, FACES, SOUND)
 
     // DEFINE THE SENSOR FOV
     GridFOV_t legGridFOV = _globalGridFOV;
+    legGridFOV.range.max = 20.0;
+    legGridFOV.angle.min = toRadian(-270.0/2);
+    legGridFOV.angle.max = toRadian(270.0/2);
     GridFOV_t faceGridFOV = _globalGridFOV;
     faceGridFOV.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
-    faceGridFOV.range.max = 5.00; // TODO: MAKE SURE OF THE REAL FOV
+    faceGridFOV.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
     faceGridFOV.angle.min = toRadian(-65.0/2); // -65/2 degree
     faceGridFOV.angle.max = toRadian(65.0/2); // 65/2 degree
 

@@ -15,13 +15,15 @@ LikelihoodGridInterface::LikelihoodGridInterface(ros::NodeHandle _n,
                                                  GridFOV_t _globalGridFOV,
                                                 float _update_rate,
                                                 float _update_time_ratio,
-                                                float _free_cell_probability):
+                                                float _free_cell_probability,
+                                                 float _unknown_cell_probability):
     n(_n),
     tf_listener(_tf_listener),
     globalGridFOV(_globalGridFOV),
     update_rate(_update_rate),
     update_time_ratio(_update_time_ratio),
-    free_cell_probability(_free_cell_probability)
+    free_cell_probability(_free_cell_probability),
+    unknown_cell_probability(_unknown_cell_probability)
 {
     ROS_INFO("Constructing an instace of LikelihoodGridInterface.");
     tf_listener = new tf::TransformListener();
@@ -54,7 +56,7 @@ void LikelihoodGridInterface::init_legs(GridFOV_t sensorGridFOV)
 {
     try
     {
-        legGrid = new LikelihoodGrid(sensorGridFOV, globalGridFOV, free_cell_probability);
+        legGrid = new LikelihoodGrid(sensorGridFOV, globalGridFOV, free_cell_probability, unknown_cell_probability);
     }
     catch (std::bad_alloc& ba)
     {
@@ -69,11 +71,10 @@ void LikelihoodGridInterface::legs_cb(const geometry_msgs::PoseArray& msg)
     std::vector<PolarPose> legs_polar_base;
 
     if(!msg.poses.empty()){
-        //ROS_INFO("*** LEGS ***");
         legs_polar_base.clear();
         lastLegsTime = ros::Time::now();
 
-        // DO THE FRAME TRANSFORM HERE
+        // FRAME TRANSFORM: /laser to /base_footprint
         legs_laser = msg.poses;
         geometry_msgs::PointStamped tmp_laser, tmp_base;
         PolarPose tmp_polar;
@@ -81,7 +82,6 @@ void LikelihoodGridInterface::legs_cb(const geometry_msgs::PoseArray& msg)
             tmp_laser.header = msg.header;
             tmp_laser.point = legs_laser.at(i).position;
             tmp_base = transform_to_base_footprint(tmp_laser); // TRANSFORM TO BASE_FOOTPRINT
-            //tmp_base = tmp_laser;
             tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
             legs_polar_base.push_back(tmp_polar);
         }
@@ -97,7 +97,7 @@ void LikelihoodGridInterface::init_faces(GridFOV_t sensorGridFOV)
 {
     try
     {
-        faceGrid = new LikelihoodGrid(sensorGridFOV, globalGridFOV, free_cell_probability);
+        faceGrid = new LikelihoodGrid(sensorGridFOV, globalGridFOV, free_cell_probability, unknown_cell_probability);
     }
     catch (std::bad_alloc& ba)
     {
@@ -114,9 +114,10 @@ void LikelihoodGridInterface::faces_cb(const autonomy_human::human& msg)
         geometry_msgs::PointStamped tmp_camera, tmp_base;
         PolarPose tmp_polar;
         float theta, x;
+        float image_width = 640.0;
 
         x = msg.faceROI.x_offset + msg.faceROI.width/2;
-        theta = ((320.0-x)/320.0)*toRadian(65.0/2);
+        theta = ((image_width/2-x)/image_width/2)*toRadian(65.0/2);
 
         //ROS_INFO("x: %f     theta: %f",x,theta);
 
@@ -145,7 +146,7 @@ void LikelihoodGridInterface::init_human()
 {
     try
     {
-        humanGrid = new LikelihoodGrid(globalGridFOV, globalGridFOV, free_cell_probability);
+        humanGrid = new LikelihoodGrid(globalGridFOV, globalGridFOV, free_cell_probability, unknown_cell_probability);
     }
     catch (std::bad_alloc& ba)
     {
@@ -173,6 +174,7 @@ void LikelihoodGridInterface::spin()
     // HUMAN
     humanGrid->fuse(legGrid->data);
     humanGrid->fuse(faceGrid->data);
+//    humanGrid->fuse(legGrid->data, faceGrid->data);
     humanGrid->normalize();
 
     publish();

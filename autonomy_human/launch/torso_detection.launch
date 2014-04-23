@@ -1,0 +1,39 @@
+<launch>
+  <node pkg="image_transport" name="republish" type="republish" args="compressed in:=/axis/image_raw raw out:=/axis/image_raw image_transport:=compressed">
+  </node>
+  <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node">
+        <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascades/haarcascade_upperbody.xml" />
+        <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
+        <param name="profile_hack_enabled" value="false" />
+        <param name="skin_enabled" value="false" />
+        <param name="gesture_enabled" value="false" />
+        <param name="initial_min_score" value="5" />
+        <param name="initial_detect_frames" value="6" />
+        <param name="initial_reject_frames" value="6" />
+        <param name="min_flow" value="10" />
+        <param name="min_face_width" value="40" />
+        <param name="min_face_height" value="80" />
+        <param name="max_face_width" value="200" />
+        <param name="max_face_height" value="400" />
+        <param name="debug_mode" value="2" />
+    <remap from="input_rgb_image" to="/axis/image_raw" />
+  </node>
+    <node pkg="image_view" name="debugimage" type="image_view">
+    <param name="autosize" value="true" />
+    <remap from="image" to="/output_rgb_debug" />
+  </node>
+  <!--
+    <node pkg="image_view" name="rawimage" type="image_view">
+      <param name="autosize" value="true" />
+      <remap from="image" to="/axis/image_raw" />
+    </node>
+    <node pkg="image_view" name="skinimage" type="image_view">
+      <param name="autosize" value="true" />
+      <remap from="image" to="/output_rgb_skin" />
+    </node>
+    <node pkg="image_view" name="flowimage" type="image_view">
+      <param name="autosize" value="true" />
+      <remap from="image" to="/output_rgb_optical" />
+    </node>
+  -->
+</launch>
