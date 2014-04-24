@@ -27,14 +27,19 @@ struct GridFOV_t
     FOV_t angle;
 };
 
+struct CellProbability_t{
+    double free;
+    double unknown;
+    double human;
+};
+
 
 class LikelihoodGrid
 {
 public:
     GridFOV_t globalGridFOV;
     GridFOV_t sensorGridFOV;
-    double free_cell_probability;
-    double unknown_cell_probability;
+    CellProbability_t cell_probability;
 private:
     unsigned int globalRows;
     unsigned int globalCols;
@@ -49,20 +54,18 @@ public:
     LikelihoodGrid();
     LikelihoodGrid(const GridFOV_t _sensorGridFOV,
                    const GridFOV_t _globalGridFOV,
-                   const double _free_cell_probability,
-                   const double _unknown_cell_probability);
+                   CellProbability_t cell_probability);
     ~LikelihoodGrid();
     void set(PointRAP_t* data, const float val);
-    void free_lk();
-    void unknown_lk();
+    void free_lk(PointRAP_t* data);
+    void unknown_lk(PointRAP_t *data);
     void assign(const std::vector<PolarPose>& pose);
     void update(float rate);
     void fuse(PointRAP_t* input);
-    void fuse(PointRAP_t *in1, PointRAP_t *in2);
     void scale(PointRAP_t* data, float s);
     float min_probability(PointRAP_t* data);
     float max_probability(PointRAP_t* data);
-    void normalize();
+    void normalize(PointRAP_t* data);
     void output();
 };
 

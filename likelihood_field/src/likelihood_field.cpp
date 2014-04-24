@@ -34,6 +34,10 @@ int main(int argc, char** argv)
     ros::param::param("~/LikelihoodGrid/update_rate",_update_rate, 0.5);
     ROS_INFO("/LikelihoodGrid/update_rate is set to %.2lf",_update_rate);
 
+    double _human_cell_probability = 1.0; //TODO: MAKE IT ROS PARAM
+    ros::param::param("~/LikelihoodGrid/human_cell_probability",_human_cell_probability, 1.0);
+    ROS_INFO("/LikelihoodGrid/human_cell_probability is set to %.2lf",_human_cell_probability);
+
     double _free_cell_probability;
     ros::param::param("~/LikelihoodGrid/free_cell_probability",_free_cell_probability, 0.1);
     ROS_INFO("/LikelihoodGrid/free_cell_probability is set to %.2lf",_free_cell_probability);
@@ -42,9 +46,29 @@ int main(int argc, char** argv)
     ros::param::param("~/LikelihoodGrid/unknown_cell_probability",_unknown_cell_probability, 0.5);
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2lf",_unknown_cell_probability);
 
+    int _number_of_sensors;
+    ros::param::param("~/LikelihoodGrid/number_of_sensors",_number_of_sensors, 2);
+    ROS_INFO("/LikelihoodGrid/number_of_sensors is set to %u",_number_of_sensors);
+
+    int _sensitivity;
+    ros::param::param("~/LikelihoodGrid/sensitivity",_sensitivity, 1);
+    ROS_INFO("/LikelihoodGrid/sensitivity is set to %u",_sensitivity);
+
     double _update_time_ratio;
     ros::param::param("~/update_time_ratio",_update_time_ratio, 10.0);
     ROS_INFO("/update_time_ratio is set to %.2lf",_update_time_ratio);
+
+    //CALCULATING THE PRIOR!
+    double upper_bound, lower_bound;
+    upper_bound = pow(_free_cell_probability, _number_of_sensors - _sensitivity) * pow(_human_cell_probability,_sensitivity);
+    lower_bound = pow(_free_cell_probability, _number_of_sensors - _sensitivity + 1) * pow(_human_cell_probability,_sensitivity - 1);
+    _unknown_cell_probability = pow((upper_bound + lower_bound)/2, 1.0/_number_of_sensors);
+    ROS_INFO("/LikelihoodGrid/unknown_cell_probability has been changed to %.2lf",_unknown_cell_probability);
+
+    CellProbability_t _cell_probability;
+    _cell_probability.free = _free_cell_probability;
+    _cell_probability.human = _human_cell_probability;
+    _cell_probability.unknown = _unknown_cell_probability;
 
 // CREATE AN INSTANCE OF LIKELIHOOD GRID INTERFACE WITH PROPER PARAMETERS
     LikelihoodGridInterface lkGridInterface(n,
@@ -52,9 +76,10 @@ int main(int argc, char** argv)
                                             _globalGridFOV,
                                             _update_rate,
                                             _update_time_ratio,
-                                            _free_cell_probability,
-                                            _unknown_cell_probability);
+                                            _cell_probability);
     // FOR EVERY HUMAN FEATURE DATA (E.G. LEGS, FACES, SOUND)
+
+
 
     // DEFINE THE SENSOR FOV
     GridFOV_t legGridFOV = _globalGridFOV;
