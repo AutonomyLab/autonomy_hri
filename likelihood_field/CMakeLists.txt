@@ -37,7 +37,7 @@ include_directories(include
 #   src/${PROJECT_NAME}/likelihood_field.cpp
 # )
 
-add_executable(likelihood_field src/likelihood_field.cpp src/lkgrid.cpp src/lkgrid_interface.cpp )
+add_executable(likelihood_field src/likelihood_field.cpp src/grid.cpp src/grid_interface.cpp )
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(likelihood_field

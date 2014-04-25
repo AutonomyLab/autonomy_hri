@@ -1,0 +1,7 @@
+set(_CATKIN_CURRENT_PACKAGE "likelihood_field")
+set(likelihood_field_MAINTAINER "Shokoofeh Pourmehr <spourmeh@sfu.ca>")
+set(likelihood_field_DEPRECATED "")
+set(likelihood_field_VERSION "0.0.0")
+set(likelihood_field_BUILD_DEPENDS "cv_bridge" "geometry_msgs" "sensor_msgs" "tf" "autonomy_human")
+set(likelihood_field_RUN_DEPENDS "geometry_msgs" "sensor_msgs" "tf" "cv_bridge" "autonomy_human")
+set(likelihood_field_BUILDTOOL_DEPENDS "catkin")

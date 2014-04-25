@@ -1,5 +1,5 @@
 #include <ros/ros.h>
-#include "lkgrid_interface.h"
+#include "grid_interface.h"
 
 #define _USE_MATH_DEFINES
 #define _LOOPRATE 5
@@ -12,23 +12,23 @@ int main(int argc, char** argv)
     tf::TransformListener *tf_listener;
 
 
-    GridFOV_t _globalGridFOV;
+    GridFOV_t _global_fov;
 
-    ros::param::param("~/LikelihoodGrid/grid_angle_min",_globalGridFOV.angle.min, -M_PI);
-    ros::param::param("~/LikelihoodGrid/grid_angle_max",_globalGridFOV.angle.max, M_PI);
-    ros::param::param("~/LikelihoodGrid/grid_angle_resolution",_globalGridFOV.angle.resolution, M_PI/18);
+    ros::param::param("~/LikelihoodGrid/grid_angle_min",_global_fov.angle.min, -M_PI);
+    ros::param::param("~/LikelihoodGrid/grid_angle_max",_global_fov.angle.max, M_PI);
+    ros::param::param("~/LikelihoodGrid/grid_angle_resolution",_global_fov.angle.resolution, M_PI/18);
     ROS_INFO("/LikelihoodGrid/grid_angle min: %.2lf max: %.2lf: resolution: %.2lf",
-             _globalGridFOV.angle.min,
-             _globalGridFOV.angle.max,
-             _globalGridFOV.angle.resolution);
+             _global_fov.angle.min,
+             _global_fov.angle.max,
+             _global_fov.angle.resolution);
 
-    ros::param::param("~/LikelihoodGrid/grid_range_min",_globalGridFOV.range.min, 0.0);
-    ros::param::param("~/LikelihoodGrid/grid_range_max",_globalGridFOV.range.max, 40.0);
-    ros::param::param("~/LikelihoodGrid/grid_range_resolution",_globalGridFOV.range.resolution, 0.5);
+    ros::param::param("~/LikelihoodGrid/grid_range_min",_global_fov.range.min, 0.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_max",_global_fov.range.max, 40.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_resolution",_global_fov.range.resolution, 0.5);
     ROS_INFO("/LikelihoodGrid/grid_range min: %.2lf max: %.2lf: resolution: %.2lf",
-             _globalGridFOV.range.min,
-             _globalGridFOV.range.max,
-             _globalGridFOV.range.resolution);
+             _global_fov.range.min,
+             _global_fov.range.max,
+             _global_fov.range.resolution);
 
     double _update_rate;
     ros::param::param("~/LikelihoodGrid/update_rate",_update_rate, 0.5);
@@ -71,41 +71,41 @@ int main(int argc, char** argv)
     _cell_probability.unknown = _unknown_cell_probability;
 
 // CREATE AN INSTANCE OF LIKELIHOOD GRID INTERFACE WITH PROPER PARAMETERS
-    LikelihoodGridInterface lkGridInterface(n,
-                                            tf_listener,
-                                            _globalGridFOV,
-                                            _update_rate,
-                                            _update_time_ratio,
-                                            _cell_probability);
+    GridInterface likelihood_grid_interface(n,
+                                  tf_listener,
+                                  _global_fov,
+                                  _update_rate,
+                                  _update_time_ratio,
+                                  _cell_probability);
     // FOR EVERY HUMAN FEATURE DATA (E.G. LEGS, FACES, SOUND)
 
 
 
     // DEFINE THE SENSOR FOV
-    GridFOV_t legGridFOV = _globalGridFOV;
-    legGridFOV.range.max = 20.0;
-    legGridFOV.angle.min = toRadian(-270.0/2);
-    legGridFOV.angle.max = toRadian(270.0/2);
-    GridFOV_t faceGridFOV = _globalGridFOV;
-    faceGridFOV.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
-    faceGridFOV.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
-    faceGridFOV.angle.min = toRadian(-65.0/2); // -65/2 degree
-    faceGridFOV.angle.max = toRadian(65.0/2); // 65/2 degree
+    GridFOV_t laser_fov = _global_fov;
+    laser_fov.range.max = 20.0;
+    laser_fov.angle.min = toRadian(-270.0/2);
+    laser_fov.angle.max = toRadian(270.0/2);
+    GridFOV_t camera_fov = _global_fov;
+    camera_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
+    camera_fov.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
+    camera_fov.angle.min = toRadian(-65.0/2); // -65/2 degree
+    camera_fov.angle.max = toRadian(65.0/2); // 65/2 degree
 
 
     // UPDATE THE SPECIFIC HUMAN GRID FOV
-    lkGridInterface.init_legs(legGridFOV);
-    lkGridInterface.init_faces(faceGridFOV);
-    lkGridInterface.init_human();
+    likelihood_grid_interface.initLegs(laser_fov);
+    likelihood_grid_interface.initFaces(camera_fov);
+    likelihood_grid_interface.initHuman();
 
     // SUBSCRIBE TO THE PROPER TOPIC
     ros::Subscriber legs_sub = n.subscribe("legs",10,
-                                           &LikelihoodGridInterface::legs_cb,
-                                           &lkGridInterface);
+                                           &GridInterface::legCallBack,
+                                           &likelihood_grid_interface);
 
     ros::Subscriber faces_sub = n.subscribe("human",10,
-                                           &LikelihoodGridInterface::faces_cb,
-                                           &lkGridInterface);
+                                           &GridInterface::faceCallBack,
+                                           &likelihood_grid_interface);
 
     while (ros::ok()) {
 
@@ -114,7 +114,7 @@ int main(int argc, char** argv)
             // UPDATE ALL THE AVAILABLE HUMAN FEATURE LIKELIHOOD GRIDS AND PUBLISH THEM
             // FUSE THEM AND UPDATE THE GLOBAL HUMAN LIKELIHOOD GRID AND PUBLISH IT
        // lkGridInterface.spin(looprate.cycleTime().toSec());
-        lkGridInterface.spin();
+        likelihood_grid_interface.spin();
         ros::spinOnce();
         if(looprate.cycleTime() > looprate.expectedCycleTime())
             ROS_ERROR("It is taking too long! %f", looprate.cycleTime().toSec());
