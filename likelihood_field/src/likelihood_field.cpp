@@ -2,7 +2,7 @@
 #include "grid_interface.h"
 
 #define _USE_MATH_DEFINES
-#define _LOOPRATE 5
+#define _LOOPRATE 4
 
 int main(int argc, char** argv)
 {
@@ -84,8 +84,8 @@ int main(int argc, char** argv)
     // DEFINE THE SENSOR FOV
     GridFOV_t laser_fov = _global_fov;
     laser_fov.range.max = 20.0;
-    laser_fov.angle.min = toRadian(-270.0/2);
-    laser_fov.angle.max = toRadian(270.0/2);
+    laser_fov.angle.min = toRadian(-120.0);//-2.35619449615;
+    laser_fov.angle.max = toRadian(120.0);//2.35619449615;
     GridFOV_t camera_fov = _global_fov;
     camera_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
     camera_fov.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV

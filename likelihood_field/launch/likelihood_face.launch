@@ -1,5 +1,5 @@
 <launch>
-    <include file="$(find autonomy_human)/launch/face_detection.launch"/>
+    <include file="$(find autonomy_human)/launch/torso_detection.launch"/>
     <node pkg="likelihood_field" type="likelihood_field" name="likelihood_field" output="screen">
         <param name="LikelihoodGrid/grid_angle_min" value="-3.14159265359"/>
         <param name="LikelihoodGrid/grid_angle_max" value="3.14159265359"/>

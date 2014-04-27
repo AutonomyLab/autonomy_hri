@@ -11,10 +11,10 @@
         <param name="initial_detect_frames" value="6" />
         <param name="initial_reject_frames" value="6" />
         <param name="min_flow" value="10" />
-        <param name="min_face_width" value="40" />
-        <param name="min_face_height" value="80" />
-        <param name="max_face_width" value="200" />
-        <param name="max_face_height" value="400" />
+        <param name="min_face_width" value="20" />
+        <param name="min_face_height" value="40" />
+        <param name="max_face_width" value="400" />
+        <param name="max_face_height" value="800" />
         <param name="debug_mode" value="2" />
     <remap from="input_rgb_image" to="/axis/image_raw" />
   </node>

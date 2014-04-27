@@ -34,8 +34,8 @@ private:
     ros::Publisher human_grid_pub;
     std::string human_frame_id;
     Grid* human_grid;
-    float update_rate;
-    float update_time_ratio;
+    double update_rate;
+    double update_time_ratio;
     CellProbability_t cell_probability;
     GridFOV_t global_fov;
     PointRAP_t* world_base;
@@ -49,8 +49,8 @@ public:
     GridInterface(ros::NodeHandle _n,
                             tf::TransformListener* _tf_listener,
                             GridFOV_t _global_fov,
-                            float _update_rate,
-                            float _update_time_ratio,
+                            double _update_rate,
+                            double _update_time_ratio,
                             CellProbability_t _cell_probability);   // TO BE MODIFIED FOR EVERY HUMAN FEATURE
     void initLegs(GridFOV_t sensor_fov);              //NEEDED FOR EVERY HUMAN FEATURE
     void legCallBack(const geometry_msgs::PoseArray& msg);      //NEEDED FOR EVERY HUMAN FEATURE

@@ -8,6 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
 )
 # find_package(Boost REQUIRED COMPONENTS system)
 
+set(ROS_BUILD_TYPE RelWithDebInfo)
+
 ## Generate messages in the 'msg' folder
 # add_message_files(
 #   FILES

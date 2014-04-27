@@ -5,16 +5,17 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
+#include <ros/ros.h>
 #include "polarcord.h"
 
-float toRadian(float t);
+double toRadian(double t);
 
 struct PointRAP_t{
-    float range;
-    float angle;
-    float probability;
-    float distanceRange(float target){return fabs(range - target);}
-    float distanceAngle(float target) {return fabs(angle - target);}
+    double range;
+    double angle;
+    double probability;
+    double distanceRange(double target){return fabs(range - target);}
+    double distanceAngle(double target) {return fabs(angle - target);}
 };
 
 struct FOV_t{
@@ -47,35 +48,35 @@ public:
     CellProbability_t cell_probability;
 private:
     PointRAP_t* old_data;
-    PointRAP_t* new_data;
     bool* is_known;
     void init();
-    void initGrid(PointRAP_t* data, const float val);
+    void initGrid(PointRAP_t* _data, const double val);
     void setUnknownArea();
-    void freeProbability(PointRAP_t* data);
-    void unknownProbability(PointRAP_t *data);
-    void scaleProbability(PointRAP_t* data, float s);
-    float minProbability(PointRAP_t* data);
-    float maxProbability(PointRAP_t* data);
+    void freeProbability(PointRAP_t* _data);
+    void unknownProbability(PointRAP_t* _data);
+    void scaleProbability(PointRAP_t* _data, double s);
+    double minProbability(PointRAP_t* _data);
+    double maxProbability(PointRAP_t* _data);
     void copyProbability(PointRAP_t* source, PointRAP_t* target);
-    void regionNumber(PointRAP_t* data,
+    void regionNumber(PointRAP_t* _data,
                             u_int8_t* region_data,
                             u_int8_t range_region_num,
                             u_int8_t angle_region_num);
 public:
     PointRAP_t* data;
+    PointRAP_t* new_data;
     bool flag;
     Grid();
     Grid(const GridFOV_t _sensor_fov,
                    const GridFOV_t _global_fov,
                    const CellProbability_t _cell_probability);
     ~Grid();
-    void setProbability(PointRAP_t* data, const float val);
-    void assign(const std::vector<PolarPose>& pose);
-    void sensorUpdate(float rate);
-    void worldUpdate(PointRAP_t *world_base, float rate);
+    void setProbability(PointRAP_t* _data, const double val);
+    void computeLikelihood(const std::vector<PolarPose>& pose, PointRAP_t* _data);
+    void sensorUpdate(double rate);
+    void worldUpdate(PointRAP_t *world_base, double rate);
     void fuse(PointRAP_t* input);
-    void normalize(PointRAP_t* data);
+    void normalize(PointRAP_t* _data);
     void output();
 };
 

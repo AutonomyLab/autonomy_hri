@@ -12,8 +12,8 @@ GridInterface::GridInterface():
 GridInterface::GridInterface(ros::NodeHandle _n,
                                                  tf::TransformListener *_tf_listener,
                                                  GridFOV_t _global_fov,
-                                                float _update_rate,
-                                                float _update_time_ratio,
+                                                double _update_rate,
+                                                double _update_time_ratio,
                                                  CellProbability_t _cell_probability):
     n(_n),
     tf_listener(_tf_listener),
@@ -43,15 +43,19 @@ GridInterface::GridInterface(ros::NodeHandle _n,
 
 void GridInterface::initWorldGrids()
 {
-    size_t i = 0;
-    for(size_t r = 0; r < global_fov.getRowSize(); r++){
-        for(size_t c = 0; c < global_fov.getColSize(); c++){
+    size_t i,r,c;
+    i = 0;
+    for(r = 0; r < global_fov.getRowSize(); r++){
+        for(c = 0; c < global_fov.getColSize(); c++){
             world_odom[i].range = world_base[i].range = global_fov.range.min + global_fov.range.resolution*r;
             world_odom[i].angle = world_base[i].angle = global_fov.angle.min + global_fov.angle.resolution*c;
             world_odom[i].probability = world_base[i].probability = 1.0;
             i++;
         }
     }
+    ROS_ASSERT(i == global_fov.getSize()-1);
+    ROS_ASSERT(world_odom[global_fov.getSize()-1].range == global_fov.range.max);
+    ROS_ASSERT(world_odom[global_fov.getSize()-1].angle == global_fov.angle.max);
 }
 
 
@@ -120,9 +124,9 @@ void GridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
             legs_polar_base.push_back(tmp_polar);
         }
 
-        assert(legs_polar_base.size() == legs_laser.size());
+        ROS_ASSERT(legs_polar_base.size() == legs_laser.size());
         leg_frame_id = "base_footprint";
-        leg_grid->assign(legs_polar_base);
+        leg_grid->computeLikelihood(legs_polar_base, leg_grid->new_data);
         legs_polar_base.clear();
     }
 }
@@ -147,21 +151,21 @@ void GridInterface::faceCallBack(const autonomy_human::human& msg)
         last_face_time = ros::Time::now();
         geometry_msgs::PointStamped tmp_camera, tmp_base;
         PolarPose tmp_polar;
-        float theta, x;
-        float image_width = 640.0;
+        double theta, x;
+        double image_width = 640.0;
 
         x = msg.faceROI.x_offset + msg.faceROI.width/2.0;
         theta = ((image_width/2.0-x)/image_width/2.0)*toRadian(65.0/2.0);
         tmp_polar.angle = theta;
 
-        float r = face_grid->sensor_fov.range.min;
+        double r = face_grid->sensor_fov.range.min;
         while(r <= face_grid->sensor_fov.range.max){
             tmp_polar.range = r;
             r += face_grid->sensor_fov.range.resolution;
             face_polar_base.push_back(tmp_polar);
         }
         face_frame_id = "base_footprint";
-        face_grid->assign(face_polar_base);
+        face_grid->computeLikelihood(face_polar_base, face_grid->new_data);
         face_polar_base.clear();
     }
 
@@ -181,33 +185,34 @@ void GridInterface::initHuman()
 
 void GridInterface::spin()
 {
-    human_grid->setProbability(human_grid->data, cell_probability.human);
+    human_grid->setProbability(human_grid->new_data, cell_probability.human);
 
     // LEGS
     diff_leg_time = ros::Time::now() - last_leg_time;
     leg_grid->flag = !(diff_leg_time.toSec() > 2.0);
     leg_grid->sensorUpdate(update_rate);
-    //legGrid->output();
 
 
     // FACES
     diff_face_time = ros::Time::now() - last_face_time;
     face_grid->flag = !(diff_face_time.toSec() > 2.0);
     face_grid->sensorUpdate(update_rate);
-    //faceGrid->output();
 
     // HUMAN
     human_grid->fuse(leg_grid->data);
     human_grid->fuse(face_grid->data);
+    //human_grid->output();
+
 
     // transform worldGrid_odom to worldGrid_base
 
     geometry_msgs::PointStamped tmp_odom, tmp_base;
     tmp_odom.header.frame_id = "odom";
     tmp_base.header.frame_id = "base_footprint";
+    tmp_odom.header.stamp = ros::Time::now();
+    tmp_base.header.stamp = ros::Time::now();
 
     for(size_t i = 0; i < global_fov.getSize(); i++){
-        tmp_odom.header.stamp = ros::Time::now();
         tmp_odom.point.x = world_odom[i].range * cos(world_odom[i].angle);
         tmp_odom.point.y = world_odom[i].range * sin(world_odom[i].angle);
         tmp_base = transformToBase(tmp_odom);
@@ -216,18 +221,16 @@ void GridInterface::spin()
         world_base[i].probability = world_odom[i].probability;
     }
 
-    human_grid->worldUpdate(world_base, update_rate);
-
-//     transform and store data -> worldGrid_odom
+    human_grid->worldUpdate(world_base, 0.6);
 
     for(size_t i = 0; i < global_fov.getSize(); i++){
-        tmp_base.header.stamp = ros::Time::now();
         tmp_base.point.x = human_grid->data[i].range * cos(human_grid->data[i].angle);
         tmp_base.point.y = human_grid->data[i].range * sin(human_grid->data[i].angle);
         tmp_odom = transformToOdom(tmp_base);
         world_odom[i].angle = atan2(tmp_odom.point.y, tmp_odom.point.x);
         world_odom[i].range = sqrt(pow(tmp_odom.point.y,2)+pow(tmp_odom.point.x,2));
         world_odom[i].probability = human_grid->data[i].probability;
+
     }
     publish();
 }
@@ -257,7 +260,7 @@ void GridInterface::publish()
 
 sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
 {
-    float r, t, prior_threshold;
+    double r, t, prior_threshold;
     geometry_msgs::Point32 points;
     sensor_msgs::ChannelFloat32 probability_channel, threshold_channel;
     sensor_msgs::PointCloud pointcloud_grid;
