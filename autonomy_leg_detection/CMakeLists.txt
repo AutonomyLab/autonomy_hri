@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 catkin_package(
-  INCLUDE_DIRS include
+  #INCLUDE_DIRS include
  # LIBRARIES autonomy_legdetection
   CATKIN_DEPENDS cv_bridge geometry_msgs miarn_ros roscpp std_msgs
   DEPENDS system_lib opencv
