@@ -1,8 +1,0 @@
-prefix=/home/autolab/ros/catkin_ws/src/autonomy_hri/likelihood_field-build/devel
-
-Name: likelihood_field
-Description: Description of likelihood_field
-Version: 0.0.0
-Cflags: -I/home/autolab/ros/catkin_ws/src/autonomy_hri/likelihood_field/include
-Libs: -L/home/autolab/ros/catkin_ws/src/autonomy_hri/likelihood_field-build/devel/lib 
-Requires: geometry_msgs sensor_msgs tf autonomy_human

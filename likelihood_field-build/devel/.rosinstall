@@ -1,2 +1,0 @@
-- setup-file:
-    local-name: /home/autolab/ros/catkin_ws/src/autonomy_hri/likelihood_field-build/devel/setup.sh
