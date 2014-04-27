@@ -20,7 +20,6 @@ add_message_files(
 
 generate_messages(
    DEPENDENCIES
-   geometry_msgs
    std_msgs
    sensor_msgs
  )
@@ -39,6 +38,7 @@ include_directories(include
 )
 
 add_executable(autonomy_human src/autonomy_human.cpp)
+add_dependencies(autonomy_human ${autonomy_human_EXPORTED_TARGETS})
 
  target_link_libraries(autonomy_human
    ${catkin_LIBRARIES}
