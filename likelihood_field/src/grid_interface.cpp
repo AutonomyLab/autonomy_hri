@@ -53,9 +53,9 @@ void GridInterface::initWorldGrids()
             i++;
         }
     }
-    ROS_ASSERT(i == global_fov.getSize()-1);
-    ROS_ASSERT(world_odom[global_fov.getSize()-1].range == global_fov.range.max);
-    ROS_ASSERT(world_odom[global_fov.getSize()-1].angle == global_fov.angle.max);
+    //ROS_ASSERT(i == global_fov.getSize()-1);
+//    ROS_ASSERT(world_odom[global_fov.getSize()-1].range == global_fov.range.max);
+//    ROS_ASSERT(world_odom[global_fov.getSize()-1].angle == global_fov.angle.max);
 }
 
 
@@ -124,7 +124,7 @@ void GridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
             legs_polar_base.push_back(tmp_polar);
         }
 
-        ROS_ASSERT(legs_polar_base.size() == legs_laser.size());
+        //ROS_ASSERT(legs_polar_base.size() == legs_laser.size());
         leg_frame_id = "base_footprint";
         leg_grid->computeLikelihood(legs_polar_base, leg_grid->new_data);
         legs_polar_base.clear();

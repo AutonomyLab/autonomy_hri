@@ -38,9 +38,9 @@ void Grid::initGrid(PointRAP_t* _data, const double val)
             i++;
         }
     }
-    ROS_ASSERT(i == global_fov.getSize()-1);
-    ROS_ASSERT(_data[global_fov.getSize()-1].range == global_fov.range.max);
-    ROS_ASSERT(_data[global_fov.getSize()-1].angle == global_fov.angle.max);
+    //ROS_ASSERT(i == global_fov.getSize()-1);
+//    ROS_ASSERT(_data[global_fov.getSize()-1].range == global_fov.range.max);
+//    ROS_ASSERT(_data[global_fov.getSize()-1].angle == global_fov.angle.max);
 }
 
 void Grid::setUnknownArea()
@@ -182,7 +182,7 @@ void Grid::worldUpdate(PointRAP_t* world_base, double rate)
                     old_data[i].distanceRange(world_base[k].range) < global_fov.range.resolution){
                 old_data[i].probability += world_base[k].probability;
                 count++;
-                ROS_ASSERT(i == k);
+                //ROS_ASSERT(i == k);
                //ROS_INFO("i: %lu    k: %lu", i, k);
             }
         }

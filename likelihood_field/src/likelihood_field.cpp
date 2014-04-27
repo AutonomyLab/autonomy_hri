@@ -108,7 +108,7 @@ int main(int argc, char** argv)
                                            &likelihood_grid_interface);
 
     while (ros::ok()) {
-
+        //ROS_ASSERT(0);
 
         // IN EVERY LOOP:
             // UPDATE ALL THE AVAILABLE HUMAN FEATURE LIKELIHOOD GRIDS AND PUBLISH THEM

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iostream>
 #include <ros/ros.h>
+#include <ros/assert.h>
 #include "polarcord.h"
 
 double toRadian(double t);
