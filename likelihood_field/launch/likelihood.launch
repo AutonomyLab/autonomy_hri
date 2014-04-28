@@ -4,11 +4,14 @@
         <param name="LikelihoodGrid/grid_angle_max" value="3.14159265359"/>
         <param name="LikelihoodGrid/grid_angle_resolution" value="0.17453292519"/>
         <param name="LikelihoodGrid/grid_range_min" value="0.5"/>
-        <param name="LikelihoodGrid/grid_range_max" value="10.0"/>
-        <param name="LikelihoodGrid/grid_range_resolution" value="0.5"/>
+        <param name="LikelihoodGrid/grid_range_max" value="30.0"/>
+        <param name="LikelihoodGrid/grid_range_resolution" value="0.25"/>
         <param name="LikelihoodGrid/update_rate" value="0.5"/>
+        <param name="LikelihoodGrid/human_cell_probability" value="1.0"/>
         <param name="LikelihoodGrid/free_cell_probability" value="0.1"/>
+        <param name="LikelihoodGrid/unknown_cell_probability" value="0.25"/>
+        <param name="LikelihoodGrid/number_of_sensors" value="2"/>
+        <param name="LikelihoodGrid/sensitivity" value="1"/>
         <param name="update_time_ratio" value="10.0"/>
     </node>
 </launch>
-

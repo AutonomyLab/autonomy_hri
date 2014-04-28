@@ -13,5 +13,7 @@
         <param name="featureLegTracker/person_clean_ticks" value="5.0"/>
         <param name="featureLegTracker/leg_update_radius" value="100.0"/>
         <param name="featureLegTracker/person_radius" value="300.0"/>
+        <remap from="/scan" to="/lidar/scan" />
+
     </node>
 </launch>

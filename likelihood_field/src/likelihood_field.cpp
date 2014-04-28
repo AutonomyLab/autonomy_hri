@@ -89,8 +89,8 @@ int main(int argc, char** argv)
     GridFOV_t camera_fov = _global_fov;
     camera_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
     camera_fov.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
-    camera_fov.angle.min = toRadian(-65.0/2); // -65/2 degree
-    camera_fov.angle.max = toRadian(65.0/2); // 65/2 degree
+    camera_fov.angle.min = toRadian(-65.0/2);
+    camera_fov.angle.max = toRadian(65.0/2);
 
 
     // UPDATE THE SPECIFIC HUMAN GRID FOV
@@ -108,12 +108,7 @@ int main(int argc, char** argv)
                                            &likelihood_grid_interface);
 
     while (ros::ok()) {
-        //ROS_ASSERT(0);
 
-        // IN EVERY LOOP:
-            // UPDATE ALL THE AVAILABLE HUMAN FEATURE LIKELIHOOD GRIDS AND PUBLISH THEM
-            // FUSE THEM AND UPDATE THE GLOBAL HUMAN LIKELIHOOD GRID AND PUBLISH IT
-       // lkGridInterface.spin(looprate.cycleTime().toSec());
         likelihood_grid_interface.spin();
         ros::spinOnce();
         if(looprate.cycleTime() > looprate.expectedCycleTime())

@@ -47,46 +47,69 @@ void GridInterface::initWorldGrids()
     i = 0;
     for(r = 0; r < global_fov.getRowSize(); r++){
         for(c = 0; c < global_fov.getColSize(); c++){
-            world_odom[i].range = world_base[i].range = global_fov.range.min + global_fov.range.resolution*r;
-            world_odom[i].angle = world_base[i].angle = global_fov.angle.min + global_fov.angle.resolution*c;
-            world_odom[i].probability = world_base[i].probability = 1.0;
+            world_base[i].range = global_fov.range.min + global_fov.range.resolution*r;
+            world_base[i].angle = global_fov.angle.min + global_fov.angle.resolution*c;
+            world_base[i].probability = 1.0;
+            world_odom[i].range = global_fov.range.min + global_fov.range.resolution*r;
+            world_odom[i].angle = global_fov.angle.min + global_fov.angle.resolution*c;
+            world_odom[i].probability = 1.0;
             i++;
         }
     }
-    //ROS_ASSERT(i == global_fov.getSize()-1);
-//    ROS_ASSERT(world_odom[global_fov.getSize()-1].range == global_fov.range.max);
-//    ROS_ASSERT(world_odom[global_fov.getSize()-1].angle == global_fov.angle.max);
+    ROS_ASSERT(i == global_fov.getSize());
+    ROS_ASSERT(fabs(world_odom[global_fov.getSize()-1].range - global_fov.range.max) < 0.001);
+    ROS_ASSERT(fabs(world_odom[global_fov.getSize()-1].angle - global_fov.angle.max) < 0.0001);
 }
 
 
-geometry_msgs::PointStamped GridInterface::transformToBase(geometry_msgs::PointStamped& tmp_point)
+bool GridInterface::transformToBase(geometry_msgs::PointStamped& source_point, geometry_msgs::PointStamped &target_point, bool debug)
 {
-    geometry_msgs::PointStamped base_point;
+    bool can_transform;
     try
     {
 //        listener.waitForTransform("base_footprint", tmp_point.header.frame_id, ros::Time(0),
 //                    ros::Duration(5.0));
-        tf_listener->transformPoint("base_footprint", ros::Time(0), tmp_point, tmp_point.header.frame_id, base_point);
+        tf_listener->transformPoint("base_footprint", source_point, target_point);
+        if (debug) {
+            tf::StampedTransform _t;
+            tf_listener->lookupTransform("base_footprint", source_point.header.frame_id, ros::Time(0), _t);
+            ROS_INFO("From %s to bfp: [%.2f, %.2f, %.2f] (%.2f %.2f %.2f %.2f)",
+                     source_point.header.frame_id.c_str(),
+                     _t.getOrigin().getX(), _t.getOrigin().getY(), _t.getOrigin().getZ(),
+                     _t.getRotation().getX(), _t.getRotation().getY(), _t.getRotation().getZ(), _t.getRotation().getW());
+        }
+        can_transform = true;
     }
     catch(tf::TransformException& ex)
     {
-        ROS_ERROR("Received an exception trying to transform a point from \"%s\" to \"base_footprint\": %s", tmp_point.header.frame_id.c_str(), ex.what());
+        ROS_ERROR("Received an exception trying to transform a point from \"%s\" to \"base_footprint\": %s", source_point.header.frame_id.c_str(), ex.what());
+        can_transform = false;
     }
-    return base_point;
+    return can_transform;
 }
 
-geometry_msgs::PointStamped GridInterface::transformToOdom(geometry_msgs::PointStamped& tmp_point)
+bool GridInterface::transformToOdom(geometry_msgs::PointStamped& source_point, geometry_msgs::PointStamped target_point, bool debug)
 {
-    geometry_msgs::PointStamped odom_point;
+    bool can_transform;
     try
     {
-        tf_listener->transformPoint("odom", ros::Time(0), tmp_point, tmp_point.header.frame_id, odom_point);
+        tf_listener->transformPoint("odom", source_point, target_point);
+        if (debug) {
+            tf::StampedTransform _t;
+            tf_listener->lookupTransform("odom", source_point.header.frame_id, ros::Time(0), _t);
+            ROS_INFO("From %s to odom: [%.2f, %.2f, %.2f] (%.2f %.2f %.2f %.2f)",
+                     source_point.header.frame_id.c_str(),
+                     _t.getOrigin().getX(), _t.getOrigin().getY(), _t.getOrigin().getZ(),
+                     _t.getRotation().getX(), _t.getRotation().getY(), _t.getRotation().getZ(), _t.getRotation().getW());
+        }
+        can_transform = true;
     }
     catch(tf::TransformException& ex)
     {
-        ROS_ERROR("Received an exception trying to transform a point from \"%s\" to \"odom\": %s", tmp_point.header.frame_id.c_str(), ex.what());
+        ROS_ERROR("Received an exception trying to transform a point from \"%s\" to \"odom\": %s", source_point.header.frame_id.c_str(), ex.what());
+        can_transform = false;
     }
-    return odom_point;
+    return can_transform;
 }
 
 
@@ -119,7 +142,10 @@ void GridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
         for(size_t i = 0; i < legs_laser.size(); i++){
             tmp_laser.header = msg.header;
             tmp_laser.point = legs_laser.at(i).position;
-            tmp_base = transformToBase(tmp_laser); // TRANSFORM TO BASE_FOOTPRINT
+            if(!transformToBase(tmp_laser, tmp_base)){
+                ROS_WARN("Can not transform from laser to base_footprint");
+                return;
+            }
             tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
             legs_polar_base.push_back(tmp_polar);
         }
@@ -185,7 +211,6 @@ void GridInterface::initHuman()
 
 void GridInterface::spin()
 {
-    human_grid->setProbability(human_grid->new_data, cell_probability.human);
 
     // LEGS
     diff_leg_time = ros::Time::now() - last_leg_time;
@@ -199,39 +224,87 @@ void GridInterface::spin()
     face_grid->sensorUpdate(update_rate);
 
     // HUMAN
+    human_grid->setProbability(human_grid->new_data, cell_probability.human);
     human_grid->fuse(leg_grid->data);
     human_grid->fuse(face_grid->data);
     //human_grid->output();
 
-
+/*
     // transform worldGrid_odom to worldGrid_base
 
     geometry_msgs::PointStamped tmp_odom, tmp_base;
     tmp_odom.header.frame_id = "odom";
     tmp_base.header.frame_id = "base_footprint";
-    tmp_odom.header.stamp = ros::Time::now();
-    tmp_base.header.stamp = ros::Time::now();
+    tmp_odom.header.stamp = ros::Time(0);
+    tmp_base.header.stamp = ros::Time(0);
 
-    for(size_t i = 0; i < global_fov.getSize(); i++){
+    tmp_odom.point.z = 0.0;
+    tmp_base.point.z = 0.0;
+
+    size_t i;
+
+    for(i = 0; i < global_fov.getSize(); i++){
         tmp_odom.point.x = world_odom[i].range * cos(world_odom[i].angle);
         tmp_odom.point.y = world_odom[i].range * sin(world_odom[i].angle);
-        tmp_base = transformToBase(tmp_odom);
+        if(!transformToBase(tmp_odom, tmp_base, false)){
+            ROS_WARN("Can not transform from odom to base_footprint");
+            return;
+        }
         world_base[i].angle = atan2(tmp_base.point.y, tmp_base.point.x);
         world_base[i].range = sqrt(pow(tmp_base.point.y,2)+pow(tmp_base.point.x,2));
         world_base[i].probability = world_odom[i].probability;
     }
 
-    human_grid->worldUpdate(world_base, 0.6);
+    i = global_fov.getSize() -2000;
+    ROS_INFO("---------------------------------------------");
+    tmp_odom.point.x = world_odom[i].range * cos(world_odom[i].angle);
+    tmp_odom.point.y = world_odom[i].range * sin(world_odom[i].angle);
+    if(!transformToBase(tmp_odom, tmp_base, false)){
+        ROS_WARN("Can not transform from odom to base_footprint");
+        return;
+    }
+    world_base[i].angle = atan2(tmp_base.point.y, tmp_base.point.x);
+    world_base[i].range = sqrt(pow(tmp_base.point.y,2)+pow(tmp_base.point.x,2));
+    world_base[i].probability = world_odom[i].probability;
+    ROS_INFO("[%4lu] world_odom: from range= %.2lf  and angle= %.2lf", i, world_odom[i].range, world_odom[i].angle);
+    ROS_INFO("[%4lu] temp_odom : x= %.2f  y= %.2f", i, tmp_odom.point.x, tmp_odom.point.y);
+    ROS_INFO("[%4lu] temp_base : x= %.2f  y= %.2f",i, tmp_base.point.x, tmp_base.point.y);
+    ROS_INFO("[%4lu] world_base: range= %.2lf  and angle= %.2lf", i, world_base[i].range, world_base[i].angle);
+    */
 
-    for(size_t i = 0; i < global_fov.getSize(); i++){
+    human_grid->worldUpdate(world_base, 0.0);
+
+    /*
+
+    for(i = 0; i < global_fov.getSize(); i++){
         tmp_base.point.x = human_grid->data[i].range * cos(human_grid->data[i].angle);
         tmp_base.point.y = human_grid->data[i].range * sin(human_grid->data[i].angle);
-        tmp_odom = transformToOdom(tmp_base);
+        if(!transformToOdom(tmp_base, tmp_odom, false))
+        {
+            ROS_WARN("Can not transform from base to odom");
+            return;
+        }
         world_odom[i].angle = atan2(tmp_odom.point.y, tmp_odom.point.x);
         world_odom[i].range = sqrt(pow(tmp_odom.point.y,2)+pow(tmp_odom.point.x,2));
         world_odom[i].probability = human_grid->data[i].probability;
-
     }
+    i = global_fov.getSize() -2000;
+    tmp_base.point.x = human_grid->data[i].range * cos(human_grid->data[i].angle);
+    tmp_base.point.y = human_grid->data[i].range * sin(human_grid->data[i].angle);
+    if(!transformToOdom(tmp_base, tmp_odom, false))
+    {
+        ROS_WARN("Can not transform from base to odom");
+        return;
+    }
+    world_odom[i].angle = atan2(tmp_odom.point.y, tmp_odom.point.x);
+    world_odom[i].range = sqrt(pow(tmp_odom.point.y,2)+pow(tmp_odom.point.x,2));
+    world_odom[i].probability = human_grid->data[i].probability;
+    ROS_INFO("[%4lu] human_grid: from range= %.2lf  and angle= %.2lf", i, human_grid->data[i].range, human_grid->data[i].angle);
+    ROS_INFO("[%4lu] temp_base : x= %.2f  y= %.2f", i, tmp_base.point.x, tmp_base.point.y);
+    ROS_INFO("[%4lu] temp_odom : x= %.2f  y= %.2f",i, tmp_odom.point.x, tmp_odom.point.y);
+    ROS_INFO("[%4lu] world_odom: range= %.2lf  and angle= %.2lf", i, world_odom[i].range, world_odom[i].angle);
+
+*/
     publish();
 }
 

@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <iostream>
 #include <ros/ros.h>
-#include <ros/assert.h>
 #include "polarcord.h"
 
 double toRadian(double t);
@@ -75,7 +74,7 @@ public:
     void setProbability(PointRAP_t* _data, const double val);
     void computeLikelihood(const std::vector<PolarPose>& pose, PointRAP_t* _data);
     void sensorUpdate(double rate);
-    void worldUpdate(PointRAP_t *world_base, double rate);
+    void worldUpdate(const PointRAP_t *world_base, double rate);
     void fuse(PointRAP_t* input);
     void normalize(PointRAP_t* _data);
     void output();

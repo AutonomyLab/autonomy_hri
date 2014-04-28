@@ -41,8 +41,12 @@ private:
     PointRAP_t* world_base;
     PointRAP_t* world_odom;
     void initWorldGrids();
-    geometry_msgs::PointStamped transformToBase(geometry_msgs::PointStamped& tmp_point);
-    geometry_msgs::PointStamped transformToOdom(geometry_msgs::PointStamped& tmp_point);
+    bool transformToBase(geometry_msgs::PointStamped& source_point,
+                         geometry_msgs::PointStamped& target_point,
+                         bool debug = false);
+    bool transformToOdom(geometry_msgs::PointStamped& source_point,
+                         geometry_msgs::PointStamped target_point,
+                         bool debug = false);
     sensor_msgs::PointCloud pointCloudGrid(Grid *polar_grid);
 public:
     GridInterface();

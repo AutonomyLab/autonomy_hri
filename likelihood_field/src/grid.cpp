@@ -38,9 +38,9 @@ void Grid::initGrid(PointRAP_t* _data, const double val)
             i++;
         }
     }
-    //ROS_ASSERT(i == global_fov.getSize()-1);
-//    ROS_ASSERT(_data[global_fov.getSize()-1].range == global_fov.range.max);
-//    ROS_ASSERT(_data[global_fov.getSize()-1].angle == global_fov.angle.max);
+    ROS_ASSERT(i == global_fov.getSize());
+    ROS_ASSERT(fabs(_data[global_fov.getSize()-1].range - global_fov.range.max) < 0.001);
+    ROS_ASSERT(fabs(_data[global_fov.getSize()-1].angle - global_fov.angle.max) < 0.0001);
 }
 
 void Grid::setUnknownArea()
@@ -127,7 +127,7 @@ void Grid::computeLikelihood(const std::vector<PolarPose>& poses, PointRAP_t* _d
 
 void Grid::sensorUpdate(double rate)
 {
-    ROS_ASSERT(rate > 0.0 && rate < 1.0);
+    ROS_ASSERT(rate >= 0.0 && rate <= 1.0);
     for(size_t i = 0; i < global_fov.getSize(); i++){
         data[i].probability = rate*old_data[i].probability + ((flag) ? (1-rate)*new_data[i].probability : 0.0);
     }
@@ -159,9 +159,9 @@ void Grid::regionNumber(PointRAP_t* _data,
     }
 }
 
-void Grid::worldUpdate(PointRAP_t* world_base, double rate)
+void Grid::worldUpdate(const PointRAP_t* world_base, double rate)
 {
-    ROS_ASSERT(rate > 0.0 && rate < 1.0);
+    ROS_ASSERT(rate >= 0.0 && rate <= 1.0);
 
     /*
     u_int8_t* region_old_data;
@@ -170,29 +170,28 @@ void Grid::worldUpdate(PointRAP_t* world_base, double rate)
     region_number(worldGrid_base, region_world_base, 4, 4);
     */
 
-    setProbability(old_data,0.0);
-    size_t count, k;
-    size_t test = 0;
-    for(size_t i = 0; i < global_fov.getSize(); i++){
+    if(rate){
+        setProbability(old_data,0.0);
+        size_t count, k;
+        size_t test = 0;
+        for(size_t i = 0; i < global_fov.getSize(); i++){
 
-        count = 0;
-        for(k = 0; k < global_fov.getSize(); k++){
-
-            if(old_data[i].distanceAngle(world_base[k].angle) < global_fov.angle.resolution &&
-                    old_data[i].distanceRange(world_base[k].range) < global_fov.range.resolution){
-                old_data[i].probability += world_base[k].probability;
-                count++;
-                //ROS_ASSERT(i == k);
-               //ROS_INFO("i: %lu    k: %lu", i, k);
+            count = 0;
+            for(k = 0; k < global_fov.getSize(); k++){
+                if(old_data[i].distanceAngle(world_base[k].angle) < global_fov.angle.resolution &&
+                        old_data[i].distanceRange(world_base[k].range) < global_fov.range.resolution){
+                    old_data[i].probability += world_base[k].probability;
+                    count++;
+                }
             }
-        }
-        if(count){
-            old_data[i].probability = old_data[i].probability/count;
-            test++;
+            if(count){
+                old_data[i].probability = old_data[i].probability/count;
+                test++;
+            }
         }
     }
 
-    //std::cout << "counter: " << test << "grid size: " << global_fov.getSize() << std::endl;
+    //ROS_INFO("global size: %lu  test: %lu", global_fov.getSize(), test);
 
     for(size_t i = 0; i < global_fov.getSize(); i++){
         data[i].probability = rate*old_data[i].probability +  (1-rate)*new_data[i].probability ;
