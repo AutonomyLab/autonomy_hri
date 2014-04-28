@@ -375,9 +375,11 @@ int main(int argc, char **argv)
 
     ros::Subscriber laser_sub = n.subscribe("scan", 10, laser_cb);
     leg_pub = n.advertise<geometry_msgs::PoseArray>("legs",10);
-
-    cv::namedWindow(lw_window);
+    if(show_viz){
+            cv::namedWindow(lw_window);
     clearVisWindow(1000.0,1000.0);
+    }
+
     float fps_ts[FPS_BUF_SIZE];
     unsigned int counter = 0;
 
