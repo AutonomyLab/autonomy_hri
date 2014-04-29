@@ -5,5 +5,3 @@ float32 y
 float32 z
 float32 azimuth
 float32 elevation
-
-

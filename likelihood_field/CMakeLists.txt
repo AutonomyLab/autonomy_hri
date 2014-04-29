@@ -3,6 +3,7 @@ project(likelihood_field)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   sensor_msgs
+  hark_msgs
   tf
   autonomy_human
 )
@@ -11,28 +12,28 @@ find_package(catkin REQUIRED COMPONENTS
 set(ROS_BUILD_TYPE Debug)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-   FILES
-   HarkSource.msg
-   HarkSourceVal.msg
- )
+#add_message_files(
+    # FILES
+   # HarkSource.msg
+   #   HarkSourceVal.msg
+   # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-   DEPENDENCIES
-  geometry_msgs
-  sensor_msgs
- )
+#generate_messages(
+    #  DEPENDENCIES
+   # geometry_msgs
+  #  sensor_msgs
+  # )
+
 catkin_package(
   INCLUDE_DIRS include
   #LIBRARIES likelihood_field
-  CATKIN_DEPENDS geometry_msgs sensor_msgs tf autonomy_human
+  CATKIN_DEPENDS hark_msgs geometry_msgs sensor_msgs tf autonomy_human
   DEPENDS system_lib opencv
 )
 include_directories(include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  ${hark_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library

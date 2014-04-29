@@ -210,9 +210,9 @@ void GridInterface::initSound(GridFOV_t sensor_fov)
     }
 }
 
-void GridInterface::soundCallBack(const likelihood_field::HarkSource& msg)
+void GridInterface::soundCallBack(const hark_msgs::HarkSource& msg)
 {
-    std::vector<likelihood_field::HarkSourceVal> sound_src;
+    std::vector<hark_msgs::HarkSourceVal> sound_src;
     std::vector<PolarPose> sound_polar_base;
     if(!msg.src.empty()){
         last_sound_time = ros::Time::now();
@@ -254,7 +254,7 @@ sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
     sensor_msgs::PointCloud pointcloud_grid;
     probability_channel.name = "probability";
     threshold_channel.name = "threshold";
-    prior_threshold = pow(cell_probability.unknown, 2);
+    prior_threshold = pow(cell_probability.unknown, 3);
 
     for(size_t i = 0; i < polar_grid->global_fov.getSize(); i++){
         r = polar_grid->data[i].range;

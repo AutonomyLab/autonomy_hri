@@ -6,8 +6,8 @@
 #include <geometry_msgs/Vector3.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h>
-#include "likelihood_field/HarkSource.h"
-#include "likelihood_field/HarkSourceVal.h"
+#include <hark_msgs/HarkSource.h>
+#include <hark_msgs/HarkSourceVal.h>
 #include <autonomy_human/human.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/PointStamped.h>
@@ -69,7 +69,7 @@ public:
     void initFaces(GridFOV_t sensor_fov);
     void faceCallBack(const autonomy_human::human& msg);
     void initSound(GridFOV_t sensor_fov);
-    void soundCallBack(const likelihood_field::HarkSource& msg);
+    void soundCallBack(const hark_msgs::HarkSource& msg);
     void initHuman();
     void spin();                            // TO BE MODIFIED FOR EVERY HUMAN FEATURE
     void publish();                                         // TO BE MODIFIED FOR EVERY HUMAN FEATURE
