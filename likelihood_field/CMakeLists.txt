@@ -11,17 +11,18 @@ find_package(catkin REQUIRED COMPONENTS
 set(ROS_BUILD_TYPE Debug)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+   FILES
+   HarkSource.msg
+   HarkSourceVal.msg
+ )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   sensor_msgs
-# )
+generate_messages(
+   DEPENDENCIES
+  geometry_msgs
+  sensor_msgs
+ )
 catkin_package(
   INCLUDE_DIRS include
   #LIBRARIES likelihood_field
@@ -31,7 +32,7 @@ catkin_package(
 include_directories(include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-
+  ${hark_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -40,6 +41,8 @@ include_directories(include
 # )
 
 add_executable(likelihood_field src/likelihood_field.cpp src/grid.cpp src/grid_interface.cpp )
+#add_dependencies(likelihood_field ${likelihood_field_EXPORTED_TARGETS})
+
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(likelihood_field

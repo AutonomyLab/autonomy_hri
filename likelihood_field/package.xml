@@ -20,9 +20,6 @@
   <run_depend>tf</run_depend>
   <run_depend>cv_bridge</run_depend>
   <run_depend>autonomy_human</run_depend>
-
-
-
-  <export>
+<export>
   </export>
 </package>

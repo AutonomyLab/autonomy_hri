@@ -6,6 +6,8 @@
 #include <geometry_msgs/Vector3.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h>
+#include "likelihood_field/HarkSource.h"
+#include "likelihood_field/HarkSourceVal.h"
 #include <autonomy_human/human.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/PointStamped.h>
@@ -30,6 +32,12 @@ private:
     Grid* face_grid;
     ros::Time last_face_time;
     ros::Duration diff_face_time;
+    // Sound
+    ros::Publisher sound_grid_pub;
+    std::string sound_frame_id;
+    Grid* sound_grid;
+    ros::Time last_sound_time;
+    ros::Duration diff_sound_time;
     // Human
     ros::Publisher human_grid_pub;
     std::string human_frame_id;
@@ -60,6 +68,8 @@ public:
     void legCallBack(const geometry_msgs::PoseArray& msg);      //NEEDED FOR EVERY HUMAN FEATURE
     void initFaces(GridFOV_t sensor_fov);
     void faceCallBack(const autonomy_human::human& msg);
+    void initSound(GridFOV_t sensor_fov);
+    void soundCallBack(const likelihood_field::HarkSource& msg);
     void initHuman();
     void spin();                            // TO BE MODIFIED FOR EVERY HUMAN FEATURE
     void publish();                                         // TO BE MODIFIED FOR EVERY HUMAN FEATURE

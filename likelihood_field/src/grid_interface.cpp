@@ -26,6 +26,7 @@ GridInterface::GridInterface(ros::NodeHandle _n,
 
     legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
     face_grid_pub = n.advertise<sensor_msgs::PointCloud>("face_likelihood_grid",10);
+    sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
     human_grid_pub = n.advertise<sensor_msgs::PointCloud>("human_likelihood_grid",10);
     try
     {
@@ -172,10 +173,10 @@ void GridInterface::initFaces(GridFOV_t sensor_fov)
 void GridInterface::faceCallBack(const autonomy_human::human& msg)
 {
     std::vector<PolarPose> face_polar_base;
-    if(msg.numFaces > 0)
+    if(msg.numFaces)
     {
         last_face_time = ros::Time::now();
-        geometry_msgs::PointStamped tmp_camera, tmp_base;
+        //geometry_msgs::PointStamped tmp_camera, tmp_base;
         PolarPose tmp_polar;
         double theta, x;
         double image_width = 640.0;
@@ -197,6 +198,42 @@ void GridInterface::faceCallBack(const autonomy_human::human& msg)
 
 }
 
+void GridInterface::initSound(GridFOV_t sensor_fov)
+{
+    try
+    {
+        sound_grid = new Grid(sensor_fov, global_fov, cell_probability);
+    }
+    catch (std::bad_alloc& ba)
+    {
+        std::cerr << "In new sound_Grid: bad_alloc caught: " << ba.what() << '\n';
+    }
+}
+
+void GridInterface::soundCallBack(const likelihood_field::HarkSource& msg)
+{
+    std::vector<likelihood_field::HarkSourceVal> sound_src;
+    std::vector<PolarPose> sound_polar_base;
+    if(!msg.src.empty()){
+        last_sound_time = ros::Time::now();
+        sound_src = msg.src;
+        PolarPose tmp_polar;
+        for(size_t i = 0; i < sound_src.size(); i++){
+            tmp_polar.angle = toRadian(sound_src[i].azimuth);
+            double r = sound_grid->sensor_fov.range.min;
+            while(r <= sound_grid->sensor_fov.range.max){
+                tmp_polar.range = r;
+                r += sound_grid->sensor_fov.range.resolution;
+                sound_polar_base.push_back(tmp_polar);
+            }
+            sound_frame_id = "base_footprint";
+            sound_grid->computeLikelihood(sound_polar_base, sound_grid->new_data);
+            sound_polar_base.clear();
+        }
+    }
+}
+
+
 void GridInterface::initHuman()
 {
     try
@@ -209,6 +246,61 @@ void GridInterface::initHuman()
     }
 }
 
+sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
+{
+    double r, t, prior_threshold;
+    geometry_msgs::Point32 points;
+    sensor_msgs::ChannelFloat32 probability_channel, threshold_channel;
+    sensor_msgs::PointCloud pointcloud_grid;
+    probability_channel.name = "probability";
+    threshold_channel.name = "threshold";
+    prior_threshold = pow(cell_probability.unknown, 2);
+
+    for(size_t i = 0; i < polar_grid->global_fov.getSize(); i++){
+        r = polar_grid->data[i].range;
+        t = polar_grid->data[i].angle;
+        points.x = r*cos(t);
+        points.y = r*sin(t);
+        points.z = polar_grid->data[i].probability;
+        probability_channel.values.push_back(polar_grid->data[i].probability);
+        threshold_channel.values.push_back(prior_threshold);
+        pointcloud_grid.points.push_back(points);
+    }
+    pointcloud_grid.channels.push_back(probability_channel);
+    pointcloud_grid.channels.push_back(threshold_channel);
+    return pointcloud_grid;
+}
+
+void GridInterface::publish()
+{
+
+    //LEGS
+    sensor_msgs::PointCloud leg_pointcloud_grid = GridInterface::pointCloudGrid(leg_grid);
+    leg_pointcloud_grid.header.stamp = ros::Time::now();
+    leg_pointcloud_grid.header.frame_id = "base_footprint";
+    legs_grid_pub.publish(leg_pointcloud_grid);
+
+    // FACES
+    sensor_msgs::PointCloud face_pointcloud_grid = pointCloudGrid(face_grid);
+    face_pointcloud_grid.header.stamp = ros::Time::now();
+    face_pointcloud_grid.header.frame_id = "base_footprint";
+    face_grid_pub.publish(face_pointcloud_grid);
+
+    // Sound
+    sensor_msgs::PointCloud sound_pointcloud_grid = pointCloudGrid(sound_grid);
+    sound_pointcloud_grid.header.stamp = ros::Time::now();
+    sound_pointcloud_grid.header.frame_id = "base_footprint";
+    sound_grid_pub.publish(sound_pointcloud_grid);
+
+    // HUMAN
+    sensor_msgs::PointCloud human_pointcloud_grid = pointCloudGrid(human_grid);
+    human_pointcloud_grid.header.stamp = ros::Time::now();
+    human_pointcloud_grid.header.frame_id = "base_footprint";
+    human_grid_pub.publish(human_pointcloud_grid);
+    //humanGrid->output();
+}
+
+
 void GridInterface::spin()
 {
 
@@ -217,16 +309,22 @@ void GridInterface::spin()
     leg_grid->flag = !(diff_leg_time.toSec() > 2.0);
     leg_grid->sensorUpdate(update_rate);
 
-
     // FACES
     diff_face_time = ros::Time::now() - last_face_time;
     face_grid->flag = !(diff_face_time.toSec() > 2.0);
     face_grid->sensorUpdate(update_rate);
 
+
+    // SOUND
+    diff_sound_time = ros::Time::now() - last_sound_time;
+    sound_grid->flag = !(diff_sound_time.toSec() > 2.0);
+    sound_grid->sensorUpdate(update_rate);
+
     // HUMAN
     human_grid->setProbability(human_grid->new_data, cell_probability.human);
     human_grid->fuse(leg_grid->data);
     human_grid->fuse(face_grid->data);
+    human_grid->fuse(sound_grid->data);
     //human_grid->output();
 
 /*
@@ -308,59 +406,14 @@ void GridInterface::spin()
     publish();
 }
 
-void GridInterface::publish()
-{
 
-    //LEGS
-    sensor_msgs::PointCloud leg_pointcloud_grid = GridInterface::pointCloudGrid(leg_grid);
-    leg_pointcloud_grid.header.stamp = ros::Time::now();
-    leg_pointcloud_grid.header.frame_id = "base_footprint";
-    legs_grid_pub.publish(leg_pointcloud_grid);
-
-    // FACES
-    sensor_msgs::PointCloud face_pointcloud_grid = pointCloudGrid(face_grid);
-    face_pointcloud_grid.header.stamp = ros::Time::now();
-    face_pointcloud_grid.header.frame_id = "base_footprint";
-    face_grid_pub.publish(face_pointcloud_grid);
-
-    // HUMAN
-    sensor_msgs::PointCloud human_pointcloud_grid = pointCloudGrid(human_grid);
-    human_pointcloud_grid.header.stamp = ros::Time::now();
-    human_pointcloud_grid.header.frame_id = "base_footprint";
-    human_grid_pub.publish(human_pointcloud_grid);
-    //humanGrid->output();
-}
-
-sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
-{
-    double r, t, prior_threshold;
-    geometry_msgs::Point32 points;
-    sensor_msgs::ChannelFloat32 probability_channel, threshold_channel;
-    sensor_msgs::PointCloud pointcloud_grid;
-    probability_channel.name = "probability";
-    threshold_channel.name = "threshold";
-    prior_threshold = pow(cell_probability.unknown, 2);
-
-    for(size_t i = 0; i < polar_grid->global_fov.getSize(); i++){
-        r = polar_grid->data[i].range;
-        t = polar_grid->data[i].angle;
-        points.x = r*cos(t);
-        points.y = r*sin(t);
-        points.z = polar_grid->data[i].probability;
-        probability_channel.values.push_back(polar_grid->data[i].probability);
-        threshold_channel.values.push_back(prior_threshold);
-        pointcloud_grid.points.push_back(points);
-    }
-    pointcloud_grid.channels.push_back(probability_channel);
-    pointcloud_grid.channels.push_back(threshold_channel);
-    return pointcloud_grid;
-}
 
 GridInterface::~GridInterface()
 {
     ROS_INFO("Deconstructing the constructed LikelihoodGridInterface.");
     delete leg_grid;
     delete face_grid;
+    delete sound_grid;
     delete human_grid;
     delete tf_listener;
     delete[] world_base;

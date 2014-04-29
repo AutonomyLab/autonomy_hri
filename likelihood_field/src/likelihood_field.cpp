@@ -47,7 +47,7 @@ int main(int argc, char** argv)
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2lf",_unknown_cell_probability);
 
     int _number_of_sensors;
-    ros::param::param("~/LikelihoodGrid/number_of_sensors",_number_of_sensors, 2);
+    ros::param::param("~/LikelihoodGrid/number_of_sensors",_number_of_sensors, 3);
     ROS_INFO("/LikelihoodGrid/number_of_sensors is set to %u",_number_of_sensors);
 
     int _sensitivity;
@@ -58,7 +58,7 @@ int main(int argc, char** argv)
     ros::param::param("~/update_time_ratio",_update_time_ratio, 10.0);
     ROS_INFO("/update_time_ratio is set to %.2lf",_update_time_ratio);
 
-    //CALCULATING THE PRIOR!
+    /* Calculating the prior */
     double upper_bound, lower_bound;
     upper_bound = pow(_free_cell_probability, _number_of_sensors - _sensitivity) * pow(_human_cell_probability,_sensitivity);
     lower_bound = pow(_free_cell_probability, _number_of_sensors - _sensitivity + 1) * pow(_human_cell_probability,_sensitivity - 1);
@@ -70,16 +70,15 @@ int main(int argc, char** argv)
     _cell_probability.human = _human_cell_probability;
     _cell_probability.unknown = _unknown_cell_probability;
 
-// CREATE AN INSTANCE OF LIKELIHOOD GRID INTERFACE WITH PROPER PARAMETERS
+    /* CREATE AN INSTANCE OF LIKELIHOOD GRID INTERFACE WITH PROPER PARAMETERS */
     GridInterface likelihood_grid_interface(n,
                                   tf_listener,
                                   _global_fov,
                                   _update_rate,
                                   _update_time_ratio,
                                   _cell_probability);
+
     // FOR EVERY HUMAN FEATURE DATA (E.G. LEGS, FACES, SOUND)
-
-
 
     // DEFINE THE SENSOR FOV
     GridFOV_t laser_fov = _global_fov;
@@ -91,11 +90,17 @@ int main(int argc, char** argv)
     camera_fov.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
     camera_fov.angle.min = toRadian(-65.0/2);
     camera_fov.angle.max = toRadian(65.0/2);
+    GridFOV_t mic_fov = _global_fov;
+    mic_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
+    mic_fov.range.max = 10.00;
+    mic_fov.angle.min = toRadian(-90);
+    mic_fov.angle.max = toRadian(90);
 
 
     // UPDATE THE SPECIFIC HUMAN GRID FOV
     likelihood_grid_interface.initLegs(laser_fov);
     likelihood_grid_interface.initFaces(camera_fov);
+    likelihood_grid_interface.initSound(mic_fov);
     likelihood_grid_interface.initHuman();
 
     // SUBSCRIBE TO THE PROPER TOPIC
@@ -107,6 +112,9 @@ int main(int argc, char** argv)
                                            &GridInterface::faceCallBack,
                                            &likelihood_grid_interface);
 
+    ros::Subscriber sound_sub = n.subscribe("HarkSource",10,
+                                           &GridInterface::soundCallBack,
+                                           &likelihood_grid_interface);
     while (ros::ok()) {
 
         likelihood_grid_interface.spin();
