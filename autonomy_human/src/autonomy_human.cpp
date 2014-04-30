@@ -922,9 +922,10 @@ void CHumanTracker::calcOpticalFlow()
     belCenter.y = (fy * beleif.y) + (fy * beleif.height * 0.5);
 
     //‌ FlowRoi is now not being used to filter out any region, it is a placeholder
-    flowROI.x = max<int>(belCenter.x - fx * KFTracker.statePost.at<float>(4) * 4, 0);
-    flowROI.y = max<int>(belCenter.y - fy * KFTracker.statePost.at<float>(5) * 3, 0);
-    int x2 = min<int>(belCenter.x + fx * KFTracker.statePost.at<float>(4) * 4, iWidth);
+    // changed by Jake
+    flowROI.x = max<int>(belCenter.x - fx * KFTracker.statePost.at<float>(4)/1.5, 0);
+    flowROI.y = max<int>(belCenter.y - fy * KFTracker.statePost.at<float>(5), 0);
+    int x2 = min<int>(belCenter.x + fx * KFTracker.statePost.at<float>(4)*1.5, iWidth);
     int y2 = min<int>(belCenter.y + fy * KFTracker.statePost.at<float>(4) * 0, iHeight);
 	flowROI.width = x2 - flowROI.x;
 	flowROI.height = y2 - flowROI.y;
@@ -960,7 +961,10 @@ void CHumanTracker::calcOpticalFlow()
     gestureRegion[REG_TOPLEFT].width = 0.5 * (flowROI.width - (fx * beleif.width));
     gestureRegion[REG_TOPLEFT].height = flowROI.height;
 
-    gestureRegion[REG_TOPRIGHT].x = gestureRegion[REG_TOPLEFT].x + gestureRegion[REG_TOPLEFT].width + (fx * beleif.width);
+    // changed by Jake
+    //gestureRegion[REG_TOPRIGHT].x = gestureRegion[REG_TOPLEFT].x + gestureRegion[REG_TOPLEFT].width + (fx * beleif.width);
+    int _d = belCenter.x - (gestureRegion[REG_TOPLEFT].x + gestureRegion[REG_TOPLEFT].width);
+    gestureRegion[REG_TOPRIGHT].x = belCenter.x + _d;
     gestureRegion[REG_TOPRIGHT].y = gestureRegion[REG_TOPLEFT].y;
     gestureRegion[REG_TOPRIGHT].width = gestureRegion[REG_TOPLEFT].width;
 	gestureRegion[REG_TOPRIGHT].height = gestureRegion[REG_TOPLEFT].height;
