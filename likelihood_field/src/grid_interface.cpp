@@ -9,25 +9,88 @@ GridInterface::GridInterface():
     ROS_INFO("Constructing an instace of LikelihoodGridInterface.");
 }
 
-GridInterface::GridInterface(ros::NodeHandle _n,
-                                                 tf::TransformListener *_tf_listener,
-                                                 GridFOV_t _global_fov,
-                                                double _update_rate,
-                                                double _update_time_ratio,
-                                                 CellProbability_t _cell_probability):
+GridInterface::GridInterface(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
     n(_n),
-    tf_listener(_tf_listener),
-    global_fov(_global_fov),
-    update_rate(_update_rate),
-    update_time_ratio(_update_time_ratio),
-    cell_probability(_cell_probability)
+    tf_listener(_tf_listener)
 {
     ROS_INFO("Constructing an instace of LikelihoodGridInterface.");
+    init();
+}
+
+void GridInterface::init()
+{
+    ros::param::param("~/LikelihoodGrid/grid_angle_min",global_fov.angle.min, -M_PI);
+    ros::param::param("~/LikelihoodGrid/grid_angle_max",global_fov.angle.max, M_PI);
+    ros::param::param("~/LikelihoodGrid/grid_angle_resolution",global_fov.angle.resolution, M_PI/18);
+    ROS_INFO("/LikelihoodGrid/grid_angle min: %.2lf max: %.2lf: resolution: %.2lf",
+             global_fov.angle.min,
+             global_fov.angle.max,
+             global_fov.angle.resolution);
+
+    ros::param::param("~/LikelihoodGrid/grid_range_min",global_fov.range.min, 0.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_max",global_fov.range.max, 40.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_resolution",global_fov.range.resolution, 0.5);
+    ROS_INFO("/LikelihoodGrid/grid_range min: %.2lf max: %.2lf: resolution: %.2lf",
+             global_fov.range.min,
+             global_fov.range.max,
+             global_fov.range.resolution);
+
+    ros::param::param("~/LikelihoodGrid/update_rate",update_rate, 0.5);
+    ROS_INFO("/LikelihoodGrid/update_rate is set to %.2lf",update_rate);
+
+    ros::param::param("~/LikelihoodGrid/human_cell_probability",cell_probability.human, 1.0);
+    ROS_INFO("/LikelihoodGrid/human_cell_probability is set to %.2lf",cell_probability.human);
+
+    ros::param::param("~/LikelihoodGrid/free_cell_probability",cell_probability.free, 0.1);
+    ROS_INFO("/LikelihoodGrid/free_cell_probability is set to %.2lf",cell_probability.free);
+
+    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",cell_probability.unknown, 0.5);
+    ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2lf",cell_probability.unknown);
+
+    ros::param::param("~/LikelihoodGrid/number_of_sensors",number_of_sensors, 3);
+    ROS_INFO("/LikelihoodGrid/number_of_sensors is set to %u",number_of_sensors);
+
+    ros::param::param("~/LikelihoodGrid/sensitivity",sensitivity, 1);
+    ROS_INFO("/LikelihoodGrid/sensitivity is set to %u",sensitivity);
+
+    ros::param::param("~/update_time_ratio",update_time_ratio, 10.0);
+    ROS_INFO("/update_time_ratio is set to %.2lf",update_time_ratio);
+    /* Calculating the prior */
+    double upper_bound, lower_bound;
+    upper_bound = pow(cell_probability.free, number_of_sensors - sensitivity) * pow(cell_probability.human,sensitivity);
+    lower_bound = pow(cell_probability.free, number_of_sensors - sensitivity + 1) * pow(cell_probability.human,sensitivity - 1);
+    cell_probability.unknown = pow((upper_bound + lower_bound)/2, 1.0/number_of_sensors);
+    ROS_INFO("/LikelihoodGrid/unknown_cell_probability has been changed to %.2lf",cell_probability.unknown);
+
+
+    // DEFINE THE SENSOR FOV
+    GridFOV_t laser_fov = global_fov;
+    laser_fov.range.max = 20.0;
+    laser_fov.angle.min = toRadian(-120.0);//-2.35619449615;
+    laser_fov.angle.max = toRadian(120.0);//2.35619449615;
+    GridFOV_t camera_fov = global_fov;
+    camera_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
+    camera_fov.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
+    camera_fov.angle.min = toRadian(-65.0/2);
+    camera_fov.angle.max = toRadian(65.0/2);
+    GridFOV_t mic_fov = global_fov;
+    mic_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
+    mic_fov.range.max = 10.00;
+    mic_fov.angle.min = toRadian(-90);
+    mic_fov.angle.max = toRadian(90);
+
+    // UPDATE THE SPECIFIC HUMAN GRID FOV
+    initLegs(laser_fov);
+    initFaces(camera_fov);
+    initSound(mic_fov);
+    initHuman();
+
 
     legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
     face_grid_pub = n.advertise<sensor_msgs::PointCloud>("face_likelihood_grid",10);
     sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
     human_grid_pub = n.advertise<sensor_msgs::PointCloud>("human_likelihood_grid",10);
+
     try
     {
         tf_listener = new tf::TransformListener();
@@ -249,12 +312,16 @@ void GridInterface::initHuman()
 sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
 {
     double r, t, prior_threshold;
+    int number_of_sensors;
     geometry_msgs::Point32 points;
     sensor_msgs::ChannelFloat32 probability_channel, threshold_channel;
     sensor_msgs::PointCloud pointcloud_grid;
+    ros::param::param("~/LikelihoodGrid/number_of_sensors",number_of_sensors, 3);
+
     probability_channel.name = "probability";
     threshold_channel.name = "threshold";
-    prior_threshold = pow(cell_probability.unknown, 3);
+
+    prior_threshold = pow(cell_probability.unknown, number_of_sensors);
 
     for(size_t i = 0; i < polar_grid->global_fov.getSize(); i++){
         r = polar_grid->data[i].range;

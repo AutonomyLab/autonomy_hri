@@ -44,10 +44,13 @@ private:
     Grid* human_grid;
     double update_rate;
     double update_time_ratio;
+    int number_of_sensors;
+    int sensitivity;
     CellProbability_t cell_probability;
     GridFOV_t global_fov;
     PointRAP_t* world_base;
     PointRAP_t* world_odom;
+    void init();
     void initWorldGrids();
     bool transformToBase(geometry_msgs::PointStamped& source_point,
                          geometry_msgs::PointStamped& target_point,
@@ -58,12 +61,7 @@ private:
     sensor_msgs::PointCloud pointCloudGrid(Grid *polar_grid);
 public:
     GridInterface();
-    GridInterface(ros::NodeHandle _n,
-                            tf::TransformListener* _tf_listener,
-                            GridFOV_t _global_fov,
-                            double _update_rate,
-                            double _update_time_ratio,
-                            CellProbability_t _cell_probability);   // TO BE MODIFIED FOR EVERY HUMAN FEATURE
+    GridInterface(ros::NodeHandle _n, tf::TransformListener* _tf_listener);   // TO BE MODIFIED FOR EVERY HUMAN FEATURE
     void initLegs(GridFOV_t sensor_fov);              //NEEDED FOR EVERY HUMAN FEATURE
     void legCallBack(const geometry_msgs::PoseArray& msg);      //NEEDED FOR EVERY HUMAN FEATURE
     void initFaces(GridFOV_t sensor_fov);
