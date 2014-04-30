@@ -15,6 +15,7 @@
 //#include <boost/thread.hpp>
 
 #include "autonomy_human/human.h"
+#include "autonomy_human/raw_detections.h"
 
 using namespace cv;
 using namespace std;
@@ -132,6 +133,7 @@ private:
     cv::Ptr<CvMemStorage> storageProfile;
 
     ros::Publisher& facePub;
+    ros::Publisher& allDetectionsPub;
     image_transport::Publisher& debugPub;
     image_transport::Publisher& skinPub;
     image_transport::Publisher& opticalPub;
@@ -143,7 +145,8 @@ public:
                   int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
                   bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
                   unsigned short int _debugLevel, unsigned int _stablization,
-                  ros::Publisher& _facePub, image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub);
+                  ros::Publisher& _facePub, ros::Publisher& _allDetectionsPub,
+                  image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub);
 
     void publish();
 	~CHumanTracker();
@@ -184,7 +187,8 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
                              int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
                              bool _profileHackEnabled, bool _skinEnabled, bool _gestureEnabled,
                              unsigned short int _debugLevel, unsigned int _stablization,
-                             ros::Publisher& _facePub, image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub)
+                             ros::Publisher& _facePub, ros::Publisher& _allDetectionsPub,
+                             image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub)
     : KFTracker(6, 4, 0)
     , MLSearch(6, 4, 0)
     , pCovScalar(_pCov)
@@ -206,6 +210,7 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
     , storage(cvCreateMemStorage(0))
     , storageProfile(cvCreateMemStorage(0))
     , facePub(_facePub)
+    , allDetectionsPub(_allDetectionsPub)
     , debugPub(_debugPub)
     , skinPub(_skinPub)
     , opticalPub(_opticalPub)
@@ -241,15 +246,17 @@ CHumanTracker::CHumanTracker(string &cascadeFile, string &cascadeFileProfile,
 void CHumanTracker::publish()
 {
     autonomy_human::human msg;
+    autonomy_human::raw_detections faces_msg;
 
     cv_bridge::CvImage cvi;
     sensor_msgs::Image im;
     cvi.header.frame_id = "image";
 
-    if (
+    if ((facePub.getNumSubscribers() > 0) &&
+        (
             (trackingState == CHumanTracker::STATE_TRACK) ||
             (trackingState == CHumanTracker::STATE_REJECT)
-        )
+        ))
     {
         msg.header.stamp = ros::Time::now();
         msg.header.frame_id = frame_id;
@@ -266,7 +273,25 @@ void CHumanTracker::publish()
         facePub.publish(msg);
     }
 
+
+    if (allDetectionsPub.getNumSubscribers() > 0) {
+        faces_msg.header.stamp = ros::Time::now();
+        faces_msg.header.frame_id = frame_id;
+
+        for(size_t i = 0; i < faces.size(); i++) {
+            sensor_msgs::RegionOfInterest tmp_human;
+            tmp_human.x_offset = faces[i].x;
+            tmp_human.y_offset = faces[i].y;
+            tmp_human.width = faces[i].width;
+            tmp_human.height = faces[i].height;
+            faces_msg.detections.push_back(tmp_human);
+        }
+
+        allDetectionsPub.publish(faces_msg);
+    }
+
     if (
+            (debugPub.getNumSubscribers() > 0) &&
             (shouldPublish) &&
             ((debugLevel & 0x02) == 0x02) &&
             (isInited)
@@ -280,6 +305,7 @@ void CHumanTracker::publish()
     }
 
     if (
+            (skinPub.getNumSubscribers() > 0) &&
             (shouldPublish) &&
             ((debugLevel & 0x04) == 0x04) &&
             (isInited) &&
@@ -294,6 +320,7 @@ void CHumanTracker::publish()
     }
 
     if (
+            (opticalPub.getNumSubscribers() > 0) &&
             (shouldPublish) &&
             ((debugLevel & 0x10) == 0x10) &&
             (isInited) &&
@@ -769,6 +796,11 @@ void CHumanTracker::detectAndTrackFace()
             KFTracker.statePost = KFTracker.statePre;
             KFTracker.errorCovPost = KFTracker.errorCovPre;
 		}
+
+        // TODO: MOVE THIS
+        for (unsigned int k = 0; k < faces.size(); k++) {
+            rectangle(debugFrame, faces.at(k), CV_RGB(128, 128, 128));
+        }
 
         beleif.x = max<int>(KFTracker.statePost.at<float>(0), 0);
         beleif.y = max<int>(KFTracker.statePost.at<float>(1), 0);
@@ -1318,6 +1350,7 @@ int main(int argc, char **argv)
 
 
 	ros::Publisher facePub = n.advertise<autonomy_human::human>("human", 5);
+    ros::Publisher allDetectionsPub = n.advertise<autonomy_human::raw_detections>("raw_detections", 5);
     image_transport::Publisher debugPub = it.advertise("output_rgb_debug", 1);
     image_transport::Publisher skinPub = it.advertise("output_rgb_skin", 1);
     image_transport::Publisher opticalPub = it.advertise("output_rgb_optical", 1);
@@ -1328,7 +1361,7 @@ int main(int argc, char **argv)
                                p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
                                p_profileFaceEnabled, p_skinEnabled, p_gestureEnabled,
                                p_debugMode, p_stablization,
-                               facePub, debugPub, skinPub, opticalPub);
+                               facePub, allDetectionsPub, debugPub, skinPub, opticalPub);
 
     image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 1, &CHumanTracker::visionCallback, &humanTracker);
 

@@ -16,6 +16,7 @@ find_package(OpenCV)
 add_message_files(
    FILES
    human.msg
+   raw_detections.msg
  )
 
 generate_messages(
