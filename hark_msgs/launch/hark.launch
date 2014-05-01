@@ -1,0 +1,4 @@
+<launch>
+    	<node pkg="hark_msgs" type="demo.sh" args="online" name="demo">
+    </node>
+</launch>

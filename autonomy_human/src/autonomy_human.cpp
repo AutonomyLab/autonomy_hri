@@ -721,6 +721,7 @@ void CHumanTracker::detectAndTrackFace()
 
 		if (isFaceInCurrentFrame)
 		{
+            //std::cout << vecAvgComp.size() << " detections in image " << std::endl;
 			float minCovNorm = 1e24;
 			int i = 0;
 			for( vector<CvAvgComp>::const_iterator rr = vecAvgComp.begin(); rr != vecAvgComp.end(); rr++, i++ )
@@ -822,12 +823,12 @@ void CHumanTracker::detectAndTrackFace()
 //            circle(debugFrame, belCenter, belRad + faceUncPos, CV_RGB(255,0,255));
         }
 
-        searchROI.x = max<int>(belCenter.x - KFTracker.statePost.at<float>(4) * 2, 0);
-        searchROI.y = max<int>(belCenter.y - KFTracker.statePost.at<float>(5) * 2, 0);
-        int x2 = min<int>(belCenter.x + KFTracker.statePost.at<float>(4) * 2, iWidth);
-        int y2 = min<int>(belCenter.y + KFTracker.statePost.at<float>(4) * 2, iHeight);
-		searchROI.width = x2 - searchROI.x;
-		searchROI.height = y2 - searchROI.y;
+        //searchROI.x = max<int>(belCenter.x - KFTracker.statePost.at<float>(4) * 2, 0);
+        //searchROI.y = max<int>(belCenter.y - KFTracker.statePost.at<float>(5) * 2, 0);
+        //int x2 = min<int>(belCenter.x + KFTracker.statePost.at<float>(4) * 2, iWidth);
+        //int y2 = min<int>(belCenter.y + KFTracker.statePost.at<float>(4) * 2, iHeight);
+		//searchROI.width = x2 - searchROI.x;
+		//searchROI.height = y2 - searchROI.y;
 
 
 		if ((updateFaceHist) && (skinEnabled))
