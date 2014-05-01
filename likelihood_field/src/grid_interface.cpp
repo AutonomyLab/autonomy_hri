@@ -2,9 +2,7 @@
 
 
 
-GridInterface::GridInterface():
-    update_rate(0),
-    update_time_ratio(0)
+GridInterface::GridInterface()
 {
     ROS_INFO("Constructing an instace of LikelihoodGridInterface.");
 }
@@ -28,7 +26,7 @@ void GridInterface::init()
              global_fov.angle.resolution);
 
     ros::param::param("~/LikelihoodGrid/grid_range_min",global_fov.range.min, 0.0);
-    ros::param::param("~/LikelihoodGrid/grid_range_max",global_fov.range.max, 40.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_max",global_fov.range.max, 20.0);
     ros::param::param("~/LikelihoodGrid/grid_range_resolution",global_fov.range.resolution, 0.5);
     ROS_INFO("/LikelihoodGrid/grid_range min: %.2lf max: %.2lf: resolution: %.2lf",
              global_fov.range.min,
@@ -47,14 +45,28 @@ void GridInterface::init()
     ros::param::param("~/LikelihoodGrid/unknown_cell_probability",cell_probability.unknown, 0.5);
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2lf",cell_probability.unknown);
 
-    ros::param::param("~/LikelihoodGrid/number_of_sensors",number_of_sensors, 3);
-    ROS_INFO("/LikelihoodGrid/number_of_sensors is set to %u",number_of_sensors);
+//    ros::param::param("~/LikelihoodGrid/number_of_sensors",number_of_sensors, 3);
+//    ROS_INFO("/LikelihoodGrid/number_of_sensors is set to %u",number_of_sensors);
 
     ros::param::param("~/LikelihoodGrid/sensitivity",sensitivity, 1);
     ROS_INFO("/LikelihoodGrid/sensitivity is set to %u",sensitivity);
 
     ros::param::param("~/update_time_ratio",update_time_ratio, 10.0);
     ROS_INFO("/update_time_ratio is set to %.2lf",update_time_ratio);
+
+    ros::param::param("~/leg_detection_enable",leg_detection_enable, true);
+    ROS_INFO("/leg_detection_enable to %d",leg_detection_enable);
+    ros::param::param("~/torso_detection_enable",torso_detection_enable, true);
+    ROS_INFO("/torso_detection_enable to %d",torso_detection_enable);
+    ros::param::param("~/sound_detection_enable",sound_detection_enable, true);
+    ROS_INFO("/sound_detection_enable to %d",sound_detection_enable);
+
+    number_of_sensors = (leg_detection_enable) + (torso_detection_enable) + (sound_detection_enable);
+    ROS_INFO("number_of_sensors is set to %u",number_of_sensors);
+
+    ROS_ASSERT(sensitivity <= number_of_sensors);
+
+
     /* Calculating the prior */
     double upper_bound, lower_bound;
     upper_bound = pow(cell_probability.free, number_of_sensors - sensitivity) * pow(cell_probability.human,sensitivity);
@@ -63,32 +75,36 @@ void GridInterface::init()
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability has been changed to %.2lf",cell_probability.unknown);
 
 
-    // DEFINE THE SENSOR FOV
-    GridFOV_t laser_fov = global_fov;
-    laser_fov.range.max = 20.0;
-    laser_fov.angle.min = toRadian(-120.0);//-2.35619449615;
-    laser_fov.angle.max = toRadian(120.0);//2.35619449615;
-    GridFOV_t camera_fov = global_fov;
-    camera_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
-    camera_fov.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
-    camera_fov.angle.min = toRadian(-65.0/2);
-    camera_fov.angle.max = toRadian(65.0/2);
-    GridFOV_t mic_fov = global_fov;
-    mic_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
-    mic_fov.range.max = 10.00;
-    mic_fov.angle.min = toRadian(-90);
-    mic_fov.angle.max = toRadian(90);
+    if(leg_detection_enable){
+        GridFOV_t laser_fov = global_fov;
+        laser_fov.range.max = 20.0;
+        laser_fov.angle.min = toRadian(-120.0);//-2.35619449615;
+        laser_fov.angle.max = toRadian(120.0);//2.35619449615;
+        initLegs(laser_fov);
+        legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
+    }
 
-    // UPDATE THE SPECIFIC HUMAN GRID FOV
-    initLegs(laser_fov);
-    initFaces(camera_fov);
-    initSound(mic_fov);
+    if(torso_detection_enable){
+        GridFOV_t camera_fov = global_fov;
+        camera_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
+        camera_fov.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
+        camera_fov.angle.min = toRadian(-65.0/2);
+        camera_fov.angle.max = toRadian(65.0/2);
+        initFaces(camera_fov);
+        face_grid_pub = n.advertise<sensor_msgs::PointCloud>("face_likelihood_grid",10);
+    }
+
+    if(sound_detection_enable){
+        GridFOV_t mic_fov = global_fov;
+        mic_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
+        mic_fov.range.max = 10.00;
+        mic_fov.angle.min = toRadian(-90);
+        mic_fov.angle.max = toRadian(90);
+        initSound(mic_fov);
+        sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
+    }
+
     initHuman();
-
-
-    legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
-    face_grid_pub = n.advertise<sensor_msgs::PointCloud>("face_likelihood_grid",10);
-    sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
     human_grid_pub = n.advertise<sensor_msgs::PointCloud>("human_likelihood_grid",10);
 
     try
@@ -194,7 +210,6 @@ void GridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
 {
     std::vector<geometry_msgs::Pose> legs_laser;
     std::vector<PolarPose> legs_polar_base;
-
     if(!msg.poses.empty()){
         legs_polar_base.clear();
         last_leg_time = ros::Time::now();
@@ -342,22 +357,28 @@ void GridInterface::publish()
 {
 
     //LEGS
-    sensor_msgs::PointCloud leg_pointcloud_grid = GridInterface::pointCloudGrid(leg_grid);
-    leg_pointcloud_grid.header.stamp = ros::Time::now();
-    leg_pointcloud_grid.header.frame_id = "base_footprint";
-    legs_grid_pub.publish(leg_pointcloud_grid);
+    if(leg_detection_enable){
+        sensor_msgs::PointCloud leg_pointcloud_grid = GridInterface::pointCloudGrid(leg_grid);
+        leg_pointcloud_grid.header.stamp = ros::Time::now();
+        leg_pointcloud_grid.header.frame_id = "base_footprint";
+        legs_grid_pub.publish(leg_pointcloud_grid);
+    }
 
     // FACES
-    sensor_msgs::PointCloud face_pointcloud_grid = pointCloudGrid(face_grid);
-    face_pointcloud_grid.header.stamp = ros::Time::now();
-    face_pointcloud_grid.header.frame_id = "base_footprint";
-    face_grid_pub.publish(face_pointcloud_grid);
+    if(torso_detection_enable){
+        sensor_msgs::PointCloud face_pointcloud_grid = pointCloudGrid(face_grid);
+        face_pointcloud_grid.header.stamp = ros::Time::now();
+        face_pointcloud_grid.header.frame_id = "base_footprint";
+        face_grid_pub.publish(face_pointcloud_grid);
+    }
 
     // Sound
-    sensor_msgs::PointCloud sound_pointcloud_grid = pointCloudGrid(sound_grid);
-    sound_pointcloud_grid.header.stamp = ros::Time::now();
-    sound_pointcloud_grid.header.frame_id = "base_footprint";
-    sound_grid_pub.publish(sound_pointcloud_grid);
+    if(sound_detection_enable){
+        sensor_msgs::PointCloud sound_pointcloud_grid = pointCloudGrid(sound_grid);
+        sound_pointcloud_grid.header.stamp = ros::Time::now();
+        sound_pointcloud_grid.header.frame_id = "base_footprint";
+        sound_grid_pub.publish(sound_pointcloud_grid);
+    }
 
     // HUMAN
     sensor_msgs::PointCloud human_pointcloud_grid = pointCloudGrid(human_grid);
@@ -372,27 +393,36 @@ void GridInterface::spin()
 {
 
     // LEGS
-    diff_leg_time = ros::Time::now() - last_leg_time;
-    leg_grid->flag = !(diff_leg_time.toSec() > 2.0);
-    leg_grid->sensorUpdate(update_rate);
+    if(leg_detection_enable){
+        diff_leg_time = ros::Time::now() - last_leg_time;
+        leg_grid->flag = !(diff_leg_time.toSec() > 2.0);
+        leg_grid->sensorUpdate(update_rate);
+    }
 
     // FACES
-    diff_face_time = ros::Time::now() - last_face_time;
-    face_grid->flag = !(diff_face_time.toSec() > 2.0);
-    face_grid->sensorUpdate(update_rate);
-
+    if(torso_detection_enable){
+        diff_face_time = ros::Time::now() - last_face_time;
+        face_grid->flag = !(diff_face_time.toSec() > 2.0);
+        face_grid->sensorUpdate(update_rate);
+    }
 
     // SOUND
-    diff_sound_time = ros::Time::now() - last_sound_time;
-    sound_grid->flag = !(diff_sound_time.toSec() > 2.0);
-    sound_grid->sensorUpdate(update_rate);
+    if(sound_detection_enable){
+        diff_sound_time = ros::Time::now() - last_sound_time;
+        sound_grid->flag = !(diff_sound_time.toSec() > 2.0);
+        sound_grid->sensorUpdate(update_rate);
+    }
 
     // HUMAN
     human_grid->setProbability(human_grid->new_data, cell_probability.human);
-    human_grid->fuse(leg_grid->data);
-    human_grid->fuse(face_grid->data);
-    human_grid->fuse(sound_grid->data);
+    if(leg_detection_enable)
+        human_grid->fuse(leg_grid->data);
+    if(torso_detection_enable)
+        human_grid->fuse(face_grid->data);
+    if(sound_detection_enable)
+        human_grid->fuse(sound_grid->data);
     //human_grid->output();
+    //leg_grid->output();
 
 /*
     // transform worldGrid_odom to worldGrid_base
@@ -478,9 +508,9 @@ void GridInterface::spin()
 GridInterface::~GridInterface()
 {
     ROS_INFO("Deconstructing the constructed LikelihoodGridInterface.");
-    delete leg_grid;
-    delete face_grid;
-    delete sound_grid;
+    if(leg_detection_enable) delete leg_grid;
+    if(torso_detection_enable) delete face_grid;
+    if(sound_detection_enable) delete sound_grid;
     delete human_grid;
     delete tf_listener;
     delete[] world_base;

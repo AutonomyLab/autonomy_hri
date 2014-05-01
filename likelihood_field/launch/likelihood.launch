@@ -1,17 +1,29 @@
 <launch>
-    <node pkg="likelihood_field" type="likelihood_field" name="likelihood_field" output="screen">
+<arg name="leg_detection" value="true" />
+<arg name="torso_detection" value="false" />
+<arg name="sound_detection" value="true" />
+
+<node pkg="likelihood_field" type="likelihood_field" name="likelihood_field" output="screen">
         <param name="LikelihoodGrid/grid_angle_min" value="-3.14159265359"/>
         <param name="LikelihoodGrid/grid_angle_max" value="3.14159265359"/>
         <param name="LikelihoodGrid/grid_angle_resolution" value="0.17453292519"/>
         <param name="LikelihoodGrid/grid_range_min" value="0.5"/>
-        <param name="LikelihoodGrid/grid_range_max" value="30.0"/>
-        <param name="LikelihoodGrid/grid_range_resolution" value="0.25"/>
+        <param name="LikelihoodGrid/grid_range_max" value="20.0"/>
+        <param name="LikelihoodGrid/grid_range_resolution" value="0.5"/>
         <param name="LikelihoodGrid/update_rate" value="0.5"/>
         <param name="LikelihoodGrid/human_cell_probability" value="1.0"/>
         <param name="LikelihoodGrid/free_cell_probability" value="0.1"/>
         <param name="LikelihoodGrid/unknown_cell_probability" value="0.25"/>
-        <param name="LikelihoodGrid/number_of_sensors" value="2"/>
         <param name="LikelihoodGrid/sensitivity" value="1"/>
         <param name="update_time_ratio" value="10.0"/>
+        <param name="leg_detection_enable" value="$(arg leg_detection)"/>
+        <param name="torso_detection_enable" value="$(arg torso_detection)"/>
+        <param name="sound_detection_enable" value="$(arg sound_detection)"/>
     </node>
+<group if="$(arg leg_detection)">
+    <include file="$(find autonomy_leg_detection)/launch/leg_detection.launch"/>
+</group>
+<group if="$(arg torso_detection)">
+    <include file="$(find autonomy_human)/launch/torso_detection.launch"/>
+</group>
 </launch>

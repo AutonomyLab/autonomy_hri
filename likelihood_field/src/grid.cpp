@@ -114,8 +114,8 @@ void Grid::computeLikelihood(const std::vector<PolarPose>& poses, PointRAP_t* _d
 
         for(size_t j = 0; j < global_fov.getSize(); j++){
             if(is_known[j]){
-                pr = normalDistribution((_data[j].range + sensor_fov.range.resolution/2),mean_range,sqrt(global_fov.range.resolution/2));
-                pt = normalDistribution((_data[j].angle + sensor_fov.angle.resolution/2),mean_angle,sqrt(global_fov.angle.resolution/2));
+                pr = normalDistribution((_data[j].range + sensor_fov.range.resolution/2),mean_range,sqrt(global_fov.range.resolution/4));
+                pt = normalDistribution((_data[j].angle + sensor_fov.angle.resolution/2),mean_angle,sqrt(global_fov.angle.resolution/4));
                 _data[j].probability += pr*pt;
             }
         }

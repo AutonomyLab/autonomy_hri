@@ -2,7 +2,7 @@
 #include "grid_interface.h"
 
 #define _USE_MATH_DEFINES
-#define _LOOPRATE 4
+#define _LOOPRATE 5
 
 int main(int argc, char** argv)
 {
@@ -10,6 +10,7 @@ int main(int argc, char** argv)
     ros::NodeHandle n;
     ros::Rate looprate(_LOOPRATE);
     tf::TransformListener *tf_listener;
+
     GridInterface likelihood_grid_interface(n,tf_listener);
 
     ros::Subscriber legs_sub = n.subscribe("legs",10,
