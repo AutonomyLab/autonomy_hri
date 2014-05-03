@@ -27,6 +27,7 @@ private:
     ros::Time last_leg_time;
     ros::Duration diff_leg_time;
     bool leg_detection_enable;
+    unsigned int leg_counter;
 
     // Face
     ros::Publisher face_grid_pub;
@@ -35,6 +36,8 @@ private:
     ros::Time last_face_time;
     ros::Duration diff_face_time;
     bool torso_detection_enable;
+    unsigned int torso_counter;
+
 
     // Sound
     ros::Publisher sound_grid_pub;
@@ -43,6 +46,16 @@ private:
     ros::Time last_sound_time;
     ros::Duration diff_sound_time;
     bool sound_detection_enable;
+    unsigned int sound_counter;
+
+    // Laser
+    ros::Publisher laser_grid_pub;
+    std::string laser_frame_id;
+    Grid* laser_grid;
+    ros::Time last_laser_time;
+    ros::Duration diff_laser_time;
+    bool laser_detection_enable;
+    unsigned int laser_counter;
 
     // Human
     ros::Publisher human_grid_pub;
@@ -70,6 +83,7 @@ private:
     void initLegs(GridFOV_t sensor_fov);              //NEEDED FOR EVERY HUMAN FEATURE
     void initFaces(GridFOV_t sensor_fov);
     void initSound(GridFOV_t sensor_fov);
+    void initLaser(GridFOV_t sensor_fov);
     void initHuman();
     void publish();                                         // TO BE MODIFIED FOR EVERY HUMAN FEATURE
 
@@ -79,6 +93,7 @@ public:
     void legCallBack(const geometry_msgs::PoseArray& msg);      //NEEDED FOR EVERY HUMAN FEATURE
     void faceCallBack(const autonomy_human::human& msg);
     void soundCallBack(const hark_msgs::HarkSource& msg);
+    void laserCallBack(const sensor_msgs::LaserScan& msg);
     void spin();                            // TO BE MODIFIED FOR EVERY HUMAN FEATURE
     ~GridInterface();                             // TO BE MODIFIED FOR EVERY HUMAN FEATURE
 };

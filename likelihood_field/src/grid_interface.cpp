@@ -60,8 +60,11 @@ void GridInterface::init()
     ROS_INFO("/torso_detection_enable to %d",torso_detection_enable);
     ros::param::param("~/sound_detection_enable",sound_detection_enable, true);
     ROS_INFO("/sound_detection_enable to %d",sound_detection_enable);
+    ros::param::param("~/laser_detection_enable",laser_detection_enable, true);
+    ROS_INFO("/laser_detection_enable to %d",laser_detection_enable);
 
-    number_of_sensors = (leg_detection_enable) + (torso_detection_enable) + (sound_detection_enable);
+    number_of_sensors = (leg_detection_enable) + (torso_detection_enable)
+            + (sound_detection_enable) + (laser_detection_enable);
     ROS_INFO("number_of_sensors is set to %u",number_of_sensors);
 
     ROS_ASSERT(sensitivity <= number_of_sensors);
@@ -76,12 +79,13 @@ void GridInterface::init()
 
 
     if(leg_detection_enable){
-        GridFOV_t laser_fov = global_fov;
-        laser_fov.range.max = 20.0;
-        laser_fov.angle.min = toRadian(-120.0);//-2.35619449615;
-        laser_fov.angle.max = toRadian(120.0);//2.35619449615;
-        initLegs(laser_fov);
+        GridFOV_t legs_fov = global_fov;
+        legs_fov.range.max = 20.0;
+        legs_fov.angle.min = toRadian(-120.0);//-2.35619449615;
+        legs_fov.angle.max = toRadian(120.0);//2.35619449615;
+        initLegs(legs_fov);
         legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
+        leg_counter = 0;
     }
 
     if(torso_detection_enable){
@@ -92,6 +96,7 @@ void GridInterface::init()
         camera_fov.angle.max = toRadian(65.0/2);
         initFaces(camera_fov);
         face_grid_pub = n.advertise<sensor_msgs::PointCloud>("face_likelihood_grid",10);
+        torso_counter = 0;
     }
 
     if(sound_detection_enable){
@@ -102,6 +107,17 @@ void GridInterface::init()
         mic_fov.angle.max = toRadian(90);
         initSound(mic_fov);
         sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
+        sound_counter = 0;
+    }
+
+    if(laser_detection_enable){
+        GridFOV_t laser_fov = global_fov;
+        laser_fov.range.max = 20.0;
+        laser_fov.angle.min = toRadian(-120.0);//-2.35619449615;
+        laser_fov.angle.max = toRadian(120.0);//2.35619449615;
+        initLaser(laser_fov);
+        laser_grid_pub = n.advertise<sensor_msgs::PointCloud>("laser_likelihood_grid",10);
+        laser_counter = 0;
     }
 
     initHuman();
@@ -208,31 +224,36 @@ void GridInterface::initLegs(GridFOV_t sensor_fov)
 
 void GridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
 {
-    std::vector<geometry_msgs::Pose> legs_laser;
-    std::vector<PolarPose> legs_polar_base;
-    if(!msg.poses.empty()){
-        legs_polar_base.clear();
-        last_leg_time = ros::Time::now();
+    if(!leg_detection_enable) return;
+    if(leg_counter++ < 5) return;
+    else{
+        leg_counter = 0;
+        std::vector<geometry_msgs::Pose> legs_laser;
+        std::vector<PolarPose> legs_polar_base;
+        if(!msg.poses.empty()){
+            legs_polar_base.clear();
+            last_leg_time = ros::Time::now();
 
-        // FRAME TRANSFORM: /laser to /base_footprint
-        legs_laser = msg.poses;
-        geometry_msgs::PointStamped tmp_laser, tmp_base;
-        PolarPose tmp_polar;
-        for(size_t i = 0; i < legs_laser.size(); i++){
-            tmp_laser.header = msg.header;
-            tmp_laser.point = legs_laser.at(i).position;
-            if(!transformToBase(tmp_laser, tmp_base)){
-                ROS_WARN("Can not transform from laser to base_footprint");
-                return;
+            // FRAME TRANSFORM: /laser to /base_footprint
+            legs_laser = msg.poses;
+            geometry_msgs::PointStamped tmp_laser, tmp_base;
+            PolarPose tmp_polar;
+            for(size_t i = 0; i < legs_laser.size(); i++){
+                tmp_laser.header = msg.header;
+                tmp_laser.point = legs_laser.at(i).position;
+                if(!transformToBase(tmp_laser, tmp_base)){
+                    ROS_WARN("Can not transform from laser to base_footprint");
+                    return;
+                }
+                tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
+                legs_polar_base.push_back(tmp_polar);
             }
-            tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
-            legs_polar_base.push_back(tmp_polar);
-        }
 
-        //ROS_ASSERT(legs_polar_base.size() == legs_laser.size());
-        leg_frame_id = "base_footprint";
-        leg_grid->computeLikelihood(legs_polar_base, leg_grid->new_data);
-        legs_polar_base.clear();
+            //ROS_ASSERT(legs_polar_base.size() == legs_laser.size());
+            leg_frame_id = "base_footprint";
+            leg_grid->computeLikelihood(legs_polar_base, leg_grid->new_data);
+            legs_polar_base.clear();
+        }
     }
 }
 
@@ -250,30 +271,34 @@ void GridInterface::initFaces(GridFOV_t sensor_fov)
 
 void GridInterface::faceCallBack(const autonomy_human::human& msg)
 {
-    std::vector<PolarPose> face_polar_base;
-    if(msg.numFaces)
-    {
-        last_face_time = ros::Time::now();
-        //geometry_msgs::PointStamped tmp_camera, tmp_base;
-        PolarPose tmp_polar;
-        double theta, x;
-        double image_width = 640.0;
+    if(!torso_detection_enable) return;
+    if(torso_counter++ < 5) return;
+    else{
+        torso_counter = 0;
+        std::vector<PolarPose> face_polar_base;
+        if(msg.numFaces)
+        {
+            last_face_time = ros::Time::now();
+            //geometry_msgs::PointStamped tmp_camera, tmp_base;
+            PolarPose tmp_polar;
+            double theta, x;
+            double image_width = 640.0;
 
-        x = msg.faceROI.x_offset + msg.faceROI.width/2.0;
-        theta = ((image_width/2.0-x)/image_width/2.0)*toRadian(65.0/2.0);
-        tmp_polar.angle = theta;
+            x = msg.faceROI.x_offset + msg.faceROI.width/2.0;
+            theta = ((image_width/2.0-x)/image_width/2.0)*toRadian(65.0/2.0);
+            tmp_polar.angle = theta;
 
-        double r = face_grid->sensor_fov.range.min;
-        while(r <= face_grid->sensor_fov.range.max){
-            tmp_polar.range = r;
-            r += face_grid->sensor_fov.range.resolution;
-            face_polar_base.push_back(tmp_polar);
+            double r = face_grid->sensor_fov.range.min;
+            while(r <= face_grid->sensor_fov.range.max){
+                tmp_polar.range = r;
+                r += face_grid->sensor_fov.range.resolution;
+                face_polar_base.push_back(tmp_polar);
+            }
+            face_frame_id = "base_footprint";
+            face_grid->computeLikelihood(face_polar_base, face_grid->new_data);
+            face_polar_base.clear();
         }
-        face_frame_id = "base_footprint";
-        face_grid->computeLikelihood(face_polar_base, face_grid->new_data);
-        face_polar_base.clear();
     }
-
 }
 
 void GridInterface::initSound(GridFOV_t sensor_fov)
@@ -290,28 +315,83 @@ void GridInterface::initSound(GridFOV_t sensor_fov)
 
 void GridInterface::soundCallBack(const hark_msgs::HarkSource& msg)
 {
-    std::vector<hark_msgs::HarkSourceVal> sound_src;
-    std::vector<PolarPose> sound_polar_base;
-    if(!msg.src.empty()){
-        last_sound_time = ros::Time::now();
-        sound_src = msg.src;
-        PolarPose tmp_polar;
-        for(size_t i = 0; i < sound_src.size(); i++){
-            tmp_polar.angle = toRadian(sound_src[i].azimuth);
-            double r = sound_grid->sensor_fov.range.min;
-            while(r <= sound_grid->sensor_fov.range.max){
-                tmp_polar.range = r;
-                r += sound_grid->sensor_fov.range.resolution;
-                sound_polar_base.push_back(tmp_polar);
+    if(!sound_detection_enable) return;
+    if(sound_counter++ < 5) return;
+    else{
+        sound_counter = 0;
+        std::vector<hark_msgs::HarkSourceVal> sound_src;
+        std::vector<PolarPose> sound_polar_base;
+        if(!msg.src.empty()){
+            last_sound_time = ros::Time::now();
+            sound_src = msg.src;
+            PolarPose tmp_polar;
+            for(size_t i = 0; i < sound_src.size(); i++){
+                tmp_polar.angle = toRadian(sound_src[i].azimuth);
+                double r = sound_grid->sensor_fov.range.min;
+                while(r <= sound_grid->sensor_fov.range.max){
+                    tmp_polar.range = r;
+                    r += sound_grid->sensor_fov.range.resolution;
+                    sound_polar_base.push_back(tmp_polar);
+                }
+                sound_frame_id = "base_footprint";
+                sound_grid->computeLikelihood(sound_polar_base, sound_grid->new_data);
+                sound_polar_base.clear();
             }
-            sound_frame_id = "base_footprint";
-            sound_grid->computeLikelihood(sound_polar_base, sound_grid->new_data);
-            sound_polar_base.clear();
         }
+    }
+
+}
+
+
+void GridInterface::initLaser(GridFOV_t sensor_fov)
+{
+    try
+    {
+        laser_grid = new Grid(sensor_fov, global_fov, cell_probability);
+    }
+    catch (std::bad_alloc& ba)
+    {
+        std::cerr << "In new laserGrid: bad_alloc caught: " << ba.what() << '\n';
     }
 }
 
 
+void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
+{
+    if(!laser_detection_enable) return;
+    if(laser_counter++ < 5) return;
+    else {
+        laser_counter = 0;
+        std::vector<PolarPose> laser_polar_base;
+        if(!msg.ranges.empty()){
+            laser_polar_base.clear();
+            last_laser_time = ros::Time::now();
+            geometry_msgs::PointStamped tmp_laser, tmp_base;
+            PolarPose tmp_polar;
+            tmp_laser.header = msg.header;
+            float r = 0;
+            float angle_step = msg.angle_increment;
+            float t = msg.angle_min + angle_step/2;
+            for(size_t i = 0; i < msg.ranges.size(); i++){
+                    r = ((msg.ranges.at(i) < global_fov.range.max) ? msg.ranges.at(i) : global_fov.range.max);
+                    t += angle_step;
+
+                    tmp_laser.point.x = r * cos(t);
+                    tmp_laser.point.y = r * sin(t);
+                    if(!transformToBase(tmp_laser, tmp_base)){
+                        ROS_WARN("Can not transform from laser to base_footprint");
+                        return;
+                    }
+                    tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
+                    laser_polar_base.push_back(tmp_polar);
+            }
+
+            laser_frame_id = "base_footprint";
+            laser_grid->computeLikelihood(laser_polar_base, laser_grid->new_data);
+            laser_polar_base.clear();
+        }
+    }
+}
 void GridInterface::initHuman()
 {
     try
@@ -355,7 +435,6 @@ sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
 
 void GridInterface::publish()
 {
-
     //LEGS
     if(leg_detection_enable){
         sensor_msgs::PointCloud leg_pointcloud_grid = GridInterface::pointCloudGrid(leg_grid);
@@ -380,18 +459,26 @@ void GridInterface::publish()
         sound_grid_pub.publish(sound_pointcloud_grid);
     }
 
+    //LASER
+    if(laser_detection_enable){
+        sensor_msgs::PointCloud laser_pointcloud_grid = GridInterface::pointCloudGrid(laser_grid);
+        laser_pointcloud_grid.header.stamp = ros::Time::now();
+        laser_pointcloud_grid.header.frame_id = "base_footprint";
+        laser_grid_pub.publish(laser_pointcloud_grid);
+    }
+
     // HUMAN
     sensor_msgs::PointCloud human_pointcloud_grid = pointCloudGrid(human_grid);
     human_pointcloud_grid.header.stamp = ros::Time::now();
     human_pointcloud_grid.header.frame_id = "base_footprint";
     human_grid_pub.publish(human_pointcloud_grid);
     //humanGrid->output();
+    //laser_grid->output();
 }
 
 
 void GridInterface::spin()
 {
-
     // LEGS
     if(leg_detection_enable){
         diff_leg_time = ros::Time::now() - last_leg_time;
@@ -413,6 +500,12 @@ void GridInterface::spin()
         sound_grid->sensorUpdate(update_rate);
     }
 
+    // LASER
+    if(laser_detection_enable){
+        diff_laser_time = ros::Time::now() - last_laser_time;
+        laser_grid->flag = !(diff_laser_time.toSec() > 2.0);
+        laser_grid->sensorUpdate(update_rate);
+    }
     // HUMAN
     human_grid->setProbability(human_grid->new_data, cell_probability.human);
     if(leg_detection_enable)
@@ -421,8 +514,9 @@ void GridInterface::spin()
         human_grid->fuse(face_grid->data);
     if(sound_detection_enable)
         human_grid->fuse(sound_grid->data);
-    //human_grid->output();
-    //leg_grid->output();
+    if(laser_detection_enable)
+        human_grid->fuse(laser_grid->data);
+    human_grid->output();
 
 /*
     // transform worldGrid_odom to worldGrid_base
@@ -511,6 +605,7 @@ GridInterface::~GridInterface()
     if(leg_detection_enable) delete leg_grid;
     if(torso_detection_enable) delete face_grid;
     if(sound_detection_enable) delete sound_grid;
+    if(laser_detection_enable) delete laser_grid;
     delete human_grid;
     delete tf_listener;
     delete[] world_base;

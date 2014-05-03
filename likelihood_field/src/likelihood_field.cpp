@@ -24,6 +24,10 @@ int main(int argc, char** argv)
     ros::Subscriber sound_sub = n.subscribe("HarkSource",10,
                                            &GridInterface::soundCallBack,
                                            &likelihood_grid_interface);
+
+    ros::Subscriber laser_sub = n.subscribe("lidar/scan",10,
+                                           &GridInterface::laserCallBack,
+                                           &likelihood_grid_interface);
     while (ros::ok()) {
 
         likelihood_grid_interface.spin();

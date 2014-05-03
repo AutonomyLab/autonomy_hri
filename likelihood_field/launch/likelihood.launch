@@ -1,7 +1,9 @@
 <launch>
 <arg name="leg_detection" value="true" />
-<arg name="torso_detection" value="false" />
+<arg name="torso_detection" value="true" />
 <arg name="sound_detection" value="true" />
+<arg name="laser_detection" value="true" />
+
 
 <node pkg="likelihood_field" type="likelihood_field" name="likelihood_field" output="screen">
         <param name="LikelihoodGrid/grid_angle_min" value="-3.14159265359"/>
@@ -14,11 +16,12 @@
         <param name="LikelihoodGrid/human_cell_probability" value="1.0"/>
         <param name="LikelihoodGrid/free_cell_probability" value="0.1"/>
         <param name="LikelihoodGrid/unknown_cell_probability" value="0.25"/>
-        <param name="LikelihoodGrid/sensitivity" value="1"/>
+        <param name="LikelihoodGrid/sensitivity" value="2"/>
         <param name="update_time_ratio" value="10.0"/>
         <param name="leg_detection_enable" value="$(arg leg_detection)"/>
         <param name="torso_detection_enable" value="$(arg torso_detection)"/>
         <param name="sound_detection_enable" value="$(arg sound_detection)"/>
+        <param name="laser_detection_enable" value="$(arg laser_detection)"/>
     </node>
 <group if="$(arg leg_detection)">
     <include file="$(find autonomy_leg_detection)/launch/leg_detection.launch"/>
