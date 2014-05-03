@@ -82,8 +82,8 @@ void GridInterface::init()
     if(leg_detection_enable){
         GridFOV_t legs_fov = global_fov;
         legs_fov.range.max = 20.0;
-        legs_fov.angle.min = toRadian(-120.0);//-2.35619449615;
-        legs_fov.angle.max = toRadian(120.0);//2.35619449615;
+        legs_fov.angle.min = toRadian(-135.0);//-2.35619449615;
+        legs_fov.angle.max = toRadian(135.0);//2.35619449615;
         initLegs(legs_fov);
         legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
         leg_counter = 0;
@@ -375,26 +375,41 @@ void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
             //float t_offset = msg.angle_min + msg.angle_increment * global_fov.angle.resolution;
             float t_offset = msg.angle_min;
 
-            for(size_t c = 0; c < global_fov.getColSize(); c++){
-                float global_angle = global_fov.angle.min + global_fov.angle.resolution*c;
-                int index = round((global_angle - t_offset)/msg.angle_increment);
-                if(index >= 0 && index < msg.ranges.size()){
-
-                    if(msg.ranges.at(index) > global_fov.range.max || msg.ranges.at(index) < 0.5)
-                        continue;
-
-                    r = msg.ranges.at(index);
-                    t = global_angle;
-                    tmp_laser.point.x = r * cos(t);
-                    tmp_laser.point.y = r * sin(t);
-                    if(!transformToBase(tmp_laser, tmp_base)){
-                        ROS_WARN("Can not transform from laser to base_footprint");
-                        return;
-                    }
-                    tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
-                    laser_polar_base.push_back(tmp_polar);
+            for(size_t i = 0; i < msg.ranges.size(); i++){
+                if(msg.ranges.at(i) > global_fov.range.max || msg.ranges.at(i) < 0.5 || (i%2 == 1))
+                    continue;
+                r = msg.ranges.at(i);
+                t =  msg.angle_min + msg.angle_increment*i;
+                tmp_laser.point.x = r * cos(t);
+                tmp_laser.point.y = r * sin(t);
+                if(!transformToBase(tmp_laser, tmp_base)){
+                    ROS_WARN("Can not transform from laser to base_footprint");
+                    return;
                 }
+                tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
+                laser_polar_base.push_back(tmp_polar);
             }
+
+//            for(size_t c = 0; c < global_fov.getColSize(); c++){
+//                float global_angle = global_fov.angle.min + global_fov.angle.resolution*c;
+//                int index = round((global_angle - t_offset)/msg.angle_increment);
+//                if(index >= 0 && index < msg.ranges.size()){
+
+//                    if(msg.ranges.at(index) > global_fov.range.max || msg.ranges.at(index) < 0.5)
+//                        continue;
+
+//                    r = msg.ranges.at(index);
+//                    t = global_angle;
+//                    tmp_laser.point.x = r * cos(t);
+//                    tmp_laser.point.y = r * sin(t);
+//                    if(!transformToBase(tmp_laser, tmp_base)){
+//                        ROS_WARN("Can not transform from laser to base_footprint");
+//                        return;
+//                    }
+//                    tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
+//                    laser_polar_base.push_back(tmp_polar);
+//                }
+//            }
 
             laser_frame_id = "base_footprint";
             laser_grid->computeLikelihood(laser_polar_base, laser_grid->new_data);
