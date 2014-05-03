@@ -113,8 +113,8 @@ void GridInterface::init()
     if(laser_detection_enable){
         GridFOV_t laser_fov = global_fov;
         laser_fov.range.max = 20.0;
-        laser_fov.angle.min = toRadian(-120.0);//-2.35619449615;
-        laser_fov.angle.max = toRadian(120.0);//2.35619449615;
+        laser_fov.angle.min = toRadian(-135.0);//-2.35619449615;
+        laser_fov.angle.max = toRadian(135.0);//2.35619449615;
         initLaser(laser_fov);
         laser_grid_pub = n.advertise<sensor_msgs::PointCloud>("laser_likelihood_grid",10);
         laser_counter = 0;
@@ -370,12 +370,23 @@ void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
             PolarPose tmp_polar;
             tmp_laser.header = msg.header;
             float r = 0;
-            float angle_step = msg.angle_increment;
-            float t = msg.angle_min + angle_step/2;
-            for(size_t i = 0; i < msg.ranges.size(); i++){
-                    r = ((msg.ranges.at(i) < global_fov.range.max) ? msg.ranges.at(i) : global_fov.range.max);
-                    t += angle_step;
+            //float angle_step = msg.angle_increment;
+            float t;
+            //float t_offset = msg.angle_min + msg.angle_increment * global_fov.angle.resolution;
+            float t_offset = msg.angle_min;
 
+            for(size_t c = 0; c < global_fov.getColSize(); c++){
+                float global_angle = global_fov.angle.min + global_fov.angle.resolution*c;
+                int index = round((global_angle - t_offset)/msg.angle_increment);
+                if(index >= 0 && index < msg.ranges.size()){
+                    //index = index ;
+                    ROS_INFO("index: %d", index);
+
+                    if(msg.ranges.at(index) > global_fov.range.max || msg.ranges.at(index) < 0.5)
+                        continue;
+
+                    r = msg.ranges.at(index);
+                    t = global_angle;
                     tmp_laser.point.x = r * cos(t);
                     tmp_laser.point.y = r * sin(t);
                     if(!transformToBase(tmp_laser, tmp_base)){
@@ -384,7 +395,9 @@ void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
                     }
                     tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
                     laser_polar_base.push_back(tmp_polar);
+                }
             }
+
 
             laser_frame_id = "base_footprint";
             laser_grid->computeLikelihood(laser_polar_base, laser_grid->new_data);
@@ -516,7 +529,7 @@ void GridInterface::spin()
         human_grid->fuse(sound_grid->data);
     if(laser_detection_enable)
         human_grid->fuse(laser_grid->data);
-    human_grid->output();
+    //human_grid->output();
 
 /*
     // transform worldGrid_odom to worldGrid_base
