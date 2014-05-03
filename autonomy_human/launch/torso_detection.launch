@@ -16,7 +16,7 @@
         <param name="max_face_width" value="200" />
         <param name="max_face_height" value="400" />
         <param name="debug_mode" value="18" />
-    <remap from="input_rgb_image" to="/axis/image_raw" />
+    <remap from="input_rgb_image" to="/camera/rgb/image_color" />
   </node>
   <!--
     <node pkg="image_view" name="debugimage" type="image_view">

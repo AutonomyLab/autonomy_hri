@@ -69,13 +69,14 @@ void GridInterface::init()
 
     ROS_ASSERT(sensitivity <= number_of_sensors);
 
-
     /* Calculating the prior */
     double upper_bound, lower_bound;
     upper_bound = pow(cell_probability.free, number_of_sensors - sensitivity) * pow(cell_probability.human,sensitivity);
     lower_bound = pow(cell_probability.free, number_of_sensors - sensitivity + 1) * pow(cell_probability.human,sensitivity - 1);
-    cell_probability.unknown = pow((upper_bound + lower_bound)/2, 1.0/number_of_sensors);
+    cell_probability.unknown = pow((upper_bound + lower_bound)/2.0, (1.0/number_of_sensors));
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability has been changed to %.2lf",cell_probability.unknown);
+    ROS_INFO("Threshold is  %lf",(upper_bound + lower_bound)/2.0);
+
 
 
     if(leg_detection_enable){
@@ -370,7 +371,6 @@ void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
             PolarPose tmp_polar;
             tmp_laser.header = msg.header;
             float r = 0;
-            //float angle_step = msg.angle_increment;
             float t;
             //float t_offset = msg.angle_min + msg.angle_increment * global_fov.angle.resolution;
             float t_offset = msg.angle_min;
@@ -379,8 +379,6 @@ void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
                 float global_angle = global_fov.angle.min + global_fov.angle.resolution*c;
                 int index = round((global_angle - t_offset)/msg.angle_increment);
                 if(index >= 0 && index < msg.ranges.size()){
-                    //index = index ;
-                    ROS_INFO("index: %d", index);
 
                     if(msg.ranges.at(index) > global_fov.range.max || msg.ranges.at(index) < 0.5)
                         continue;
@@ -397,7 +395,6 @@ void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
                     laser_polar_base.push_back(tmp_polar);
                 }
             }
-
 
             laser_frame_id = "base_footprint";
             laser_grid->computeLikelihood(laser_polar_base, laser_grid->new_data);
@@ -420,11 +417,9 @@ void GridInterface::initHuman()
 sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
 {
     double r, t, prior_threshold;
-    int number_of_sensors;
     geometry_msgs::Point32 points;
     sensor_msgs::ChannelFloat32 probability_channel, threshold_channel;
     sensor_msgs::PointCloud pointcloud_grid;
-    ros::param::param("~/LikelihoodGrid/number_of_sensors",number_of_sensors, 3);
 
     probability_channel.name = "probability";
     threshold_channel.name = "threshold";
@@ -485,8 +480,8 @@ void GridInterface::publish()
     human_pointcloud_grid.header.stamp = ros::Time::now();
     human_pointcloud_grid.header.frame_id = "base_footprint";
     human_grid_pub.publish(human_pointcloud_grid);
-    //humanGrid->output();
-    //laser_grid->output();
+
+
 }
 
 
