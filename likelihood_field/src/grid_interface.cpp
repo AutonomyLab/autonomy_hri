@@ -45,8 +45,6 @@ void GridInterface::init()
     ros::param::param("~/LikelihoodGrid/unknown_cell_probability",cell_probability.unknown, 0.5);
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2lf",cell_probability.unknown);
 
-//    ros::param::param("~/LikelihoodGrid/number_of_sensors",number_of_sensors, 3);
-//    ROS_INFO("/LikelihoodGrid/number_of_sensors is set to %u",number_of_sensors);
 
     ros::param::param("~/LikelihoodGrid/sensitivity",sensitivity, 1);
     ROS_INFO("/LikelihoodGrid/sensitivity is set to %u",sensitivity);
@@ -72,10 +70,11 @@ void GridInterface::init()
     /* Calculating the prior */
     double upper_bound, lower_bound;
     upper_bound = pow(cell_probability.free, number_of_sensors - sensitivity) * pow(cell_probability.human,sensitivity);
-    lower_bound = pow(cell_probability.free, number_of_sensors - sensitivity + 1) * pow(cell_probability.human,sensitivity - 1);
-    cell_probability.unknown = pow((upper_bound + lower_bound)/2.0, (1.0/number_of_sensors));
-    ROS_INFO("/LikelihoodGrid/unknown_cell_probability has been changed to %.2lf",cell_probability.unknown);
-    ROS_INFO("Threshold is  %lf",(upper_bound + lower_bound)/2.0);
+    lower_bound = pow(cell_probability.unknown, number_of_sensors - sensitivity +1) * pow(cell_probability.human,sensitivity - 1);
+    //cell_probability.unknown = pow((upper_bound + lower_bound)/2.0, (1.0/number_of_sensors));
+
+    prior_threshold = (upper_bound + lower_bound)/2.0;
+    ROS_INFO("Threshold is  %lf",prior_threshold);
 
 
 
@@ -360,7 +359,7 @@ void GridInterface::initLaser(GridFOV_t sensor_fov)
 void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
 {
     if(!laser_detection_enable) return;
-    if(laser_counter++ < 5) return;
+    if(laser_counter++ < 10) return;
     else {
         laser_counter = 0;
         std::vector<PolarPose> laser_polar_base;
@@ -431,7 +430,7 @@ void GridInterface::initHuman()
 
 sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
 {
-    double r, t, prior_threshold;
+    double r, t;
     geometry_msgs::Point32 points;
     sensor_msgs::ChannelFloat32 probability_channel, threshold_channel;
     sensor_msgs::PointCloud pointcloud_grid;
@@ -439,7 +438,7 @@ sensor_msgs::PointCloud GridInterface::pointCloudGrid(Grid* polar_grid)
     probability_channel.name = "probability";
     threshold_channel.name = "threshold";
 
-    prior_threshold = pow(cell_probability.unknown, number_of_sensors);
+    //prior_threshold = pow(cell_probability.unknown, number_of_sensors);
 
     for(size_t i = 0; i < polar_grid->global_fov.getSize(); i++){
         r = polar_grid->data[i].range;

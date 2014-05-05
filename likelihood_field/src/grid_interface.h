@@ -64,6 +64,7 @@ private:
     PointRAP_t* world_base;
     PointRAP_t* world_odom;
 
+    double prior_threshold;
     double update_rate;
     double update_time_ratio;
     int number_of_sensors;
