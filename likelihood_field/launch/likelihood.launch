@@ -2,13 +2,13 @@
 <arg name="leg_detection" value="true" />
 <arg name="torso_detection" value="true" />
 <arg name="sound_detection" value="true" />
-<arg name="laser_detection" value="true" />
+<arg name="laser_detection" value="false" />
 
 
 <node pkg="likelihood_field" type="likelihood_field" name="likelihood_field" output="screen">
         <param name="LikelihoodGrid/grid_angle_min" value="-3.14159265359"/>
         <param name="LikelihoodGrid/grid_angle_max" value="3.14159265359"/>
-        <param name="LikelihoodGrid/grid_angle_resolution" value="0.17453292519"/>
+        <param name="LikelihoodGrid/grid_angle_resolution" value="0.08726646259"/>
         <param name="LikelihoodGrid/grid_range_min" value="0.5"/>
         <param name="LikelihoodGrid/grid_range_max" value="20.0"/>
         <param name="LikelihoodGrid/grid_range_resolution" value="0.5"/>
@@ -16,7 +16,7 @@
         <param name="LikelihoodGrid/human_cell_probability" value="1.0"/>
         <param name="LikelihoodGrid/free_cell_probability" value="0.1"/>
         <param name="LikelihoodGrid/unknown_cell_probability" value="0.25"/>
-        <param name="LikelihoodGrid/sensitivity" value="2"/>
+        <param name="LikelihoodGrid/sensitivity" value="1"/>
         <param name="update_time_ratio" value="10.0"/>
         <param name="leg_detection_enable" value="$(arg leg_detection)"/>
         <param name="torso_detection_enable" value="$(arg torso_detection)"/>

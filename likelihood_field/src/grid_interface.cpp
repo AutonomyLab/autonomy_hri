@@ -70,11 +70,13 @@ void GridInterface::init()
     /* Calculating the prior */
     double upper_bound, lower_bound;
     upper_bound = pow(cell_probability.free, number_of_sensors - sensitivity) * pow(cell_probability.human,sensitivity);
-    lower_bound = pow(cell_probability.unknown, number_of_sensors - sensitivity +1) * pow(cell_probability.human,sensitivity - 1);
-    //cell_probability.unknown = pow((upper_bound + lower_bound)/2.0, (1.0/number_of_sensors));
+    lower_bound = pow(cell_probability.free, number_of_sensors - sensitivity +1) * pow(cell_probability.human,sensitivity - 1);
+    cell_probability.unknown = pow((upper_bound + lower_bound)/2.0, (1.0/number_of_sensors));
 
     prior_threshold = (upper_bound + lower_bound)/2.0;
     ROS_INFO("Threshold is  %lf",prior_threshold);
+    ROS_INFO("/LikelihoodGrid/unknown_cell_probability has been changed to %.2lf",cell_probability.unknown);
+
 
 
 
