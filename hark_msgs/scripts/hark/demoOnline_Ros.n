@@ -52,7 +52,7 @@
       <Parameter name="DEBUG" type="bool" value="false" description="Debug option. If the parameter is true, this node outputs sound localization results to a standard output."/>
     </Node>
     <Node name="node_SourceTracker_1" type="SourceTracker" x="440" y="440">
-      <Parameter name="THRESH" type="float" value="29.5" description="Power threshold for localization results. A localization result with higher power than THRESH is tracked, otherwise ignored."/>
+      <Parameter name="THRESH" type="float" value="28.0" description="Power threshold for localization results. A localization result with higher power than THRESH is tracked, otherwise ignored."/>
       <Parameter name="PAUSE_LENGTH" type="float" value="1200" description="Life duration of source in ms. When any localization result for a source is found for more than PAUSE_LENGTH / 10 iterations, the source is terminated. [default: 800]"/>
       <Parameter name="COMPARE_MODE" type="string" value="DEG" description="The comparison algorithm of Sources. DEG uses inner product, and TFINDEX uses index search (faster)."/>
       <Parameter name="MIN_SRC_INTERVAL" type="float" value="10" description="Source interval threshold in degree. When the angle between a localization result and a source is smaller than MIN_SRC_INTERVAL, the same ID is given to the localization result. [default: 20]"/>

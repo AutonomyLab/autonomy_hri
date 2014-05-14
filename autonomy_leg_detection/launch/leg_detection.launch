@@ -7,10 +7,10 @@
         <param name="laserFeature/segmentation_threshold" value="500.0"/>
         <param name="laserFeature/line_min_distance" value="170.0"/>
         <param name="laserFeature/line_error_threshold" value="5.0"/>
-        <param name="laserFeature/max_leg_diameter" value="300.0"/>
+        <param name="laserFeature/max_leg_diameter" value="500.0"/>
         <param name="laserFeature/min_leg_diameter" value="30.0"/>
-        <param name="featureLegTracker/leg_clean_ticks" value="5.0"/>
-        <param name="featureLegTracker/person_clean_ticks" value="5.0"/>
+        <param name="featureLegTracker/leg_clean_ticks" value="10.0"/>
+        <param name="featureLegTracker/person_clean_ticks" value="10.0"/>
         <param name="featureLegTracker/leg_update_radius" value="100.0"/>
         <param name="featureLegTracker/person_radius" value="300.0"/>
         <remap from="/scan" to="/lidar/scan" />

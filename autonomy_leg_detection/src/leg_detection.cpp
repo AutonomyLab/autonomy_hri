@@ -177,6 +177,8 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
     for(size_t i = 0; i < msg.ranges.size() ; i++){
         if(msg.ranges.at(i) > msg.range_max)
             r = msg.range_max * M2MM_RATIO;
+        else if(msg.ranges.at(i) < msg.range_min)
+            r = msg.range_max * M2MM_RATIO;
         else
             r = msg.ranges.at(i)*M2MM_RATIO;
         laserFeature.ranges.push_back(r);

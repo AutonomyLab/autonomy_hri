@@ -92,6 +92,23 @@ void Grid::freeProbability(PointRAP_t* _data)
     }
 }
 
+void Grid::nonlinearFreeProbability(PointRAP_t* _data)
+{
+    double db = (cell_probability.unknown - cell_probability.free)/global_fov.getRowSize();
+    double range_in_use = global_fov.range.min;
+    double db_diff = 0.0;
+
+    for(size_t i = 0; i < global_fov.getSize(); i++){
+        if (_data[i].range > range_in_use){
+            range_in_use = _data[i].range;
+            db_diff += db;
+        }
+        if(_data[i].probability < cell_probability.free && is_known[i] == true){
+            _data[i].probability = cell_probability.free + db_diff;
+        }
+    }
+}
+
 void Grid::unknownProbability(PointRAP_t* _data)
 {
     for(size_t i = 0; i < global_fov.getSize(); i++){
@@ -121,7 +138,10 @@ void Grid::computeLikelihood(const std::vector<PolarPose>& poses, PointRAP_t* _d
         }
     }
     normalize(_data);
-    freeProbability(_data);
+    if(nonlinear_negative_data)
+        nonlinearFreeProbability(data);
+    else
+        freeProbability(data);
     unknownProbability(_data);
 }
 
@@ -131,7 +151,10 @@ void Grid::sensorUpdate(double rate)
     for(size_t i = 0; i < global_fov.getSize(); i++){
         data[i].probability = rate*old_data[i].probability + ((flag) ? (1-rate)*new_data[i].probability : 0.0);
     }
-    freeProbability(data);
+    if(nonlinear_negative_data)
+        nonlinearFreeProbability(data);
+    else
+        freeProbability(data);
     unknownProbability(data);
     copyProbability(data, old_data);
 }
@@ -215,32 +238,35 @@ void Grid::scaleProbability(PointRAP_t* _data, double s)
 }
 
 
-double Grid::minProbability(PointRAP_t* _data)
+PointRAP_t Grid::minProbability(PointRAP_t* _data)
 {
-    double min = _data[0].probability;
+    PointRAP_t min = _data[0];
     for(size_t i = 1; i < global_fov.getSize(); i++){
-        if(_data[i].probability < min)
-            min = _data[i].probability;
+        if(_data[i].probability < min.probability){
+            min = _data[i];
+        }
     }
     return min;
 }
 
 
-double Grid::maxProbability(PointRAP_t* _data)
+PointRAP_t Grid::maxProbability(PointRAP_t* _data)
 {
-    double max = _data[0].probability;
+    //double max = _data[0].probability;
+    PointRAP_t max = _data[0];
     for(size_t i = 1; i < global_fov.getSize(); i++){
-        if(_data[i].probability > max)
-            max = _data[i].probability;
+        if(_data[i].probability > max.probability){
+            max = _data[i];
+        }
     }
     return max;
 }
 
 void Grid::normalize(PointRAP_t* _data)
 {
-    if(maxProbability(_data) < 0.9) return;
-    if(fabs(maxProbability(_data) - minProbability(_data)) < 0.000001) return;
-    scaleProbability(_data,(cell_probability.human/maxProbability(_data)));
+    if(maxProbability(_data).probability < 0.9) return;
+    if(fabs(maxProbability(_data).probability - minProbability(_data).probability) < 0.000001) return;
+    scaleProbability(_data,(cell_probability.human/maxProbability(_data).probability));
 }
 
 void Grid::copyProbability(PointRAP_t* source, PointRAP_t* target)
@@ -251,11 +277,11 @@ void Grid::copyProbability(PointRAP_t* source, PointRAP_t* target)
 }
 
 
-void Grid::output()
+PointRAP_t Grid::output()
 {
-    std::cout <<"max probability is : " << maxProbability(data) << " " << std::endl;
-
-
+ROS_INFO("max probability is : %lf at range: [%lf] angle: [%lf]  ",maxProbability(data).probability,
+         maxProbability(data).range,
+         maxProbability(data).angle);
 }
 
 Grid::~Grid()

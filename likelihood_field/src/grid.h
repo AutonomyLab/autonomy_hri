@@ -53,10 +53,10 @@ private:
     void initGrid(PointRAP_t* _data, const double val);
     void setUnknownArea();
     void freeProbability(PointRAP_t* _data);
+    void nonlinearFreeProbability(PointRAP_t* _data);
     void unknownProbability(PointRAP_t* _data);
     void scaleProbability(PointRAP_t* _data, double s);
-    double minProbability(PointRAP_t* _data);
-    double maxProbability(PointRAP_t* _data);
+    PointRAP_t minProbability(PointRAP_t* _data);
     void copyProbability(PointRAP_t* source, PointRAP_t* target);
     void regionNumber(PointRAP_t* _data,
                             u_int8_t* region_data,
@@ -66,6 +66,7 @@ public:
     PointRAP_t* data;
     PointRAP_t* new_data;
     bool flag;
+    bool nonlinear_negative_data;
     Grid();
     Grid(const GridFOV_t _sensor_fov,
                    const GridFOV_t _global_fov,
@@ -77,7 +78,8 @@ public:
     void worldUpdate(const PointRAP_t *world_base, double rate);
     void fuse(PointRAP_t* input);
     void normalize(PointRAP_t* _data);
-    void output();
+    PointRAP_t maxProbability(PointRAP_t* _data);
+    PointRAP_t output();
 };
 
 #endif

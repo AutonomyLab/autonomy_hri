@@ -63,6 +63,7 @@ private:
     Grid* human_grid;
     PointRAP_t* world_base;
     PointRAP_t* world_odom;
+    ros::Publisher highest_point_pub;
 
     double prior_threshold;
     double update_rate;
