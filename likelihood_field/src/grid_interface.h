@@ -64,10 +64,16 @@ private:
     PointRAP_t* world_base;
     PointRAP_t* world_odom;
     ros::Publisher highest_point_pub;
+    unsigned int accept_counter;
+    unsigned int reject_counter;
+    PointRAP_t highest_prob_point;
+    PointRAP_t last_highest_prob_point;
+    PointRAP_t current_highest_prob_point;
+
 
     double prior_threshold;
     double update_rate;
-    double update_time_ratio;
+    int loop_rate;
     int number_of_sensors;
     int sensitivity;
     CellProbability_t cell_probability;

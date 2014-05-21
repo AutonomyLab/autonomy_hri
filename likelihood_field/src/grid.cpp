@@ -116,7 +116,7 @@ void Grid::unknownProbability(PointRAP_t* _data)
     }
 }
 
-void Grid::computeLikelihood(const std::vector<PolarPose>& poses, PointRAP_t* _data)
+void Grid::computeLikelihood(const std::vector<PolarPose>& poses, PointRAP_t* _data, const double std_range, const double std_angle)
 {
     if(poses.empty()) return;
     setProbability(_data, 0.0);
@@ -131,8 +131,8 @@ void Grid::computeLikelihood(const std::vector<PolarPose>& poses, PointRAP_t* _d
 
         for(size_t j = 0; j < global_fov.getSize(); j++){
             if(is_known[j]){
-                pr = normalDistribution((_data[j].range + sensor_fov.range.resolution/2),mean_range,sqrt(global_fov.range.resolution/4));
-                pt = normalDistribution((_data[j].angle + sensor_fov.angle.resolution/2),mean_angle,sqrt(global_fov.angle.resolution/4));
+                pr = normalDistribution((_data[j].range + sensor_fov.range.resolution/2),mean_range,std_range);
+                pt = normalDistribution((_data[j].angle + sensor_fov.angle.resolution/2),mean_angle,std_angle);
                 _data[j].probability += pr*pt;
             }
         }
@@ -193,32 +193,33 @@ void Grid::worldUpdate(const PointRAP_t* world_base, double rate)
     region_number(worldGrid_base, region_world_base, 4, 4);
     */
 
-    if(rate){
-        setProbability(old_data,0.0);
-        size_t count, k;
-        size_t test = 0;
-        for(size_t i = 0; i < global_fov.getSize(); i++){
+//    if(rate){
+//        setProbability(old_data,0.0);
+//        size_t count, k;
+//        size_t test = 0;
+//        for(size_t i = 0; i < global_fov.getSize(); i++){
 
-            count = 0;
-            for(k = 0; k < global_fov.getSize(); k++){
-                if(old_data[i].distanceAngle(world_base[k].angle) < global_fov.angle.resolution &&
-                        old_data[i].distanceRange(world_base[k].range) < global_fov.range.resolution){
-                    old_data[i].probability += world_base[k].probability;
-                    count++;
-                }
-            }
-            if(count){
-                old_data[i].probability = old_data[i].probability/count;
-                test++;
-            }
-        }
-    }
+//            count = 0;
+//            for(k = 0; k < global_fov.getSize(); k++){
+//                if(old_data[i].distanceAngle(world_base[k].angle) < global_fov.angle.resolution &&
+//                        old_data[i].distanceRange(world_base[k].range) < global_fov.range.resolution){
+//                    old_data[i].probability += world_base[k].probability;
+//                    count++;
+//                }
+//            }
+//            if(count){
+//                old_data[i].probability = old_data[i].probability/count;
+//                test++;
+//            }
+//        }
+//    }
 
     //ROS_INFO("global size: %lu  test: %lu", global_fov.getSize(), test);
 
     for(size_t i = 0; i < global_fov.getSize(); i++){
         data[i].probability = rate*old_data[i].probability +  (1-rate)*new_data[i].probability ;
     }
+    copyProbability(data, old_data);
 }
 
 

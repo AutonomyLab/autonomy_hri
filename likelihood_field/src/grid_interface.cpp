@@ -49,8 +49,8 @@ void GridInterface::init()
     ros::param::param("~/LikelihoodGrid/sensitivity",sensitivity, 1);
     ROS_INFO("/LikelihoodGrid/sensitivity is set to %u",sensitivity);
 
-    ros::param::param("~/update_time_ratio",update_time_ratio, 10.0);
-    ROS_INFO("/update_time_ratio is set to %.2lf",update_time_ratio);
+    ros::param::param("~/loop_rate",loop_rate, 10);
+    ROS_INFO("/loop_rate is set to %d",loop_rate);
 
     ros::param::param("~/leg_detection_enable",leg_detection_enable, true);
     ROS_INFO("/leg_detection_enable to %d",leg_detection_enable);
@@ -78,7 +78,8 @@ void GridInterface::init()
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability has been changed to %.2lf",cell_probability.unknown);
 
 
-
+    accept_counter = 0;
+    reject_counter = 0;
 
     if(leg_detection_enable){
         GridFOV_t legs_fov = global_fov;
@@ -254,7 +255,7 @@ void GridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
         //ROS_ASSERT(legs_polar_base.size() == legs_laser.size());
         leg_frame_id = "base_footprint";
 
-        leg_grid->computeLikelihood(legs_polar_base, leg_grid->new_data);
+        leg_grid->computeLikelihood(legs_polar_base, leg_grid->new_data, sqrt(global_fov.range.resolution/4), sqrt(global_fov.angle.resolution/4));
         legs_polar_base.clear();
     }
 }
@@ -282,21 +283,31 @@ void GridInterface::faceCallBack(const autonomy_human::human& msg)
         last_face_time = ros::Time::now();
         //geometry_msgs::PointStamped tmp_camera, tmp_base;
         PolarPose tmp_polar;
-        double theta, x;
+        double theta, x, person_height, person_range;
         double image_width = 640.0;
 
         x = msg.faceROI.x_offset + msg.faceROI.width/2.0;
         theta = ((image_width/2.0-x)/image_width/2.0)*toRadian(65.0/2.0);
+        person_height = msg.faceROI.height;
+        person_range = 0.0031*person_height*person_height - 0.8 * person_height + 53.02;
         tmp_polar.angle = theta;
+        tmp_polar.range = person_range;
 
-        double r = face_grid->sensor_fov.range.min;
-        while(r <= face_grid->sensor_fov.range.max){
-            tmp_polar.range = r;
-            r += face_grid->sensor_fov.range.resolution;
-            face_polar_base.push_back(tmp_polar);
-        }
+//        double r = face_grid->sensor_fov.range.min;
+//        while(r <= face_grid->sensor_fov.range.max){
+//            tmp_polar.range = r;
+//            r += face_grid->sensor_fov.range.resolution;
+//            face_polar_base.push_back(tmp_polar);
+//        }
+//        double r = person_range;
+//        while(r <= (person_range + face_grid->sensor_fov.range.resolution*5 ) && r <= face_grid->sensor_fov.range.max){
+//            tmp_polar.range = r;
+//            r += face_grid->sensor_fov.range.resolution;
+//            face_polar_base.push_back(tmp_polar);
+//        }
+        face_polar_base.push_back(tmp_polar);
         face_frame_id = "base_footprint";
-        face_grid->computeLikelihood(face_polar_base, face_grid->new_data);
+        face_grid->computeLikelihood(face_polar_base, face_grid->new_data, sqrt(global_fov.range.resolution*5), sqrt(global_fov.angle.resolution/4));
         face_polar_base.clear();
     }
 }
@@ -333,7 +344,7 @@ void GridInterface::soundCallBack(const hark_msgs::HarkSource& msg)
                 sound_polar_base.push_back(tmp_polar);
             }
             sound_frame_id = "base_footprint";
-            sound_grid->computeLikelihood(sound_polar_base, sound_grid->new_data);
+            sound_grid->computeLikelihood(sound_polar_base, sound_grid->new_data, sqrt(global_fov.range.resolution/4), sqrt(global_fov.angle.resolution/4));
             sound_polar_base.clear();
         }
     }
@@ -408,7 +419,7 @@ void GridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
 //            }
 
             laser_frame_id = "base_footprint";
-            laser_grid->computeLikelihood(laser_polar_base, laser_grid->new_data);
+            laser_grid->computeLikelihood(laser_polar_base, laser_grid->new_data, sqrt(global_fov.range.resolution/4), sqrt(global_fov.angle.resolution/4));
             laser_polar_base.clear();
         }
     }
@@ -494,18 +505,41 @@ void GridInterface::publish()
 
     // IN THE CSA...
     double r, t;
-    r = human_grid->maxProbability(human_grid->data).range;
-    t = human_grid->maxProbability(human_grid->data).angle;
-    //ROS_INFO("Likelihood goal: r:[%lf] t: [%lf]",r,t);
+    current_highest_prob_point = human_grid->maxProbability(human_grid->data);
+
+    if(reject_counter == 0 && accept_counter == 0){
+        highest_prob_point = current_highest_prob_point;
+    }
+
+    if(!(fabs(current_highest_prob_point.range - highest_prob_point.range) < global_fov.range.resolution*3 &&
+            fabs(current_highest_prob_point.angle - highest_prob_point.angle) < global_fov.angle.resolution*3)){
+        reject_counter++;
+    }else{
+        accept_counter++;
+        reject_counter = 0;
+    }
+
+
+    if(reject_counter > loop_rate){
+        highest_prob_point = current_highest_prob_point;
+        reject_counter = 0;
+        accept_counter = 0;
+    }
+    r = highest_prob_point.range;
+    t = highest_prob_point.angle;
+
+    //ROS_INFO("Likelihood goal: r:[%lf] t: [%lf] reject: [%d]",r,t,reject_counter);
+    //ROS_INFO("Likelihood goal: c-r:[%lf] c-t: [%lf]",current_highest_prob_point.range, current_highest_prob_point.angle);
+
+
     geometry_msgs::PoseStamped highest_probability_point;
     highest_probability_point.header.stamp = ros::Time::now();
     highest_probability_point.header.frame_id = "base_footprint";
     highest_probability_point.pose.position.x = r*cos(t);
     highest_probability_point.pose.position.y = r*sin(t);
-    highest_probability_point.pose.position.z = human_grid->maxProbability(human_grid->data).probability;
+    highest_probability_point.pose.position.z = highest_prob_point.probability;
     highest_probability_point.pose.orientation.w = 1.00;
     highest_point_pub.publish(highest_probability_point);
-
 
 }
 
@@ -545,14 +579,21 @@ void GridInterface::spin()
     }
     // HUMAN
     human_grid->setProbability(human_grid->new_data, cell_probability.human);
-    if(leg_detection_enable)
+    if(leg_detection_enable){
+        leg_grid->scaleProbability(leg_grid->data,0.5);
         human_grid->fuse(leg_grid->data);
+    }
     if(torso_detection_enable)
         human_grid->fuse(face_grid->data);
     if(sound_detection_enable)
         human_grid->fuse(sound_grid->data);
-    if(laser_detection_enable)
+    if(laser_detection_enable){
+        laser_grid->scaleProbability(laser_grid->data,0.2);   
         human_grid->fuse(laser_grid->data);
+    }
+    human_grid->worldUpdate(world_base, update_rate);
+    publish();
+
 
 /*
     // transform worldGrid_odom to worldGrid_base
@@ -597,7 +638,7 @@ void GridInterface::spin()
     ROS_INFO("[%4lu] world_base: range= %.2lf  and angle= %.2lf", i, world_base[i].range, world_base[i].angle);
     */
 
-    human_grid->worldUpdate(world_base, 0.0);
+   // human_grid->worldUpdate(world_base, 0.0);
 
     /*
 
@@ -631,10 +672,7 @@ void GridInterface::spin()
 
 */
     //human_grid->normalize(human_grid->data);
-
-
-    //PointRAP_t max = human_grid->output();
-    publish();
+    //publish();
 }
 
 

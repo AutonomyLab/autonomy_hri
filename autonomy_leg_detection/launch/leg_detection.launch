@@ -1,18 +1,18 @@
 <launch>
     <node pkg="autonomy_leg_detection" type="leg_detection" name="leg_detection" output="screen">
         <param name="show_viz" value="false"/>
-        <param name="laserFeature/arc_min_aperture" value="1.57"/>
-        <param name="laserFeature/arc_max_aperture" value="2.35"/>
-        <param name="laserFeature/arc_std_max" value="0.2"/>
-        <param name="laserFeature/segmentation_threshold" value="500.0"/>
+        <param name="laserFeature/arc_min_aperture" value="0.618"/>
+        <param name="laserFeature/arc_max_aperture" value="3.14"/>
+        <param name="laserFeature/arc_std_max" value="0.4"/>
+        <param name="laserFeature/segmentation_threshold" value="600.0"/>
         <param name="laserFeature/line_min_distance" value="170.0"/>
         <param name="laserFeature/line_error_threshold" value="5.0"/>
-        <param name="laserFeature/max_leg_diameter" value="500.0"/>
+        <param name="laserFeature/max_leg_diameter" value="600.0"/>
         <param name="laserFeature/min_leg_diameter" value="30.0"/>
-        <param name="featureLegTracker/leg_clean_ticks" value="10.0"/>
-        <param name="featureLegTracker/person_clean_ticks" value="10.0"/>
-        <param name="featureLegTracker/leg_update_radius" value="100.0"/>
-        <param name="featureLegTracker/person_radius" value="300.0"/>
+        <param name="featureLegTracker/leg_clean_ticks" value="5.0"/>
+        <param name="featureLegTracker/person_clean_ticks" value="5.0"/>
+        <param name="featureLegTracker/leg_update_radius" value="200.0"/>
+        <param name="featureLegTracker/person_radius" value="500.0"/>
         <remap from="/scan" to="/lidar/scan" />
 
     </node>

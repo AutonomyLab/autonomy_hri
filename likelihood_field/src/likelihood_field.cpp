@@ -8,8 +8,10 @@ int main(int argc, char** argv)
 {
     ros::init(argc,argv,"likelihood_field");
     ros::NodeHandle n;
-    ros::Rate looprate(_LOOPRATE);
     tf::TransformListener *tf_listener;
+    int loop_rate;
+    ros::param::param("~/loop_rate",loop_rate, 10);
+    ros::Rate looprate(loop_rate);
 
     GridInterface likelihood_grid_interface(n,tf_listener);
 

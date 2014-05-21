@@ -55,7 +55,6 @@ private:
     void freeProbability(PointRAP_t* _data);
     void nonlinearFreeProbability(PointRAP_t* _data);
     void unknownProbability(PointRAP_t* _data);
-    void scaleProbability(PointRAP_t* _data, double s);
     PointRAP_t minProbability(PointRAP_t* _data);
     void copyProbability(PointRAP_t* source, PointRAP_t* target);
     void regionNumber(PointRAP_t* _data,
@@ -73,7 +72,8 @@ public:
                    const CellProbability_t _cell_probability);
     ~Grid();
     void setProbability(PointRAP_t* _data, const double val);
-    void computeLikelihood(const std::vector<PolarPose>& pose, PointRAP_t* _data);
+    void scaleProbability(PointRAP_t* _data, double s);
+    void computeLikelihood(const std::vector<PolarPose>& pose, PointRAP_t* _data, const double std_range,const double std_angle );
     void sensorUpdate(double rate);
     void worldUpdate(const PointRAP_t *world_base, double rate);
     void fuse(PointRAP_t* input);
