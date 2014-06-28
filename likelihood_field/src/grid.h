@@ -8,7 +8,6 @@
 #include <ros/ros.h>
 #include "polarcord.h"
 
-double toRadian(double t);
 
 struct PointRAP_t{
     double range;

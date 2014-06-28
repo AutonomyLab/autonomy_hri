@@ -4,10 +4,6 @@
 
 #define _USE_MATH_DEFINES
 
-double toRadian(double t)
-{
-    return t*M_PI/180;
-}
 
 double normalDistribution(const double x, const double u,const double s)
 {
