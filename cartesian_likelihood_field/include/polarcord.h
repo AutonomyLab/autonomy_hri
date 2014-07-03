@@ -16,8 +16,8 @@ public:
         angle = atan2(y, x);
     }
     inline void toCart(float &x, float &y) {
-        x = range * cos(angle);
-        y = range * sin(angle);
+        x = round(range * cos(angle));
+        y = round(range * sin(angle));
     }
 
     inline double distance(const float r, const float a)

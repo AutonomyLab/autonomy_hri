@@ -4,6 +4,11 @@
 
 #define _USE_MATH_DEFINES
 
+float normalDistribution(const float x, const float u, const float s)
+{
+    return((1/(s*sqrt(2*M_PI)))*exp(-pow(x-u,2)/(2*pow(s,2))));
+}
+
 
 CartesianGrid::CartesianGrid(uint32_t map_size,
                              float_t map_resolution,
@@ -74,48 +79,61 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
 
     try
     {
-        data = new int8_t[grid_size];
-        old_data = new int8_t[grid_size];
-        new_data = new int8_t[grid_size];
+        posterior = new float[grid_size];
+        prior = new float[grid_size];
+        likelihood = new float[grid_size];
     }
     catch (std::bad_alloc& ba)
     {
       std::cerr << "in init: bad_alloc caught: " << ba.what() << '\n';
     }
-    setGridProbability(data, cell_prob.free);
-    setGridProbability(new_data, cell_prob.free);
-    setGridProbability(old_data, cell_prob.free);
+    setGridProbability(posterior, cell_prob.free);
+    setGridProbability(likelihood, cell_prob.free);
+    setGridProbability(prior, cell_prob.free);
 
-    setUnknownProbability(data, cell_prob.unknown);
-    setUnknownProbability(new_data, cell_prob.unknown);
-    setUnknownProbability(old_data, cell_prob.unknown);
-
+    setUnknownProbability(posterior, cell_prob.unknown);
+    setUnknownProbability(likelihood, cell_prob.unknown);
+    setUnknownProbability(prior, cell_prob.unknown);
 }
 
-void CartesianGrid::setGridProbability(int8_t*_data, uint8_t val)
+void CartesianGrid::setGridProbability(float* data, float val)
 {
-    std::fill(_data, _data + grid_size - 1 , val);
+    std::fill(data, data + grid_size - 1 , val);
 }
 
-void CartesianGrid::setUnknownProbability(int8_t* _data, uint8_t val){
+void CartesianGrid::setUnknownProbability(float* data, float val){
     for(size_t i = 0; i < grid_size; i++){
         if(!map.cell_inFOV.at(i)){
-            _data[i] = val;
+            data[i] = val;
+        }
+    }
+}
+
+void CartesianGrid::setFreeProbability(float* data, float val){
+    for(size_t i = 0; i < grid_size; i++){
+        if(map.cell_inFOV.at(i)){
+            data[i] = val;
         }
     }
 }
 
 
-void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose, int8_t* _data, const double std_range,const double std_angle)
+void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
+                                      float* data,
+                                      const double std_range,
+                                      const double std_angle)
 {
-    if(pose.empty()) return;
+    if(pose.empty())
+    {
+        setFreeProbability(data, cell_prob.free);
+        return;
+    }
 
     //if(poses.size() && !flag) flag = true; [??????]
-
-    double cell_range, cell_angle;
-    double* distance;
-    uint8_t nearest_feature;
-    distance = new double [pose.size()];
+    float* distance;
+    float cell_range, cell_angle;
+    float nearest_feature;
+    distance = new float [pose.size()];
 
     for(size_t i = 0; i < grid_size; i++){
         cell_range = map.cell_pol_pos.at(i).range;
@@ -124,65 +142,130 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose, int8_t
         for(size_t p = 0; p < pose.size(); p++){
             distance[p] = map.cell_pol_pos.at(i).distance(pose.at(p).range, pose.at(p).angle);
         }
-        nearest_feature = std::distance(distance, std::min_element(distance, distance + pose.size() - 1));
+        nearest_feature = std::distance(distance, std::min_element(distance, distance + pose.size()));
 
         if(map.cell_inFOV.at(i)){
-            if( fabs(cell_range - pose.at(nearest_feature).range) < std_range &&
-                    fabs(cell_angle - pose.at(nearest_feature).angle) < std_angle) {
-                _data[i] = 100;
-            } else {
-                _data[i] = 0;
-            }
+            data[i] = normalDistribution(cell_range, pose.at(nearest_feature).range, std_range) * normalDistribution(cell_angle, pose.at(nearest_feature).angle, std_angle);
+            //_data[i] = _data[i] * cell_prob.human;
+            if(data[i] < 0.1) data[i] = 0.1;
+            if(data[i] > 0.9) data[i] = 0.9;
         }
     }
 
+    //ROS_INFO("Max Probability is: %d", maxProbability(data));
     delete[] distance;
 }
 
-void CartesianGrid::fuse(int8_t* input)
+void CartesianGrid::updateGridProbability(float* pr,
+                                     float* lk,
+                                     float* po)
+{
+
+//    float* log_pr = new float[grid_size];
+//    float* log_po = new float[grid_size];
+//    float* log_lk = new float[grid_size];
+
+//    toLogOdd(prior, log_pr);
+//    toLogOdd(posterior, log_po);
+//    toLogOdd(likelihood, log_lk);
+
+//    for(size_t i = 0; i < grid_size; i++){
+//        log_po[i] = log_pr[i] + log_lk[i];
+//    }
+
+//    fromLogOdd(log_pr, prior);
+//    fromLogOdd(log_po, posterior);
+//    fromLogOdd(log_lk, likelihood);
+
+
+    float den;
+    for(size_t i = 0; i < grid_size; i++){
+
+//        den = (lk[i] * pr[i]) + (1 - lk[i])*(1 - pr[i]);
+//        po[i] = lk[i] * pr[i] / den;
+
+        po[i] = 0.9 * pr[i] + 0.1 * lk[i];
+        if(po[i] < 0.1) po[i] = 0.1;
+        if(po[i] > 0.9) po[i] = 0.9;
+    }
+
+//    int j = 500;
+//    ROS_INFO("prior: %f, likelihood: %f, posterior: %f",pr[j], lk[j], po[j]);
+//    ROS_INFO("Max Probability prior: %.2f", maxProbability(pr));
+//    ROS_INFO("Max Probability likelihood: %.2f", maxProbability(lk));
+//    ROS_INFO("Max Probability posterior: %.2f", maxProbability(po));
+
+    copyProbability(po, pr);      // prior = likelihood
+    copyProbability(po, lk); // posterior = likelihood // for publishing
+}
+
+void CartesianGrid::toLogOdd(float* probability_data, float* logodd_data)
 {
     for(size_t i = 0; i < grid_size; i++){
-        new_data[i] = new_data[i] * input[i];
+        logodd_data[i] = log((float) ((probability_data[i]) / (100 - probability_data[i])));
+    }
+}
+
+void CartesianGrid::fromLogOdd(float* logodd_data, float* probability_data)
+{
+    for(size_t i = 0; i < grid_size; i++){
+        probability_data[i] = 100 - (float) (100/(1+exp(logodd_data[i])));
     }
 }
 
 
-void CartesianGrid::scaleProbability(int8_t* _data, double s)
+void CartesianGrid::fuse(float *input)
+{
+//    for(size_t i = 0; i < grid_size; i++){
+//        //likelihood[i] = likelihood[i] * input[i];
+//    }
+}
+
+
+void CartesianGrid::scaleProbability(float* data, float s)
 {
     for(size_t i = 0; i < grid_size; i++){
-        _data[i] = _data[i] * s;
+        data[i] = data[i] * s;
+    }
+}
+
+void CartesianGrid::copyProbability(float* input, float* output)
+{
+    for(size_t i = 0; i < grid_size; i++){
+        output[i] = input[i];
     }
 }
 
 
-int8_t CartesianGrid::minProbability(int8_t* _data)
+
+float CartesianGrid::minProbability(float* data)
 {
-    int8_t min = _data[0];
+    float min = data[0];
     for(size_t i = 1; i < grid_size; i++){
-        if(_data[i] < min){
-            min = _data[i];
+        if(data[i] < min){
+            min = data[i];
         }
     }
     return min;
 }
 
 
-int8_t CartesianGrid::maxProbability(int8_t* _data)
+float CartesianGrid::maxProbability(float* data)
 {
-    int8_t max = _data[0];
+    float max = data[0];
     for(size_t i = 1; i < grid_size; i++){
-        if(_data[i] > max){
-            max = _data[i];
+        if(data[i] > max){
+            max = data[i];
         }
     }
     return max;
 }
 
-//void Grid::normalize(PointRAP_t* _data)
+//void Grid::normalize(PointRAP_t* data)
 //{
-//    if(maxProbability(_data).probability < 0.9) return;
-//    if(fabs(maxProbability(_data).probability - minProbability(_data).probability) < 0.000001) return;
-//    scaleProbability(_data,(cell_probability.human/maxProbability(_data).probability));
+//    if(maxProbability(data).probability < 0.9) return;
+//    if(fabs(maxProbability(data).probability - minProbability(data).probability) < 0.000001) return;
+//    scaleProbability(data,(cell_probability.human/maxProbability(data).probability));
 //}
 
 //void Grid::copyProbability(PointRAP_t* source, PointRAP_t* target)
@@ -202,9 +285,9 @@ int8_t CartesianGrid::maxProbability(int8_t* _data)
 
 CartesianGrid::~CartesianGrid()
 {
-    delete[] data;
-    delete[] old_data;
-    delete[] new_data;
+    delete[] posterior;
+    delete[] prior;
+    delete[] likelihood;
 }
 
 

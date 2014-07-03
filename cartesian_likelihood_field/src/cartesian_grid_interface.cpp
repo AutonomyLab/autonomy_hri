@@ -45,14 +45,14 @@ void CartesianGridInterface::init()
     ros::param::param("~/LikelihoodGrid/update_rate",update_rate, 0.5);
     ROS_INFO("/LikelihoodGrid/update_rate is set to %.2lf",update_rate);
 
-    ros::param::param("~/LikelihoodGrid/human_cell_probability",cell_probability.human, 100);
-    ROS_INFO("/LikelihoodGrid/human_cell_probability is set to %d",cell_probability.human);
+    ros::param::param("~/LikelihoodGrid/human_cell_probability",cell_probability.human, 0.95);
+    ROS_INFO("/LikelihoodGrid/human_cell_probability is set to %.2f",cell_probability.human);
 
-    ros::param::param("~/LikelihoodGrid/free_cell_probability",cell_probability.free, 0);
-    ROS_INFO("/LikelihoodGrid/free_cell_probability is set to %d",cell_probability.free);
+    ros::param::param("~/LikelihoodGrid/free_cell_probability",cell_probability.free, 0.05);
+    ROS_INFO("/LikelihoodGrid/free_cell_probability is set to %.2f",cell_probability.free);
 
-    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",cell_probability.unknown, -1);
-    ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %d",cell_probability.unknown);
+    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",cell_probability.unknown, 0.5);
+    ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2f",cell_probability.unknown);
 
 
     ros::param::param("~/LikelihoodGrid/sensitivity",sensitivity, 1);
@@ -100,8 +100,8 @@ void CartesianGridInterface::init()
         SensorFOV_t legs_fov = fov;
         //legs_fov.range.max = 20.0;
         legs_fov.range.max = (fov.range.max < 20.0 ? fov.range.max:20.0);
-        legs_fov.angle.min = toRadian(-135.0);//-2.35619449615;
-        legs_fov.angle.max = toRadian(135.0);//2.35619449615;
+        legs_fov.angle.min = toRadian(-120.0);//-2.35619449615;
+        legs_fov.angle.max = toRadian(120.0);//2.35619449615;
         initLegs(legs_fov);
         legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
         leg_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
@@ -135,8 +135,8 @@ void CartesianGridInterface::init()
     if(laser_detection_enable){
         SensorFOV_t laser_fov = fov;
         laser_fov.range.max = 20.0;
-        laser_fov.angle.min = toRadian(-135.0);//-2.35619449615;
-        laser_fov.angle.max = toRadian(135.0);//2.35619449615;
+        laser_fov.angle.min = toRadian(-120.0);//-2.35619449615;
+        laser_fov.angle.max = toRadian(120.0);//2.35619449615;
         initLaser(laser_fov);
         laser_grid_pub = n.advertise<sensor_msgs::PointCloud>("laser_likelihood_grid",10);
         laser_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("laser_occupancy_grid",10);
@@ -201,51 +201,64 @@ void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
 void CartesianGridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
 {
     if(!leg_detection_enable) return;
-
-    //if(leg_counter++ < 5) return;
+    if(leg_counter++ < 5) return;
     leg_counter = 0;
 
     //std::vector<geometry_msgs::Pose> legs_laser; // *** Can be removed ***
     std::vector<PolarPose> legs_polar_base;
     leg_frame_id = "base_footprint";
+    leg_grid->flag = true;
 
-    if(!msg.poses.empty()){
-
-        if(!legs_polar_base.empty())
-            legs_polar_base.clear();
-
-        last_leg_time = ros::Time::now();
-        //legs_laser = msg.poses; // *** Can be removed ***
-
-        // FRAME TRANSFORM: /laser to /base_footprint       
-        geometry_msgs::PointStamped tmp_laser, tmp_base;
-        PolarPose tmp_polar;
-
-        tmp_laser.header = msg.header;
-
-        for(size_t i = 0; i < msg.poses.size(); i++){
-
-            tmp_laser.point = msg.poses.at(i).position;
-
-            if(!transformToBase(tmp_laser, tmp_base)){
-                ROS_WARN("Can not transform from laser to base_footprint");
-                return;
-            }
-
-            tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
-            legs_polar_base.push_back(tmp_polar);
-        }
-
-        ROS_ASSERT(legs_polar_base.size() == msg.poses.size());
-
-        leg_grid->computeLikelihood(legs_polar_base,
-                                    leg_grid->new_data,
-                                    sqrt(map_resolution),
-                                    sqrt(map_resolution)/4);
-
-        if(!legs_polar_base.empty())
-            legs_polar_base.clear();
+    if(msg.poses.empty()) {
+        leg_grid->setFreeProbability(leg_grid->likelihood, leg_grid->cell_prob.free);
+        return;
     }
+
+    if(!legs_polar_base.empty())
+        legs_polar_base.clear();
+
+    geometry_msgs::PointStamped tmp_laser, tmp_base;
+    PolarPose tmp_polar;
+    last_leg_time = ros::Time::now();
+    //legs_laser = msg.poses; // *** Can be removed ***
+
+
+
+    tmp_laser.header = msg.header;
+    tmp_laser.header.frame_id = "laser";
+
+    for(size_t i = 0; i < msg.poses.size(); i++){
+
+        tmp_laser.point = msg.poses.at(i).position;
+
+        if(!transformToBase(tmp_laser, tmp_base)){
+            ROS_WARN("Can not transform from laser to base_footprint");
+            return;
+        }
+        tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
+        legs_polar_base.push_back(tmp_polar);
+    }
+
+    ROS_ASSERT(legs_polar_base.size() == msg.poses.size());
+
+
+    leg_grid->computeLikelihood(legs_polar_base,
+                                leg_grid->likelihood,
+                                0.1,
+                                toRadian(5.0));
+//    ROS_INFO("--------------------------------------");
+//    ROS_INFO("Max Probability prior: %.2f",leg_grid-> maxProbability(leg_grid->prior));
+//    ROS_INFO("Max Probability likelihood: %.2f", leg_grid->maxProbability(leg_grid->likelihood));
+//    ROS_INFO("Max Probability posterior: %.2f", leg_grid->maxProbability(leg_grid->posterior));
+
+
+    leg_grid->updateGridProbability(leg_grid->prior,
+                               leg_grid->likelihood,
+                               leg_grid->posterior);
+//    leg_grid->copyProbability(leg_grid->likelihood, leg_grid->posterior);
+
+    if(!legs_polar_base.empty())
+        legs_polar_base.clear();
 }
 
 void CartesianGridInterface::initFaces(SensorFOV_t sensor_fov)
@@ -284,7 +297,7 @@ void CartesianGridInterface::faceCallBack(const autonomy_human::human& msg)
         tmp_polar.range = person_range;
 
         face_polar_base.push_back(tmp_polar);
-        face_grid->computeLikelihood(face_polar_base, face_grid->new_data, sqrt(map_resolution), sqrt(map_resolution));
+        face_grid->computeLikelihood(face_polar_base, face_grid->likelihood, sqrt(map_resolution), sqrt(map_resolution));
         face_polar_base.clear();
     }
 }
@@ -323,7 +336,7 @@ void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSource& msg)
 //                r += sound_grid->sensor_fov.range.resolution;
 //                sound_polar_base.push_back(tmp_polar);
 //            }
-            sound_grid->computeLikelihood(sound_polar_base, sound_grid->new_data, sqrt(map_resolution), sqrt(map_resolution));
+            sound_grid->computeLikelihood(sound_polar_base, sound_grid->likelihood, sqrt(map_resolution), sqrt(map_resolution));
             sound_polar_base.clear();
         }
     }
@@ -378,7 +391,7 @@ void CartesianGridInterface::laserCallBack(const sensor_msgs::LaserScan& msg)
                 laser_polar_base.push_back(tmp_polar);
             }
 
-            laser_grid->computeLikelihood(laser_polar_base, laser_grid->new_data, sqrt(map_resolution), sqrt(map_resolution));
+            laser_grid->computeLikelihood(laser_polar_base, laser_grid->likelihood, sqrt(map_resolution), sqrt(map_resolution));
             laser_polar_base.clear();
         }
     }
@@ -414,8 +427,8 @@ void CartesianGridInterface::pointCloudGrid(CartesianGrid* grid, sensor_msgs::Po
 
         points.x = grid->map.cell_cart_pos[i].x;
         points.y = grid->map.cell_cart_pos[i].y;
-        points.z = grid->data[i];
-        probability_channel.values.push_back(grid->data[i]);
+        points.z = grid->posterior[i];
+        probability_channel.values.push_back(grid->posterior[i]);
         threshold_channel.values.push_back(prior_threshold);
         pointcloud_grid->points.push_back(points);
 
@@ -439,10 +452,15 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
     }else{
         occupancy_grid->data.clear();
     }
-
+    int temp_data;
     for(size_t i = 0; i < grid->grid_size; i++){
-        occupancy_grid->data.push_back(grid->new_data[i]);
+        if(temp_data < 0.1) temp_data = 0.1;
+        if(temp_data > 0.9) temp_data = 0.9;
+        temp_data = (int) 100 * grid->posterior[i];
+       // if(temp_data > 100) temp_data = 100;
+        occupancy_grid->data.push_back(temp_data);
     }
+   // ROS_INFO("Max Probability is: %.2f", grid->maxProbability(grid->posterior));
 }
 
 
@@ -537,26 +555,26 @@ void CartesianGridInterface::spin()
         //laser_grid->sensorUpdate(update_rate);
     }
     // HUMAN
-    //human_grid->setProbability(human_grid->new_data, cell_probability.human);
+    //human_grid->setProbability(human_grid->likelihood, cell_probability.human);
     if(number_of_sensors){
         if(leg_detection_enable){
-//            leg_grid->scaleProbability(leg_grid->data,0.5);
-//            human_grid->fuse(leg_grid->data);
+//            leg_grid->scaleProbability(leg_grid->posterior,0.5);
+//            human_grid->fuse(leg_grid->posterior);
         }
         if(torso_detection_enable)
-            human_grid->fuse(face_grid->data);
+            human_grid->fuse(face_grid->posterior);
         if(sound_detection_enable)
-            human_grid->fuse(sound_grid->data);
+            human_grid->fuse(sound_grid->posterior);
         if(laser_detection_enable){
-            laser_grid->scaleProbability(laser_grid->data,0.2);
-            human_grid->fuse(laser_grid->data);
+            laser_grid->scaleProbability(laser_grid->posterior,0.2);
+            human_grid->fuse(laser_grid->posterior);
         }
     }
 
 //    for(size_t i = 0; i < human_grid->grid_size; i++){
 //        ROS_INFO("----------");
 //        ROS_INFO("Cell Number: %lu",i);
-//        ROS_INFO("Probability:  %d",human_grid->new_data[i]);
+//        ROS_INFO("Probability:  %d",human_grid->likelihood[i]);
 //        ROS_INFO("Cell Position: x: %.2f    y: %.2f", human_grid->map.cell_cart_pos[i].x, human_grid->map.cell_cart_pos[i].y);
 //        ROS_INFO("----------");
 //    }
