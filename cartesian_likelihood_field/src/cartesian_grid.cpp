@@ -1,6 +1,6 @@
 #include "cartesian_grid.h"
 #include <assert.h>
-#include  <stdio.h>
+#include <stdio.h>
 
 #define _USE_MATH_DEFINES
 
@@ -9,11 +9,23 @@ float normalDistribution(const float x, const float u, const float s)
     return((1/(s*sqrt(2*M_PI)))*exp(-pow(x-u,2)/(2*pow(s,2))));
 }
 
+float normalize(const float val,const float x_min, const float x_max, const float range_min, const float range_max)
+{
+    ROS_ASSERT((x_max - x_min) != 0.0);
+    return (range_min + ((range_max - range_min)*(val - x_min) / (x_max - x_min)));
+}
+
+float normalize(const float val,const float x_min, const float x_max)
+{
+    ROS_ASSERT((x_max - x_min) != 0.0);
+    return ((val - x_min) / (x_max - x_min));
+}
+
 
 CartesianGrid::CartesianGrid(uint32_t map_size,
                              float_t map_resolution,
                              SensorFOV_t _sensor_fov,
-                             CellProbability_t cell_prob)
+                             CellProbability_t _cell_prob)
 {
     ROS_INFO("Constructing an instace of Cartesian Grid.");
     ROS_ASSERT(map_size%2 == 0);
@@ -23,6 +35,8 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     map.resolution = map_resolution;
     map.origin.position.x = (float) map.height*map.resolution / -2.0;
     map.origin.position.y = (float) map.width*map.resolution / -2.0;
+
+    cell_prob = _cell_prob;
 
     grid_size = map.height * map.width;
     sensor_fov = _sensor_fov;
@@ -77,31 +91,19 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     ROS_ASSERT( temp_cell_cart_pos.x > -x.max ); // The center of last cell is not out of grid
     ROS_ASSERT( temp_cell_cart_pos.y > -y.max );
 
-    try
-    {
-        posterior = new float[grid_size];
-        prior = new float[grid_size];
-        likelihood = new float[grid_size];
-    }
-    catch (std::bad_alloc& ba)
-    {
-      std::cerr << "in init: bad_alloc caught: " << ba.what() << '\n';
-    }
-    setGridProbability(posterior, cell_prob.free);
-    setGridProbability(likelihood, cell_prob.free);
-    setGridProbability(prior, cell_prob.free);
+
+    posterior.resize(grid_size, cell_prob.free);
+    prior.resize(grid_size, cell_prob.free);
+    likelihood.resize(grid_size, cell_prob.free);
+
 
     setUnknownProbability(posterior, cell_prob.unknown);
     setUnknownProbability(likelihood, cell_prob.unknown);
     setUnknownProbability(prior, cell_prob.unknown);
 }
 
-void CartesianGrid::setGridProbability(float* data, float val)
-{
-    std::fill(data, data + grid_size - 1 , val);
-}
 
-void CartesianGrid::setUnknownProbability(float* data, float val){
+void CartesianGrid::setUnknownProbability(std::vector<float> &data, const float val){
     for(size_t i = 0; i < grid_size; i++){
         if(!map.cell_inFOV.at(i)){
             data[i] = val;
@@ -109,7 +111,7 @@ void CartesianGrid::setUnknownProbability(float* data, float val){
     }
 }
 
-void CartesianGrid::setFreeProbability(float* data, float val){
+void CartesianGrid::setFreeProbability(std::vector<float>& data, const float val){
     for(size_t i = 0; i < grid_size; i++){
         if(map.cell_inFOV.at(i)){
             data[i] = val;
@@ -119,9 +121,9 @@ void CartesianGrid::setFreeProbability(float* data, float val){
 
 
 void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
-                                      float* data,
-                                      const double std_range,
-                                      const double std_angle)
+                                      std::vector<float> &data,
+                                      const float std_range,
+                                      const float std_angle)
 {
     if(pose.empty())
     {
@@ -130,86 +132,96 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
     }
 
     //if(poses.size() && !flag) flag = true; [??????]
-    float* distance;
+
     float cell_range, cell_angle;
-    float nearest_feature;
-    distance = new float [pose.size()];
+    uint arg_min;
+    std::vector<float> dist (pose.size());
+    std::vector<float> tmp_lk (grid_size, cell_prob.unknown);
 
     for(size_t i = 0; i < grid_size; i++){
         cell_range = map.cell_pol_pos.at(i).range;
         cell_angle = map.cell_pol_pos.at(i).angle;
 
         for(size_t p = 0; p < pose.size(); p++){
-            distance[p] = map.cell_pol_pos.at(i).distance(pose.at(p).range, pose.at(p).angle);
+            dist[p] = map.cell_pol_pos.at(i).distance(pose.at(p).range, pose.at(p).angle);
         }
-        nearest_feature = std::distance(distance, std::min_element(distance, distance + pose.size()));
+        arg_min = std::distance(dist.begin(), std::min_element(dist.begin(), dist.end()));
 
         if(map.cell_inFOV.at(i)){
-            data[i] = normalDistribution(cell_range, pose.at(nearest_feature).range, std_range) * normalDistribution(cell_angle, pose.at(nearest_feature).angle, std_angle);
-            //_data[i] = _data[i] * cell_prob.human;
-            if(data[i] < 0.1) data[i] = 0.1;
-            if(data[i] > 0.9) data[i] = 0.9;
+            tmp_lk[i] = normalDistribution(cell_range, pose.at(arg_min).range, std_range) * normalDistribution(cell_angle, pose.at(arg_min).angle, std_angle);
         }
     }
 
-    //ROS_INFO("Max Probability is: %d", maxProbability(data));
-    delete[] distance;
+    float lk_min = *std::min_element(tmp_lk.begin(), tmp_lk.end());
+    float lk_max = *std::max_element(tmp_lk.begin(), tmp_lk.end());
+
+
+    for(size_t i = 0; i < grid_size; i++){
+        if(map.cell_inFOV.at(i))
+            data[i] = normalize(tmp_lk[i],lk_min, lk_max, cell_prob.free, cell_prob.human);
+    }
+//    ROS_INFO("-----------------------------");
+//    ROS_INFO("max likelihood: %.2f", maxProbability(data));
+//    ROS_INFO("min likelihood: %.2f", minProbability(data));
+
 }
 
-void CartesianGrid::updateGridProbability(float* pr,
-                                     float* lk,
-                                     float* po)
+void CartesianGrid::updateGridProbability(std::vector<float>& pr, std::vector<float>& lk, std::vector<float>& po)
 {
+//    std::vector<float> log_pr(grid_size);
+//    std::vector<float> log_po(grid_size);
+//    std::vector<float> log_lk(grid_size);
 
-//    float* log_pr = new float[grid_size];
-//    float* log_po = new float[grid_size];
-//    float* log_lk = new float[grid_size];
-
-//    toLogOdd(prior, log_pr);
-//    toLogOdd(posterior, log_po);
-//    toLogOdd(likelihood, log_lk);
+//    toLogOdd(pr, log_pr);
+//    toLogOdd(po, log_po);
+//    toLogOdd(lk, log_lk);
 
 //    for(size_t i = 0; i < grid_size; i++){
-//        log_po[i] = log_pr[i] + log_lk[i];
+//        if(map.cell_inFOV[i]){
+//            log_po[i] = log_pr[i] + log_lk[i];
+//        } else{
+//            log_po[i] = log_pr[i];
+//        }
 //    }
 
-//    fromLogOdd(log_pr, prior);
-//    fromLogOdd(log_po, posterior);
-//    fromLogOdd(log_lk, likelihood);
+//    fromLogOdd(log_pr, pr);
+//    fromLogOdd(log_po, po);
+//    fromLogOdd(log_lk, lk);
 
 
-    float den;
     for(size_t i = 0; i < grid_size; i++){
-
-//        den = (lk[i] * pr[i]) + (1 - lk[i])*(1 - pr[i]);
-//        po[i] = lk[i] * pr[i] / den;
-
-        po[i] = 0.9 * pr[i] + 0.1 * lk[i];
-        if(po[i] < 0.1) po[i] = 0.1;
-        if(po[i] > 0.9) po[i] = 0.9;
+        if(map.cell_inFOV[i]){
+    //        po[i] = 0.9 * pr[i] + 0.1 * lk[i]; // LOW PASS Filter
+            float den = (lk[i] * pr[i]) + ((1 - lk[i])*(1 - pr[i]));
+            float tmp = lk[i] * pr[i] / den;
+            po[i] = tmp;
+            if(tmp > cell_prob.human)
+                po[i] = cell_prob.human;
+            else if(tmp < cell_prob.free)
+                po[i] = cell_prob.free;
+            else
+                po[i] = tmp;
+        }
     }
+    ROS_ASSERT(*std::max_element(po.begin(), po.end()) <= cell_prob.human);
+    ROS_ASSERT(*std::min_element(po.begin(), po.end()) >= cell_prob.free);
 
-//    int j = 500;
-//    ROS_INFO("prior: %f, likelihood: %f, posterior: %f",pr[j], lk[j], po[j]);
-//    ROS_INFO("Max Probability prior: %.2f", maxProbability(pr));
-//    ROS_INFO("Max Probability likelihood: %.2f", maxProbability(lk));
-//    ROS_INFO("Max Probability posterior: %.2f", maxProbability(po));
-
-    copyProbability(po, pr);      // prior = likelihood
-    copyProbability(po, lk); // posterior = likelihood // for publishing
+    pr = po;
+    lk = po;
 }
 
-void CartesianGrid::toLogOdd(float* probability_data, float* logodd_data)
+void CartesianGrid::toLogOdd(std::vector<float>& pr_data, std::vector<float>& logodd_data)
 {
     for(size_t i = 0; i < grid_size; i++){
-        logodd_data[i] = log((float) ((probability_data[i]) / (100 - probability_data[i])));
+        ROS_ASSERT((1.0 - pr_data[i]) > 0.0);
+        logodd_data[i] = log( ((pr_data[i]) / (1.0 - pr_data[i])));
     }
 }
 
-void CartesianGrid::fromLogOdd(float* logodd_data, float* probability_data)
+void CartesianGrid::fromLogOdd(std::vector<float>& logodd_data, std::vector<float>& pr_data)
 {
     for(size_t i = 0; i < grid_size; i++){
-        probability_data[i] = 100 - (float) (100/(1+exp(logodd_data[i])));
+        pr_data[i] = 1.0 - (1.0 / (1.0 + exp(logodd_data[i])));
     }
 }
 
@@ -229,65 +241,8 @@ void CartesianGrid::scaleProbability(float* data, float s)
     }
 }
 
-void CartesianGrid::copyProbability(float* input, float* output)
-{
-    for(size_t i = 0; i < grid_size; i++){
-        output[i] = input[i];
-    }
-}
-
-
-
-float CartesianGrid::minProbability(float* data)
-{
-    float min = data[0];
-    for(size_t i = 1; i < grid_size; i++){
-        if(data[i] < min){
-            min = data[i];
-        }
-    }
-    return min;
-}
-
-
-float CartesianGrid::maxProbability(float* data)
-{
-    float max = data[0];
-    for(size_t i = 1; i < grid_size; i++){
-        if(data[i] > max){
-            max = data[i];
-        }
-    }
-    return max;
-}
-
-//void Grid::normalize(PointRAP_t* data)
-//{
-//    if(maxProbability(data).probability < 0.9) return;
-//    if(fabs(maxProbability(data).probability - minProbability(data).probability) < 0.000001) return;
-//    scaleProbability(data,(cell_probability.human/maxProbability(data).probability));
-//}
-
-//void Grid::copyProbability(PointRAP_t* source, PointRAP_t* target)
-//{
-//    for(size_t i = 0; i < global_fov.getSize(); i++){
-//        target[i].probability = source[i].probability;
-//    }
-//}
-
-
-//PointRAP_t Grid::output()
-//{
-//ROS_INFO("max probability is : %lf at range: [%lf] angle: [%lf]  ",maxProbability(data).probability,
-//         maxProbability(data).range,
-//         maxProbability(data).angle);
-//}
-
 CartesianGrid::~CartesianGrid()
 {
-    delete[] posterior;
-    delete[] prior;
-    delete[] likelihood;
 }
 
 

@@ -2,7 +2,9 @@
 #define CARTESIAN_GRID_H
 
 #include <vector>
+//#include <array>
 #include <cmath>
+//#include <math.h>
 #include <algorithm>
 #include <iostream>
 #include <ros/ros.h>
@@ -11,17 +13,17 @@
 #include "polarcord.h"
 
 
-struct PointXYP_t{
-    double x;
-    double y;
-    double p;
-    double dist(PointXYP_t target){return sqrt(pow(x-target.x,2) + pow(y - target.y,2));}
-};
+//struct PointXYP_t{
+//    double x;
+//    double y;
+//    double p;
+//    double dist(PointXYP_t target){return sqrt(pow(x-target.x,2) + pow(y - target.y,2));}
+//};
 
 struct FOV_t{
     double min;
     double max;
-    double res;
+    //double res;
 };
 
 struct SensorFOV_t
@@ -43,7 +45,7 @@ struct MapMetaData_t{
 ros::Time map_load_time;
 
 // The map resolution [m/cell]
-float_t resolution;
+double resolution;
 
 //Map width [cells]
 uint32_t width;
@@ -69,35 +71,30 @@ class CartesianGrid
 private:
     FOV_t x;
     FOV_t y;
-    //void initGrid(MapMetaData_t map);
+    void toLogOdd(std::vector<float> &pr_data, std::vector<float> &logodd_data);
+    void fromLogOdd(std::vector<float> &logodd_data, std::vector<float> &pr_data);
 
 public:
     MapMetaData_t map;
     uint32_t grid_size;
-    float* posterior;
-    float* prior;
-    float* likelihood;
-    SensorFOV_t sensor_fov;
+    std::vector<float> posterior;
+    std::vector<float> prior;
+    std::vector<float> likelihood;
     bool flag;
+    SensorFOV_t sensor_fov;
     CellProbability_t cell_prob;
     CartesianGrid(uint32_t map_size,
                   float_t map_resolution,
                   SensorFOV_t _sensor_fov,
-                  CellProbability_t cell_prob);
+                  CellProbability_t _cell_prob);
     CartesianGrid();
     ~CartesianGrid();
     void fuse(float* input);
-    void computeLikelihood(const std::vector<PolarPose>& pose, float* data, const double std_range,const double std_angle);
-    void updateGridProbability(float* pr, float* lk, float* po);
-    void copyProbability(float* input, float* output);
-    void toLogOdd(float* probability_data, float* logodd_data);
-    void fromLogOdd(float* logodd_data, float* probability_data);
+    void computeLikelihood(const std::vector<PolarPose>& pose, std::vector<float> &data, const float std_range, const float std_angle);
+    void updateGridProbability(std::vector<float>& pr, std::vector<float>& lk, std::vector<float>& po);
     void scaleProbability(float* data, float s);
-    void setGridProbability(float* data, float val);
-    void setUnknownProbability(float* data, float val);
-    void setFreeProbability(float* data, float val);
-    float minProbability(float* data);
-    float maxProbability(float* data);
+    void setUnknownProbability(std::vector<float>& data, const float val);
+    void setFreeProbability(std::vector<float>& data, const float val);
 
 };
 

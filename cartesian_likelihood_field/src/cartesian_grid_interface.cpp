@@ -20,21 +20,15 @@ void CartesianGridInterface::init()
 
     ros::param::param("~/LikelihoodGrid/grid_angle_min",fov.angle.min, -M_PI);
     ros::param::param("~/LikelihoodGrid/grid_angle_max",fov.angle.max, M_PI);
-    ros::param::param("~/LikelihoodGrid/grid_angle_resolution",fov.angle.res, M_PI/18);
-    ROS_INFO("/LikelihoodGrid/grid_angle min: %.2lf max: %.2lf: resolution: %.2lf",
+    ROS_INFO("/LikelihoodGrid/grid_angle min: %.2lf max: %.2lf",
              fov.angle.min,
-             fov.angle.max,
-             fov.angle.res);
+             fov.angle.max);
 
     ros::param::param("~/LikelihoodGrid/grid_range_min",fov.range.min, 0.0);
     ros::param::param("~/LikelihoodGrid/grid_range_max",fov.range.max, 20.0);
-    ros::param::param("~/LikelihoodGrid/grid_range_resolution",fov.range.res, 0.5);
-    ROS_INFO("/LikelihoodGrid/grid_range min: %.2lf max: %.2lf: resolution: %.2lf",
+    ROS_INFO("/LikelihoodGrid/grid_range min: %.2lf max: %.2lf",
              fov.range.min,
-             fov.range.max,
-             fov.range.res);
-
-    //ros::param::param("~/CartesianLikelihoodGrid/map_size",map_size, 2);
+             fov.range.max);
 
     ros::param::param("~/CartesianLikelihoodGrid/resolution",map_resolution, 0.5);
     map_size = fov.range.max * 2 / map_resolution;
@@ -124,8 +118,8 @@ void CartesianGridInterface::init()
         SensorFOV_t mic_fov = fov;
         mic_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
         mic_fov.range.max = 10.00;
-        mic_fov.angle.min = toRadian(-90);
-        mic_fov.angle.max = toRadian(90);
+        mic_fov.angle.min = toRadian(-90.0);
+        mic_fov.angle.max = toRadian(90.0);
         initSound(mic_fov);
         sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
         sound_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
@@ -246,16 +240,11 @@ void CartesianGridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
                                 leg_grid->likelihood,
                                 0.1,
                                 toRadian(5.0));
-//    ROS_INFO("--------------------------------------");
-//    ROS_INFO("Max Probability prior: %.2f",leg_grid-> maxProbability(leg_grid->prior));
-//    ROS_INFO("Max Probability likelihood: %.2f", leg_grid->maxProbability(leg_grid->likelihood));
-//    ROS_INFO("Max Probability posterior: %.2f", leg_grid->maxProbability(leg_grid->posterior));
 
 
     leg_grid->updateGridProbability(leg_grid->prior,
                                leg_grid->likelihood,
                                leg_grid->posterior);
-//    leg_grid->copyProbability(leg_grid->likelihood, leg_grid->posterior);
 
     if(!legs_polar_base.empty())
         legs_polar_base.clear();
@@ -454,10 +443,7 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
     }
     int temp_data;
     for(size_t i = 0; i < grid->grid_size; i++){
-        if(temp_data < 0.1) temp_data = 0.1;
-        if(temp_data > 0.9) temp_data = 0.9;
         temp_data = (int) 100 * grid->posterior[i];
-       // if(temp_data > 100) temp_data = 100;
         occupancy_grid->data.push_back(temp_data);
     }
    // ROS_INFO("Max Probability is: %.2f", grid->maxProbability(grid->posterior));
@@ -562,22 +548,14 @@ void CartesianGridInterface::spin()
 //            human_grid->fuse(leg_grid->posterior);
         }
         if(torso_detection_enable)
-            human_grid->fuse(face_grid->posterior);
+//            human_grid->fuse(face_grid->posterior);
         if(sound_detection_enable)
-            human_grid->fuse(sound_grid->posterior);
+//            human_grid->fuse(sound_grid->posterior);
         if(laser_detection_enable){
-            laser_grid->scaleProbability(laser_grid->posterior,0.2);
-            human_grid->fuse(laser_grid->posterior);
+//            laser_grid->scaleProbability(laser_grid->posterior,0.2);
+//            human_grid->fuse(laser_grid->posterior);
         }
     }
-
-//    for(size_t i = 0; i < human_grid->grid_size; i++){
-//        ROS_INFO("----------");
-//        ROS_INFO("Cell Number: %lu",i);
-//        ROS_INFO("Probability:  %d",human_grid->likelihood[i]);
-//        ROS_INFO("Cell Position: x: %.2f    y: %.2f", human_grid->map.cell_cart_pos[i].x, human_grid->map.cell_cart_pos[i].y);
-//        ROS_INFO("----------");
-//    }
     publish();
 }
 
