@@ -195,7 +195,7 @@ void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
 void CartesianGridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
 {
     if(!leg_detection_enable) return;
-    if(leg_counter++ < 5) return;
+    if(leg_counter++ < 10) return;
     leg_counter = 0;
 
     //std::vector<geometry_msgs::Pose> legs_laser; // *** Can be removed ***
@@ -204,7 +204,7 @@ void CartesianGridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
     leg_grid->flag = true;
 
     if(msg.poses.empty()) {
-        leg_grid->setFreeProbability(leg_grid->likelihood, leg_grid->cell_prob.free);
+        leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
         return;
     }
 
@@ -214,10 +214,6 @@ void CartesianGridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
     geometry_msgs::PointStamped tmp_laser, tmp_base;
     PolarPose tmp_polar;
     last_leg_time = ros::Time::now();
-    //legs_laser = msg.poses; // *** Can be removed ***
-
-
-
     tmp_laser.header = msg.header;
     tmp_laser.header.frame_id = "laser";
 
@@ -239,12 +235,15 @@ void CartesianGridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
     leg_grid->computeLikelihood(legs_polar_base,
                                 leg_grid->likelihood,
                                 0.1,
-                                toRadian(5.0));
+                                toRadian(45.0*M_PI/180.0));
 
 
-    leg_grid->updateGridProbability(leg_grid->prior,
-                               leg_grid->likelihood,
-                               leg_grid->posterior);
+//    leg_grid->updateGridProbability(leg_grid->prior,
+//                               leg_grid->likelihood,
+//                               leg_grid->posterior);
+//    leg_grid->bayesOccupancyFilter(legs_polar_base,
+//                                   0.1,
+//                                   toRadian(5.0));
 
     if(!legs_polar_base.empty())
         legs_polar_base.clear();
@@ -441,12 +440,17 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
     }else{
         occupancy_grid->data.clear();
     }
-    int temp_data;
+
     for(size_t i = 0; i < grid->grid_size; i++){
-        temp_data = (int) 100 * grid->posterior[i];
+
+        uint temp_data = 50;
+
+        if(grid->map.cell_inFOV.at(i)){
+            temp_data = (uint) 100 * grid->posterior[i];
+        }
+
         occupancy_grid->data.push_back(temp_data);
     }
-   // ROS_INFO("Max Probability is: %.2f", grid->maxProbability(grid->posterior));
 }
 
 
@@ -512,9 +516,12 @@ void CartesianGridInterface::spin()
     // LEGS
     if(leg_detection_enable){
         diff_leg_time = ros::Time::now() - last_leg_time;
-        leg_grid->flag = !(diff_leg_time.toSec() > 2.0);
-//        leg_grid->nonlinear_negative_data = true;
-//        leg_grid->sensorUpdate(update_rate);
+        if(diff_leg_time.toSec() > 2.0){
+            leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
+        }
+        leg_grid->updateGridProbability(leg_grid->prior,
+                                        leg_grid->likelihood,
+                                        leg_grid->posterior);
     }
 
     // FACES
@@ -522,7 +529,6 @@ void CartesianGridInterface::spin()
         diff_face_time = ros::Time::now() - last_face_time;
         face_grid->flag = !(diff_face_time.toSec() > 2.0);
 //        face_grid->nonlinear_negative_data = false;
-//        face_grid->sensorUpdate(update_rate);
     }
 
     // SOUND

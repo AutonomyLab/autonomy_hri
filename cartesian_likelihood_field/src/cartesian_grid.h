@@ -20,6 +20,8 @@
 //    double dist(PointXYP_t target){return sqrt(pow(x-target.x,2) + pow(y - target.y,2));}
 //};
 
+float normalize(const float val,const float x_min, const float x_max, const float range_min, const float range_max);
+
 struct FOV_t{
     double min;
     double max;
@@ -95,7 +97,7 @@ public:
     void scaleProbability(float* data, float s);
     void setUnknownProbability(std::vector<float>& data, const float val);
     void setFreeProbability(std::vector<float>& data, const float val);
-
+    void bayesOccupancyFilter(const std::vector<PolarPose> &pose, const float std_range, const float std_angle);
 };
 
 #endif

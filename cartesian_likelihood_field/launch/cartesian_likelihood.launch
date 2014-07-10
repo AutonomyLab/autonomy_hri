@@ -7,7 +7,7 @@
 
 <node pkg="cartesian_likelihood_field" type="cartesian_likelihood_field" name="cartesian_likelihood_field" output="screen">
         <param name="use_sim_time" value="true" />
-        <param name="CartesianLikelihoodGrid/resolution" value="0.1"/>
+        <param name="CartesianLikelihoodGrid/resolution" value="0.25"/>
         <param name="LikelihoodGrid/grid_angle_min" value="-3.14"/>
         <param name="LikelihoodGrid/grid_angle_max" value="3.14"/>
         <param name="LikelihoodGrid/grid_range_min" value="0.0"/>

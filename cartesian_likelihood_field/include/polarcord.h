@@ -28,7 +28,7 @@ public:
 
 inline static double toRadian(double t)
 {
-    return t*M_PI/180;
+    return t*M_PI/180.0;
 }
 
 #endif

@@ -6,18 +6,19 @@
 
 float normalDistribution(const float x, const float u, const float s)
 {
-    return((1/(s*sqrt(2*M_PI)))*exp(-pow(x-u,2)/(2*pow(s,2))));
+    return((1.0/(s*sqrt(2.0 * M_PI)))*exp(- 0.5 * pow(x-u,2)/(s * s)));
+//    return (1.0/sqrt(2.0 * M_PI)) * exp(-0.5*x*x);
 }
 
 float normalize(const float val,const float x_min, const float x_max, const float range_min, const float range_max)
 {
-    ROS_ASSERT((x_max - x_min) != 0.0);
+    ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
     return (range_min + ((range_max - range_min)*(val - x_min) / (x_max - x_min)));
 }
 
 float normalize(const float val,const float x_min, const float x_max)
 {
-    ROS_ASSERT((x_max - x_min) != 0.0);
+    ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
     return ((val - x_min) / (x_max - x_min));
 }
 
@@ -96,7 +97,6 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     prior.resize(grid_size, cell_prob.free);
     likelihood.resize(grid_size, cell_prob.free);
 
-
     setUnknownProbability(posterior, cell_prob.unknown);
     setUnknownProbability(likelihood, cell_prob.unknown);
     setUnknownProbability(prior, cell_prob.unknown);
@@ -125,96 +125,73 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                                       const float std_range,
                                       const float std_angle)
 {
-    if(pose.empty())
-    {
-        setFreeProbability(data, cell_prob.free);
-        return;
-    }
-
-    //if(poses.size() && !flag) flag = true; [??????]
-
     float cell_range, cell_angle;
-    uint arg_min;
-    std::vector<float> dist (pose.size());
-    std::vector<float> tmp_lk (grid_size, cell_prob.unknown);
+//    uint arg_min;
+//    std::vector<float> dist (pose.size(), 0.0);
 
     for(size_t i = 0; i < grid_size; i++){
         cell_range = map.cell_pol_pos.at(i).range;
         cell_angle = map.cell_pol_pos.at(i).angle;
 
-        for(size_t p = 0; p < pose.size(); p++){
-            dist[p] = map.cell_pol_pos.at(i).distance(pose.at(p).range, pose.at(p).angle);
-        }
-        arg_min = std::distance(dist.begin(), std::min_element(dist.begin(), dist.end()));
+//        for(size_t p = 0; p < pose.size(); p++){
+//            dist[p] = map.cell_pol_pos.at(i).distance(pose.at(p).range, pose.at(p).angle);
+//        }
+//        arg_min = std::distance(dist.begin(), std::min_element(dist.begin(), dist.end()));
+
+        float tmp_cell_prob = 0.0;
 
         if(map.cell_inFOV.at(i)){
-            tmp_lk[i] = normalDistribution(cell_range, pose.at(arg_min).range, std_range) * normalDistribution(cell_angle, pose.at(arg_min).angle, std_angle);
+            for(size_t p = 0; p < pose.size(); p++){
+                float Gr = normalDistribution(cell_range, pose.at(p).range, std_range);
+                float Ga = normalDistribution(cell_angle, pose.at(p).angle, std_angle);
+                tmp_cell_prob += Gr * Ga;
+            }
+            data[i] = tmp_cell_prob / pose.size();
+//            data[i] = normalDistribution(cell_range, pose.at(arg_min).range, std_range) * normalDistribution(cell_angle, pose.at(arg_min).angle, std_angle);
         }
     }
-
-    float lk_min = *std::min_element(tmp_lk.begin(), tmp_lk.end());
-    float lk_max = *std::max_element(tmp_lk.begin(), tmp_lk.end());
-
-
-    for(size_t i = 0; i < grid_size; i++){
-        if(map.cell_inFOV.at(i))
-            data[i] = normalize(tmp_lk[i],lk_min, lk_max, cell_prob.free, cell_prob.human);
-    }
-//    ROS_INFO("-----------------------------");
-//    ROS_INFO("max likelihood: %.2f", maxProbability(data));
-//    ROS_INFO("min likelihood: %.2f", minProbability(data));
-
 }
 
 void CartesianGrid::updateGridProbability(std::vector<float>& pr, std::vector<float>& lk, std::vector<float>& po)
 {
-//    std::vector<float> log_pr(grid_size);
-//    std::vector<float> log_po(grid_size);
-//    std::vector<float> log_lk(grid_size);
-
-//    toLogOdd(pr, log_pr);
-//    toLogOdd(po, log_po);
-//    toLogOdd(lk, log_lk);
-
-//    for(size_t i = 0; i < grid_size; i++){
-//        if(map.cell_inFOV[i]){
-//            log_po[i] = log_pr[i] + log_lk[i];
-//        } else{
-//            log_po[i] = log_pr[i];
-//        }
-//    }
-
-//    fromLogOdd(log_pr, pr);
-//    fromLogOdd(log_po, po);
-//    fromLogOdd(log_lk, lk);
-
+    std::vector<float> tmp(grid_size, cell_prob.unknown);
 
     for(size_t i = 0; i < grid_size; i++){
         if(map.cell_inFOV[i]){
-    //        po[i] = 0.9 * pr[i] + 0.1 * lk[i]; // LOW PASS Filter
-            float den = (lk[i] * pr[i]) + ((1 - lk[i])*(1 - pr[i]));
-            float tmp = lk[i] * pr[i] / den;
-            po[i] = tmp;
-            if(tmp > cell_prob.human)
-                po[i] = cell_prob.human;
-            else if(tmp < cell_prob.free)
-                po[i] = cell_prob.free;
-            else
-                po[i] = tmp;
+
+            float den = (lk[i] * pr[i]) + 0.1 * (1.0 - pr[i]);
+            tmp[i] = lk[i] * pr[i] / den;
         }
     }
-    ROS_ASSERT(*std::max_element(po.begin(), po.end()) <= cell_prob.human);
-    ROS_ASSERT(*std::min_element(po.begin(), po.end()) >= cell_prob.free);
+
+    float tmp_min = *std::min_element(tmp.begin(), tmp.end());
+    float tmp_max = *std::max_element(tmp.begin(), tmp.end());
+
+    for(size_t i = 0; i < grid_size; i++){
+        if(map.cell_inFOV[i]){
+            po[i] = normalize(tmp[i], tmp_min, tmp_max, cell_prob.free, cell_prob.human);
+        }
+    }
 
     pr = po;
-    lk = po;
+    ROS_ASSERT(*std::max_element(po.begin(), po.end()) <= cell_prob.human);
+    ROS_ASSERT(*std::min_element(po.begin(), po.end()) >= cell_prob.free);
 }
+
+void CartesianGrid::bayesOccupancyFilter(const std::vector<PolarPose>& pose,
+                                         const float std_range,
+                                         const float std_angle)
+{
+    computeLikelihood(pose,likelihood, std_range, std_angle);
+    updateGridProbability(prior, likelihood, posterior);
+}
+
 
 void CartesianGrid::toLogOdd(std::vector<float>& pr_data, std::vector<float>& logodd_data)
 {
     for(size_t i = 0; i < grid_size; i++){
         ROS_ASSERT((1.0 - pr_data[i]) > 0.0);
-        logodd_data[i] = log( ((pr_data[i]) / (1.0 - pr_data[i])));
+        logodd_data[i] = log((pr_data[i]) / (1.0 - pr_data[i]));
     }
 }
 
