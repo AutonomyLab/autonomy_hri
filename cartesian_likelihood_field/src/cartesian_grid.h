@@ -82,6 +82,9 @@ public:
     std::vector<float> posterior;
     std::vector<float> prior;
     std::vector<float> likelihood;
+    std::vector<float> predicted_posterior;
+    std::vector<float> prediction;
+
     bool flag;
     SensorFOV_t sensor_fov;
     CellProbability_t cell_prob;

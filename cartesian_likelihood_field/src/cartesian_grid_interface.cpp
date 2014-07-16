@@ -16,8 +16,6 @@ CartesianGridInterface::CartesianGridInterface(ros::NodeHandle _n, tf::Transform
 
 void CartesianGridInterface::init()
 {
-
-
     ros::param::param("~/LikelihoodGrid/grid_angle_min",fov.angle.min, -M_PI);
     ros::param::param("~/LikelihoodGrid/grid_angle_max",fov.angle.max, M_PI);
     ROS_INFO("/LikelihoodGrid/grid_angle min: %.2lf max: %.2lf",
@@ -90,6 +88,8 @@ void CartesianGridInterface::init()
     accept_counter = 0;
     reject_counter = 0;
 
+    last_time_encoder = ros::Time::now();
+
     if(leg_detection_enable){
         SensorFOV_t legs_fov = fov;
         //legs_fov.range.max = 20.0;
@@ -99,6 +99,10 @@ void CartesianGridInterface::init()
         initLegs(legs_fov);
         legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
         leg_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
+        predicted_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
+        last_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("last_legs",10);
+        current_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("legs_basefootprint",10);
+
         leg_counter = 0;
     }
 
@@ -177,6 +181,19 @@ bool CartesianGridInterface::transformToBase(geometry_msgs::PointStamped& source
     return can_transform;
 }
 
+void CartesianGridInterface::encoderCallBack(const nav_msgs::Odometry& encoder_msg)
+{
+//    ROS_INFO("Received encoder msgs ***%.6f", encoder_msg.header.stamp.toSec());
+////    if(!motion_model_enable) return;
+//    current_time_encoder = ros::Time::now();
+//    velocity = encoder_msg.twist.twist;
+//    diff_time = 0.10;
+////    diff_time = current_time_encoder.toSec() - last_time_encoder.toSec();
+//    diff_pose.position.x = -velocity.linear.x * diff_time; // dx = vx * dt
+//    diff_pose.position.y = -velocity.linear.y * diff_time;
+//    diff_pose.orientation.z = -velocity.angular.z/2 * diff_time;
+//    last_time_encoder = current_time_encoder;
+}
 
 
 void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
@@ -192,61 +209,214 @@ void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
 }
 
 
-void CartesianGridInterface::legCallBack(const geometry_msgs::PoseArray& msg)
+void CartesianGridInterface::legCallBack(const geometry_msgs::PoseArray& leg_msg)
 {
-    if(!leg_detection_enable) return;
-    if(leg_counter++ < 10) return;
-    leg_counter = 0;
+//    ROS_INFO("Received leg msgs %.6f", leg_msg.header.stamp.toSec());
+//    if(!leg_detection_enable) return;
+////    if(leg_counter++ < 10) return;
+////    leg_counter = 0;
+//    leg_frame_id = "base_footprint";
+//    leg_grid->flag = true;
 
-    //std::vector<geometry_msgs::Pose> legs_laser; // *** Can be removed ***
-    std::vector<PolarPose> legs_polar_base;
+//    if(!current_leg_poses.empty())
+//        current_leg_poses.clear();
+
+//    geometry_msgs::PointStamped tmp_laser, tmp_base;
+//    PolarPose tmp_polar;
+//    last_leg_time = ros::Time::now();
+//    tmp_laser.header = leg_msg.header;
+//    tmp_laser.header.frame_id = "laser";
+
+//    for(size_t i = 0; i < leg_msg.poses.size(); i++){
+//        tmp_laser.point = leg_msg.poses.at(i).position;
+
+//        if(!transformToBase(tmp_laser, tmp_base)){
+//            ROS_WARN("Can not transform from laser to base_footprint");
+//            return;
+//        }
+//        tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
+//        current_leg_poses.push_back(tmp_polar);
+    }
+
+//    ROS_ASSERT(current_leg_poses.size() == leg_msg.poses.size());
+//    last_leg_poses = current_leg_poses;
+//}
+
+void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn, const nav_msgs::OdometryConstPtr& encoder_msg)
+{
+//    ----------   ENCODER CALLBACK   ----------
+
+//    if(!motion_model_enable) return;
+    geometry_msgs::Point test_input_point, test_output_point;
+    current_time_encoder = ros::Time::now();
+    robot_linear_velocity = sqrt( pow(encoder_msg->twist.twist.linear.x,2) + pow(encoder_msg->twist.twist.linear.y,2) );
+    robot_angular_velocity = encoder_msg->twist.twist.angular.z/2;
+    diff_time = current_time_encoder.toSec() - last_time_encoder.toSec();   // dt = t1 - t0
+//    ROS_INFO("diff time: %.4f",diff_time);
+
+//    velocity.linear is robot's linear velocity in (m/s) and velocity.angular is robot's angular velocity in (Radian/sec)
+//    diff_pose_crtsn.position.x = -robot_linear_velocity.linear.x * diff_time;  // dx = -vx * dt (m)
+//    diff_pose_crtsn.position.y = -robot_linear_velocity.linear.y * diff_time;  // dy = -vy * dt (m)
+//    diff_pose_crtsn.position.z = 0.0;
+//    diff_pose_crtsn.orientation.z = -robot_linear_velocity.angular.z/2 * diff_time;    // dtheta = -vtetha * dt (radian)
+    last_time_encoder = current_time_encoder;
+
+    // TEST ***********************
+//    test_input_point.x = 0.0;
+//    test_input_point.y = 0.0;
+//    test_input_point.z = 0.0;
+
+//    test_output_point.x = -encoder_msg->pose.pose.x * diff_time + test_input_point.x;
+//    test_output_point.y = -encoder_msg->pose.pose.y * diff_time + test_input_point.y;
+//    test_output_point.z = 0.0 + test_input_point.z;
+
+//    ROS_INFO("From: x: %.2f     y: %.2f     z: %.2f",test_input_point.x, test_input_point.y, test_input_point.z );
+//    ROS_INFO("To:   x: %.2f     y: %.2f     z: %.2f",test_output_point.x, test_output_point.y, test_output_point.z);
+
+
+
+//    ROS_INFO("      dx: %.4f    dy:%.4f     dtheta: %.4f", diff_pose_crtsn.position.x, diff_pose_crtsn.position.y, diff_pose_crtsn.orientation.z);
+
+//    ------------------------------------------
+
+//    ----------   LEG DETECTION CALLBACK   ----------
+
+//    ROS_INFO("Received leg msgs %.6f", leg_msg->header.stamp.toSec());
+    if(!leg_detection_enable) return;
+    geometry_msgs::Pose current_leg_pose_base_crtsn;
+    geometry_msgs::PoseArray current_leg_pose_array_base_crtsn;
+    current_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
+    current_leg_pose_array_base_crtsn.header.stamp = ros::Time::now();
+    if(!current_leg_pose_array_base_crtsn.poses.empty()) current_leg_pose_array_base_crtsn.poses.clear();
+
     leg_frame_id = "base_footprint";
     leg_grid->flag = true;
 
-    if(msg.poses.empty()) {
-        leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
-        return;
-    }
-
-    if(!legs_polar_base.empty())
-        legs_polar_base.clear();
-
-    geometry_msgs::PointStamped tmp_laser, tmp_base;
-    PolarPose tmp_polar;
+    geometry_msgs::PointStamped current_leg_point_laser_crtsn, current_leg_point_base_crtsn;
+    PolarPose current_leg_pose_base_polar;
     last_leg_time = ros::Time::now();
-    tmp_laser.header = msg.header;
-    tmp_laser.header.frame_id = "laser";
+    current_leg_point_laser_crtsn.header = leg_msg_crtsn->header;
+    current_leg_point_laser_crtsn.header.frame_id = "laser";
 
-    for(size_t i = 0; i < msg.poses.size(); i++){
+    if(!current_leg_pose_array_base_polar.empty()) current_leg_pose_array_base_polar.clear();
 
-        tmp_laser.point = msg.poses.at(i).position;
+    for(size_t i = 0; i < leg_msg_crtsn->poses.size(); i++){
+        current_leg_point_laser_crtsn.point = leg_msg_crtsn->poses.at(i).position;
 
-        if(!transformToBase(tmp_laser, tmp_base)){
+        if(!transformToBase(current_leg_point_laser_crtsn, current_leg_point_base_crtsn)){
             ROS_WARN("Can not transform from laser to base_footprint");
             return;
         }
-        tmp_polar.fromCart(tmp_base.point.x, tmp_base.point.y);
-        legs_polar_base.push_back(tmp_polar);
+        current_leg_pose_base_crtsn.position = current_leg_point_base_crtsn.point;
+        current_leg_pose_base_crtsn.position.z = 0.0;
+        current_leg_pose_array_base_crtsn.poses.push_back(current_leg_pose_base_crtsn);
+
+        current_leg_pose_base_polar.fromCart(current_leg_point_base_crtsn.point.x, current_leg_point_base_crtsn.point.y);
+        current_leg_pose_array_base_polar.push_back(current_leg_pose_base_polar);
     }
 
-    ROS_ASSERT(legs_polar_base.size() == msg.poses.size());
+    current_leg_base_pub.publish(current_leg_pose_array_base_crtsn);
 
+    ROS_ASSERT(current_leg_pose_array_base_polar.size() == leg_msg_crtsn->poses.size());
+//    last_leg_poses = current_leg_poses;
 
-    leg_grid->computeLikelihood(legs_polar_base,
-                                leg_grid->likelihood,
-                                0.1,
-                                toRadian(45.0*M_PI/180.0));
+//    ------------------------------------------------
+    ROS_INFO("*******************************************************************");
 
+    PolarPose predicted_leg_pose_base_polar;
+    geometry_msgs::Pose predicted_leg_pose_base_crtsn, last_leg_pose_base_crtsn;
+    geometry_msgs::PoseArray last_leg_pose_array_base_crtsn, predicted_leg_pose_array_base_crtsn;
+    float diff_range;
 
-//    leg_grid->updateGridProbability(leg_grid->prior,
-//                               leg_grid->likelihood,
-//                               leg_grid->posterior);
-//    leg_grid->bayesOccupancyFilter(legs_polar_base,
-//                                   0.1,
-//                                   toRadian(5.0));
+    leg_diff_time = ros::Time::now() - last_leg_time;
 
-    if(!legs_polar_base.empty())
-        legs_polar_base.clear();
+    last_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
+    last_leg_pose_array_base_crtsn.header.stamp = ros::Time::now();
+
+    predicted_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
+    predicted_leg_pose_array_base_crtsn.header.stamp = ros::Time::now();
+
+    if(!predicted_leg_pose_array_base_crtsn.poses.empty()) predicted_leg_pose_array_base_crtsn.poses.clear(); // Pl = {}
+    if(!last_leg_pose_array_base_crtsn.poses.empty()) last_leg_pose_array_base_crtsn.poses.clear();
+
+    if(!predicted_leg_pose_array_base_polar.empty())    predicted_leg_pose_array_base_polar.clear();
+
+    for(size_t p = 0 ; p < last_leg_pose_array_base_polar.size(); p++){ // {l0_0, ..., l0_P}
+
+        last_leg_pose_array_base_polar.at(p).toCart(last_leg_pose_base_crtsn.position.x,last_leg_pose_base_crtsn.position.y);   // (x0,y0)_p
+        last_leg_pose_base_crtsn.position.z = 0.0;
+        last_leg_pose_array_base_crtsn.poses.push_back(last_leg_pose_base_crtsn);
+
+        double leg_angular_velocity;
+        double leg_linear_velocity;
+
+        leg_angular_velocity = (robot_linear_velocity * sin(last_leg_pose_array_base_polar.at(p).angle) /
+                                last_leg_pose_array_base_polar.at(p).range) - robot_angular_velocity;
+        leg_linear_velocity = -robot_linear_velocity * cos(last_leg_pose_array_base_polar.at(p).angle);
+
+        predicted_leg_pose_base_polar.range = leg_linear_velocity * diff_time + last_leg_pose_array_base_polar.at(p).range;
+        predicted_leg_pose_base_polar.angle = leg_angular_velocity * diff_time + last_leg_pose_array_base_polar.at(p).angle;
+
+        predicted_leg_pose_base_crtsn.position.x = predicted_leg_pose_base_polar.range * cos(predicted_leg_pose_base_polar.angle);
+        predicted_leg_pose_base_crtsn.position.y = predicted_leg_pose_base_polar.range * sin(predicted_leg_pose_base_polar.angle);
+        predicted_leg_pose_base_crtsn.position.z = 0.0;
+        predicted_leg_pose_array_base_crtsn.poses.push_back(predicted_leg_pose_base_crtsn);
+
+        diff_range = predicted_leg_pose_base_polar.range - last_leg_pose_array_base_polar.at(p).range;
+
+//        ROS_INFO("predicted leg pose: range: %.4f   angle: %.4f", predicted_leg_pose_base_polar.range,
+//                 predicted_leg_pose_base_polar.angle);
+
+//        ROS_INFO("diff (predicted - last): range: %.4f    angle: %.4f", diff_range, diff_pose_crtsn.orientation.z);
+//        predicted_leg_pose_array_base_polar.push_back(predicted_leg_pose_base_polar);
+
+    }
+    predicted_leg_base_pub.publish(predicted_leg_pose_array_base_crtsn);
+    last_leg_base_pub.publish(last_leg_pose_array_base_crtsn);
+
+    for(size_t pi = 0; pi < predicted_leg_pose_array_base_polar.size(); pi++){
+        for(size_t ci = 0; ci < current_leg_pose_array_base_polar.size(); ci++){
+//            ROS_INFO("Diff (Current %lu - Prediction %lu)  range: %.4f   angle: %.4f ", ci, pi,
+//                     current_leg_pose_array_base_polar.at(ci).range - predicted_leg_pose_array_base_polar.at(pi).range,
+//                     current_leg_pose_array_base_polar.at(ci).angle - predicted_leg_pose_array_base_polar.at(pi).angle);
+        }
+    }
+
+    for(size_t li = 0; li < last_leg_pose_array_base_polar.size(); li++){
+        for(size_t ci = 0; ci < current_leg_pose_array_base_polar.size(); ci++){
+//            ROS_ERROR("Diff (Current %lu - last %lu)  range: %.4f   angle: %.4f ", ci, li,
+//                     current_leg_pose_array_base_polar.at(ci).range - last_leg_pose_array_base_polar.at(li).range,
+//                     current_leg_pose_array_base_polar.at(ci).angle - last_leg_pose_array_base_polar.at(li).angle);
+        }
+    }
+
+    ROS_INFO("-----------------------------------------------------------------------------");
+
+    leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
+    leg_grid->setFreeProbability(leg_grid->prediction, 0.01);
+
+    leg_grid->computeLikelihood(predicted_leg_pose_array_base_polar,
+                                leg_grid->prediction,
+                                0.2,
+                                toRadian(60.0*M_PI/180.0));
+    leg_grid->updateGridProbability(leg_grid->prior,
+                                    leg_grid->prediction,
+                                    leg_grid->predicted_posterior);
+
+    if(leg_diff_time.toSec() < 2.0){
+
+        leg_grid->computeLikelihood(current_leg_pose_array_base_polar,
+                                    leg_grid->likelihood,
+                                    0.1,
+                                    toRadian(45.0*M_PI/180.0));
+    }
+
+    leg_grid->updateGridProbability(leg_grid->predicted_posterior,
+                                    leg_grid->likelihood,
+                                    leg_grid->posterior);
+    leg_grid->prior = leg_grid->posterior;
+    last_leg_pose_array_base_polar = current_leg_pose_array_base_polar;
+
 }
 
 void CartesianGridInterface::initFaces(SensorFOV_t sensor_fov)
@@ -515,13 +685,100 @@ void CartesianGridInterface::spin()
 {
     // LEGS
     if(leg_detection_enable){
-        diff_leg_time = ros::Time::now() - last_leg_time;
-        if(diff_leg_time.toSec() > 2.0){
-            leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
-        }
-        leg_grid->updateGridProbability(leg_grid->prior,
-                                        leg_grid->likelihood,
-                                        leg_grid->posterior);
+
+//        PolarPose polar_pose_tmp;
+//        geometry_msgs::Pose pose_new, pose_old;
+//        geometry_msgs::PoseArray pr_legs, last_legs;
+//        float x_old, y_old, x_new, y_new, diff_range;
+//        leg_diff_time = ros::Time::now() - last_leg_time;
+//        pr_legs.header.frame_id = "base_footprint";
+//        pr_legs.header.stamp = ros::Time::now();
+
+//        last_legs.header.frame_id = "base_footprint";
+//        last_legs.header.stamp = ros::Time::now();
+
+//        if(!predict_leg_poses.empty()) predict_leg_poses.clear(); // Pl = {}
+//        if(!pr_legs.poses.empty()) pr_legs.poses.clear(); // Pl = {}
+//        if(!last_legs.poses.empty()) last_legs.poses.clear();
+
+//        for(size_t p = 0 ; p < last_leg_poses.size(); p++){ // {l0_0, ..., l0_P}
+
+//            last_leg_poses.at(p).toCart(x_old,y_old);   // (x0,y0)_p
+//            x_new = x_old + diff_pose.position.x;   // x1_p = x0_p + dx
+//            y_new = y_old + diff_pose.position.y;   // y1_p = y0_p + dy
+//            pose_new.position.x = x_new;
+//            pose_new.position.y = y_new;
+//            pose_new.position.z = 0.0;
+//            pr_legs.poses.push_back(pose_new);
+
+//            pose_old.position.x = x_old;
+//            pose_old.position.y = y_old;
+//            pose_old.position.z = 0.0;
+//            last_legs.poses.push_back(pose_old);
+////            ROS_INFO("X1: %.4f      X0 = %.4f", x_new, x_old);
+////            ROS_INFO("Y1: %.4f      Y0 = %.4f", y_new, y_old);
+//            polar_pose_tmp.range = sqrt(x_new * x_new + y_new * y_new);    // r1 = sqrt( x1_p*x1_p + y1_p*y1_p )
+//            polar_pose_tmp.angle = last_leg_poses.at(p).angle + diff_pose.orientation.z;   // theta1_p = theta0_p + dtheta
+//            diff_range = polar_pose_tmp.range - last_leg_poses.at(p).range;
+
+////            diff_range = (x_old*diff_pose.position.x + y_old*diff_pose.position.y)/last_leg_poses.at(p).range;
+////            tmp.angle = last_leg_poses.at(p).angle + diff_pose.orientation.z;
+////            tmp.range = last_leg_poses.at(p).range + diff_range;
+
+
+//            if( abs(diff_range) > 1.5 || abs(diff_pose.orientation.z) > 4.0){
+//                ROS_INFO("difference between two legs are too large: diff range: %.4f   diff angle: %.4f", diff_range, diff_pose.orientation.z);
+
+//            } else{
+//                ROS_ERROR("diff: (Prediction - last) range: %.4f   angle: %.4f   number of legs: %lu", diff_range, diff_pose.orientation.z, last_leg_poses.size());
+//                predict_leg_poses.push_back(polar_pose_tmp);
+//            }
+//        }
+//        predicted_leg_pub.publish(pr_legs);
+//        last_leg_pub.publish(last_legs);
+
+//        for(size_t pi = 0; pi < predict_leg_poses.size(); pi++){
+//            for(size_t ci = 0; ci < current_leg_poses.size(); ci++){
+//                ROS_INFO("Diff (Current %lu - Prediction %lu)  range: %.4f   angle: %.4f ", ci, pi,
+//                         current_leg_poses.at(ci).range - predict_leg_poses.at(pi).range,
+//                         current_leg_poses.at(ci).angle - predict_leg_poses.at(pi).angle);
+//            }
+//        }
+
+//        for(size_t li = 0; li < last_leg_poses.size(); li++){
+//            for(size_t ci = 0; ci < current_leg_poses.size(); ci++){
+//                ROS_ERROR("Diff (Current %lu - last %lu)  range: %.4f   angle: %.4f ", ci, li,
+//                         current_leg_poses.at(ci).range - last_leg_poses.at(li).range,
+//                         current_leg_poses.at(ci).angle - last_leg_poses.at(li).angle);
+//            }
+//        }
+
+//        ROS_INFO("-----------------------------------------------------------------------------");
+
+//        leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
+//        leg_grid->setFreeProbability(leg_grid->prediction, 0.01);
+
+//        leg_grid->computeLikelihood(predict_leg_poses,
+//                                    leg_grid->prediction,
+//                                    0.2,
+//                                    toRadian(60.0*M_PI/180.0));
+//        leg_grid->updateGridProbability(leg_grid->prior,
+//                                        leg_grid->prediction,
+//                                        leg_grid->predicted_posterior);
+
+//        if(leg_diff_time.toSec() < 2.0){
+
+//            leg_grid->computeLikelihood(current_leg_poses,
+//                                        leg_grid->likelihood,
+//                                        0.1,
+//                                        toRadian(45.0*M_PI/180.0));
+//        }
+
+//        leg_grid->updateGridProbability(leg_grid->predicted_posterior,
+//                                        leg_grid->likelihood,
+//                                        leg_grid->posterior);
+//        leg_grid->prior = leg_grid->posterior;
+//        last_leg_poses = current_leg_poses;
     }
 
     // FACES

@@ -14,6 +14,9 @@
 #include <sensor_msgs/ChannelFloat32.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/MapMetaData.h>
+#include <nav_msgs/Odometry.h>
+#include <geometry_msgs/TwistWithCovariance.h>
+#include <geometry_msgs/Twist.h>
 #include "cartesian_grid.h"
 
 
@@ -24,16 +27,22 @@ private:
     tf::TransformListener* tf_listener;
 
     // Leg
+    ros::Publisher predicted_leg_base_pub;
+    ros::Publisher last_leg_base_pub;
+    ros::Publisher current_leg_base_pub;
     ros::Publisher legs_grid_pub;
     ros::Publisher leg_occupancy_grid_pub;
     std::string leg_frame_id;
     CartesianGrid* leg_grid;
     ros::Time last_leg_time;
-    ros::Duration diff_leg_time;
+    ros::Duration leg_diff_time;
     bool leg_detection_enable;
     unsigned int leg_counter;
     sensor_msgs::PointCloud leg_pointcloud_grid;
     nav_msgs::OccupancyGrid leg_occupancy_grid;
+    std::vector<PolarPose> current_leg_pose_array_base_polar;
+    std::vector<PolarPose> last_leg_pose_array_base_polar;
+    std::vector<PolarPose> predicted_leg_pose_array_base_polar;
 
 
     // Face
@@ -87,6 +96,20 @@ private:
     sensor_msgs::PointCloud human_pointcloud_grid;
     nav_msgs::OccupancyGrid human_occupancy_grid;
 
+    //encoder
+    ros::Time last_time_encoder;
+    ros::Time current_time_encoder;
+    geometry_msgs::Pose diff_pose_crtsn;
+    PolarPose polar_diff_pose;
+    double diff_time;
+    double robot_angular_velocity;
+    double robot_linear_velocity;
+
+
+    ///
+    /// \brief prior_threshold
+    ///
+    ///
 
     double prior_threshold;
     double update_rate;
@@ -122,10 +145,12 @@ private:
 public:
     CartesianGridInterface();
     CartesianGridInterface(ros::NodeHandle _n, tf::TransformListener* _tf_listener);   // TO BE MODIFIED FOR EVERY HUMAN FEATURE
-    void legCallBack(const geometry_msgs::PoseArray& msg);      //NEEDED FOR EVERY HUMAN FEATURE
+    void legCallBack(const geometry_msgs::PoseArray& leg_msg);      //NEEDED FOR EVERY HUMAN FEATURE
     void faceCallBack(const autonomy_human::human& msg);
     void soundCallBack(const hark_msgs::HarkSource& msg);
     void laserCallBack(const sensor_msgs::LaserScan& msg);
+    void encoderCallBack(const nav_msgs::Odometry& encoder_msg);
+    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg, const nav_msgs::OdometryConstPtr& encoder_msg);
     void spin();                            // TO BE MODIFIED FOR EVERY HUMAN FEATURE
     ~CartesianGridInterface();                             // TO BE MODIFIED FOR EVERY HUMAN FEATURE
 };

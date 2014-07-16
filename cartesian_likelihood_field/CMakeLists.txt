@@ -7,19 +7,23 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   autonomy_human
 )
-# find_package(Boost REQUIRED COMPONENTS system)
+
+find_package(Boost REQUIRED COMPONENTS
+system
+)
 
 set(ROS_BUILD_TYPE Debug)
-
 
 catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS hark_msgs geometry_msgs sensor_msgs tf autonomy_human
   DEPENDS system_lib opencv
 )
+
 include_directories(include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
 )
 
 
@@ -29,4 +33,5 @@ add_executable(cartesian_likelihood_field src/cartesian_likelihood_field.cpp src
 target_link_libraries(cartesian_likelihood_field
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
+   ${Boost_LIBRARIES}
 )

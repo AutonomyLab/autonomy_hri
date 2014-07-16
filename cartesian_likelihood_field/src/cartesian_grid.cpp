@@ -96,10 +96,15 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     posterior.resize(grid_size, cell_prob.free);
     prior.resize(grid_size, cell_prob.free);
     likelihood.resize(grid_size, cell_prob.free);
+    predicted_posterior.resize(grid_size, cell_prob.free);
+    prediction.resize(grid_size, cell_prob.free);
+
 
     setUnknownProbability(posterior, cell_prob.unknown);
     setUnknownProbability(likelihood, cell_prob.unknown);
     setUnknownProbability(prior, cell_prob.unknown);
+    setUnknownProbability(predicted_posterior, cell_prob.unknown);
+    setUnknownProbability(prediction, cell_prob.unknown);
 }
 
 
@@ -125,6 +130,8 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                                       const float std_range,
                                       const float std_angle)
 {
+    if(pose.empty()) return;
+
     float cell_range, cell_angle;
 //    uint arg_min;
 //    std::vector<float> dist (pose.size(), 0.0);
@@ -132,11 +139,6 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
     for(size_t i = 0; i < grid_size; i++){
         cell_range = map.cell_pol_pos.at(i).range;
         cell_angle = map.cell_pol_pos.at(i).angle;
-
-//        for(size_t p = 0; p < pose.size(); p++){
-//            dist[p] = map.cell_pol_pos.at(i).distance(pose.at(p).range, pose.at(p).angle);
-//        }
-//        arg_min = std::distance(dist.begin(), std::min_element(dist.begin(), dist.end()));
 
         float tmp_cell_prob = 0.0;
 
@@ -173,17 +175,17 @@ void CartesianGrid::updateGridProbability(std::vector<float>& pr, std::vector<fl
         }
     }
 
-    pr = po;
-    ROS_ASSERT(*std::max_element(po.begin(), po.end()) <= cell_prob.human);
-    ROS_ASSERT(*std::min_element(po.begin(), po.end()) >= cell_prob.free);
+//    pr = po;
+//    ROS_ASSERT(*std::max_element(po.begin(), po.end()) <= cell_prob.human);
+//    ROS_ASSERT(*std::min_element(po.begin(), po.end()) >= cell_prob.free);
 }
 
 void CartesianGrid::bayesOccupancyFilter(const std::vector<PolarPose>& pose,
                                          const float std_range,
                                          const float std_angle)
 {
-    computeLikelihood(pose,likelihood, std_range, std_angle);
-    updateGridProbability(prior, likelihood, posterior);
+//    computeLikelihood(pose,likelihood, std_range, std_angle);
+//    updateGridProbability(prior, likelihood, posterior);
 }
 
 
