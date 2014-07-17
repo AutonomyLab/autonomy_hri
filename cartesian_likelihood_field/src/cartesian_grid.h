@@ -20,7 +20,7 @@
 //    double dist(PointXYP_t target){return sqrt(pow(x-target.x,2) + pow(y - target.y,2));}
 //};
 
-float normalize(const float val,const float x_min, const float x_max, const float range_min, const float range_max);
+double normalize(const double val, const double x_min, const double x_max, const double range_min, const double range_max);
 
 struct FOV_t{
     double min;
@@ -83,7 +83,7 @@ public:
     std::vector<float> prior;
     std::vector<float> likelihood;
     std::vector<float> predicted_posterior;
-    std::vector<float> prediction;
+    std::vector<float> predicted_likelihood;
 
     bool flag;
     SensorFOV_t sensor_fov;

@@ -4,13 +4,13 @@
 
 #define _USE_MATH_DEFINES
 
-float normalDistribution(const float x, const float u, const float s)
+double normalDistribution(const double x, const double u, const double s)
 {
     return((1.0/(s*sqrt(2.0 * M_PI)))*exp(- 0.5 * pow(x-u,2)/(s * s)));
 //    return (1.0/sqrt(2.0 * M_PI)) * exp(-0.5*x*x);
 }
 
-float normalize(const float val,const float x_min, const float x_max, const float range_min, const float range_max)
+double normalize(const double val,const double x_min, const double x_max, const double range_min, const double range_max)
 {
     ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
     return (range_min + ((range_max - range_min)*(val - x_min) / (x_max - x_min)));
@@ -97,14 +97,14 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     prior.resize(grid_size, cell_prob.free);
     likelihood.resize(grid_size, cell_prob.free);
     predicted_posterior.resize(grid_size, cell_prob.free);
-    prediction.resize(grid_size, cell_prob.free);
+    predicted_likelihood.resize(grid_size, cell_prob.free);
 
 
     setUnknownProbability(posterior, cell_prob.unknown);
     setUnknownProbability(likelihood, cell_prob.unknown);
     setUnknownProbability(prior, cell_prob.unknown);
     setUnknownProbability(predicted_posterior, cell_prob.unknown);
-    setUnknownProbability(prediction, cell_prob.unknown);
+    setUnknownProbability(predicted_likelihood, cell_prob.unknown);
 }
 
 
@@ -130,9 +130,12 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                                       const float std_range,
                                       const float std_angle)
 {
-    if(pose.empty()) return;
+    if(pose.empty()){
+//        setFreeProbability(data, cell_prob.free);
+        return;
+    }
 
-    float cell_range, cell_angle;
+    float cell_range, cell_angle, Gr, Ga;
 //    uint arg_min;
 //    std::vector<float> dist (pose.size(), 0.0);
 
@@ -144,8 +147,8 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
 
         if(map.cell_inFOV.at(i)){
             for(size_t p = 0; p < pose.size(); p++){
-                float Gr = normalDistribution(cell_range, pose.at(p).range, std_range);
-                float Ga = normalDistribution(cell_angle, pose.at(p).angle, std_angle);
+                Gr = normalDistribution(cell_range, pose.at(p).range, std_range);
+                Ga = normalDistribution(cell_angle, pose.at(p).angle, std_angle);
                 tmp_cell_prob += Gr * Ga;
             }
             data[i] = tmp_cell_prob / pose.size();
@@ -154,7 +157,9 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
     }
 }
 
-void CartesianGrid::updateGridProbability(std::vector<float>& pr, std::vector<float>& lk, std::vector<float>& po)
+void CartesianGrid::updateGridProbability(std::vector<float>& pr,
+                                          std::vector<float>& lk,
+                                          std::vector<float>& po)
 {
     std::vector<float> tmp(grid_size, cell_prob.unknown);
 

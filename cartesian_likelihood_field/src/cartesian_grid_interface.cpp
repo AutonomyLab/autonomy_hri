@@ -247,37 +247,11 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 //    ----------   ENCODER CALLBACK   ----------
 
 //    if(!motion_model_enable) return;
-    geometry_msgs::Point test_input_point, test_output_point;
     current_time_encoder = ros::Time::now();
     robot_linear_velocity = sqrt( pow(encoder_msg->twist.twist.linear.x,2) + pow(encoder_msg->twist.twist.linear.y,2) );
     robot_angular_velocity = encoder_msg->twist.twist.angular.z/2;
-    diff_time = current_time_encoder.toSec() - last_time_encoder.toSec();   // dt = t1 - t0
-//    ROS_INFO("diff time: %.4f",diff_time);
-
-//    velocity.linear is robot's linear velocity in (m/s) and velocity.angular is robot's angular velocity in (Radian/sec)
-//    diff_pose_crtsn.position.x = -robot_linear_velocity.linear.x * diff_time;  // dx = -vx * dt (m)
-//    diff_pose_crtsn.position.y = -robot_linear_velocity.linear.y * diff_time;  // dy = -vy * dt (m)
-//    diff_pose_crtsn.position.z = 0.0;
-//    diff_pose_crtsn.orientation.z = -robot_linear_velocity.angular.z/2 * diff_time;    // dtheta = -vtetha * dt (radian)
+    diff_time = current_time_encoder.toSec() - last_time_encoder.toSec();
     last_time_encoder = current_time_encoder;
-
-    // TEST ***********************
-//    test_input_point.x = 0.0;
-//    test_input_point.y = 0.0;
-//    test_input_point.z = 0.0;
-
-//    test_output_point.x = -encoder_msg->pose.pose.x * diff_time + test_input_point.x;
-//    test_output_point.y = -encoder_msg->pose.pose.y * diff_time + test_input_point.y;
-//    test_output_point.z = 0.0 + test_input_point.z;
-
-//    ROS_INFO("From: x: %.2f     y: %.2f     z: %.2f",test_input_point.x, test_input_point.y, test_input_point.z );
-//    ROS_INFO("To:   x: %.2f     y: %.2f     z: %.2f",test_output_point.x, test_output_point.y, test_output_point.z);
-
-
-
-//    ROS_INFO("      dx: %.4f    dy:%.4f     dtheta: %.4f", diff_pose_crtsn.position.x, diff_pose_crtsn.position.y, diff_pose_crtsn.orientation.z);
-
-//    ------------------------------------------
 
 //    ----------   LEG DETECTION CALLBACK   ----------
 
@@ -321,7 +295,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 //    last_leg_poses = current_leg_poses;
 
 //    ------------------------------------------------
-    ROS_INFO("*******************************************************************");
+//    ROS_INFO("*******************************************************************");
 
     PolarPose predicted_leg_pose_base_polar;
     geometry_msgs::Pose predicted_leg_pose_base_crtsn, last_leg_pose_base_crtsn;
@@ -368,7 +342,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 //                 predicted_leg_pose_base_polar.angle);
 
 //        ROS_INFO("diff (predicted - last): range: %.4f    angle: %.4f", diff_range, diff_pose_crtsn.orientation.z);
-//        predicted_leg_pose_array_base_polar.push_back(predicted_leg_pose_base_polar);
+        predicted_leg_pose_array_base_polar.push_back(predicted_leg_pose_base_polar);
 
     }
     predicted_leg_base_pub.publish(predicted_leg_pose_array_base_crtsn);
@@ -390,32 +364,51 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         }
     }
 
-    ROS_INFO("-----------------------------------------------------------------------------");
+//    ROS_INFO("-----------------------------------------------------------------------------");
 
     leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
-    leg_grid->setFreeProbability(leg_grid->prediction, 0.01);
+    leg_grid->setFreeProbability(leg_grid->predicted_likelihood, 0.01);
+//    std::vector<float> not_prior;
+//    not_prior.resize(leg_grid->grid_size, 0.01);
+
+//    std::vector<float> not_predicted_posterior;
+//    not_predicted_posterior.resize(leg_grid->grid_size, 0.01);
+
+//    for(size_t i = 0; i < leg_grid->grid_size; i++){
+//        not_prior.at(i) = 1 - leg_grid->prior.at(i);
+//    }
 
     leg_grid->computeLikelihood(predicted_leg_pose_array_base_polar,
-                                leg_grid->prediction,
+                                leg_grid->predicted_likelihood,
                                 0.2,
-                                toRadian(60.0*M_PI/180.0));
+                                3.0*M_PI/180.0);
     leg_grid->updateGridProbability(leg_grid->prior,
-                                    leg_grid->prediction,
+                                    leg_grid->predicted_likelihood,
                                     leg_grid->predicted_posterior);
 
-    if(leg_diff_time.toSec() < 2.0){
+//    leg_grid->updateGridProbability(not_prior,
+//                                    leg_grid->predicted_likelihood,
+//                                    not_predicted_posterior);
 
+
+    if(leg_diff_time.toSec() < 2.0){
+//        for(size_t i = 0; i < leg_grid->grid_size; i++){
+//            leg_grid->predicted_posterior.at(i) = leg_grid->predicted_posterior.at(i) * leg_grid->prior.at(i) +
+//                    not_predicted_posterior.at(i) * not_prior.at(i);
+//        }
         leg_grid->computeLikelihood(current_leg_pose_array_base_polar,
                                     leg_grid->likelihood,
                                     0.1,
-                                    toRadian(45.0*M_PI/180.0));
+                                    1.0*M_PI/180.0);
     }
 
     leg_grid->updateGridProbability(leg_grid->predicted_posterior,
                                     leg_grid->likelihood,
                                     leg_grid->posterior);
+
     leg_grid->prior = leg_grid->posterior;
     last_leg_pose_array_base_polar = current_leg_pose_array_base_polar;
+    publish();
 
 }
 
@@ -819,7 +812,7 @@ void CartesianGridInterface::spin()
 //            human_grid->fuse(laser_grid->posterior);
         }
     }
-    publish();
+//    publish();
 }
 
 CartesianGridInterface::~CartesianGridInterface()
