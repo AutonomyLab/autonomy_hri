@@ -60,8 +60,8 @@ uint32_t height;
 geometry_msgs::Pose origin;
 
 // robot-centric position of the cell (r,c) in the map
-std::vector<geometry_msgs::Point> cell_cart_pos;
-std::vector<PolarPose> cell_pol_pos;
+std::vector<geometry_msgs::Point> cell_pos_crtsn;
+std::vector<PolarPose> cell_pos_polar;
 
 // is cell(r,c) in sensor fov?
 std::vector<bool> cell_inFOV;

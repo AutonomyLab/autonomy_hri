@@ -70,10 +70,10 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
             temp_cell_cart_pos.x = ( x.min + ( map.resolution / 2.0 )) + r * map.resolution;
             temp_cell_cart_pos.y = ( y.min + ( map.resolution / 2.0 )) + c * map.resolution;
             temp_cell_cart_pos.z = 0.0;
-            map.cell_cart_pos.push_back(temp_cell_cart_pos);
+            map.cell_pos_crtsn.push_back(temp_cell_cart_pos);
 
             temp_cell_pol_pos.fromCart(temp_cell_cart_pos.x, temp_cell_cart_pos.y);
-            map.cell_pol_pos.push_back((temp_cell_pol_pos));
+            map.cell_pos_polar.push_back((temp_cell_pol_pos));
 
             if( temp_cell_pol_pos.range > sensor_fov.range.min &&
                     temp_cell_pol_pos.range < sensor_fov.range.max &&
@@ -131,28 +131,30 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                                       const float std_angle)
 {
     if(pose.empty()){
-//        setFreeProbability(data, cell_prob.free);
+        setFreeProbability(data, cell_prob.free);
         return;
     }
 
-    float cell_range, cell_angle, Gr, Ga;
-//    uint arg_min;
-//    std::vector<float> dist (pose.size(), 0.0);
+    float cell_range = -1.0;
+    float cell_angle = 2 * M_PI;
+    float Gr = 1.0;
+    float Ga = 1.0;
 
     for(size_t i = 0; i < grid_size; i++){
-        cell_range = map.cell_pol_pos.at(i).range;
-        cell_angle = map.cell_pol_pos.at(i).angle;
+        cell_range = map.cell_pos_polar.at(i).range;
+        cell_angle = map.cell_pos_polar.at(i).angle;
 
-        float tmp_cell_prob = 0.0;
+        float cell_probability = 0.0;
 
         if(map.cell_inFOV.at(i)){
             for(size_t p = 0; p < pose.size(); p++){
-                Gr = normalDistribution(cell_range, pose.at(p).range, std_range);
+                if(pose.at(p).range > 0.0)
+                    Gr = normalDistribution(cell_range, pose.at(p).range, std_range);
+
                 Ga = normalDistribution(cell_angle, pose.at(p).angle, std_angle);
-                tmp_cell_prob += Gr * Ga;
+                cell_probability += Gr * Ga;
             }
-            data[i] = tmp_cell_prob / pose.size();
-//            data[i] = normalDistribution(cell_range, pose.at(arg_min).range, std_range) * normalDistribution(cell_angle, pose.at(arg_min).angle, std_angle);
+            data[i] = cell_probability / pose.size();
         }
     }
 }

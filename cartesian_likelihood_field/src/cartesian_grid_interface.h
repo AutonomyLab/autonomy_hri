@@ -32,7 +32,6 @@ private:
     ros::Publisher current_leg_base_pub;
     ros::Publisher legs_grid_pub;
     ros::Publisher leg_occupancy_grid_pub;
-    std::string leg_frame_id;
     CartesianGrid* leg_grid;
     ros::Time last_leg_time;
     ros::Duration leg_diff_time;
@@ -46,16 +45,16 @@ private:
 
 
     // Face
-    ros::Publisher face_grid_pub;
-    ros::Publisher face_occupancy_grid_pub;
-    std::string face_frame_id;
-    CartesianGrid* face_grid;
-    ros::Time last_face_time;
-    ros::Duration diff_face_time;
+    ros::Publisher torso_grid_pub;
+    ros::Publisher torso_occupancy_grid_pub;
+    std::string torso_frame_id;
+    CartesianGrid* torso_grid;
+    ros::Time last_torso_time;
+    ros::Duration torso_diff_time;
     bool torso_detection_enable;
     unsigned int torso_counter;
-    sensor_msgs::PointCloud face_pointcloud_grid;
-    nav_msgs::OccupancyGrid face_occupancy_grid;
+    sensor_msgs::PointCloud torso_pointcloud_grid;
+    nav_msgs::OccupancyGrid torso_occupancy_grid;
 
 
 
@@ -65,25 +64,11 @@ private:
     std::string sound_frame_id;
     CartesianGrid* sound_grid;
     ros::Time last_sound_time;
-    ros::Duration diff_sound_time;
+    ros::Duration sound_diff_time;
     bool sound_detection_enable;
     unsigned int sound_counter;
     sensor_msgs::PointCloud sound_pointcloud_grid;
     nav_msgs::OccupancyGrid sound_occupancy_grid;
-
-
-    // Laser
-    ros::Publisher laser_grid_pub;
-    ros::Publisher laser_occupancy_grid_pub;
-    std::string laser_frame_id;
-    CartesianGrid* laser_grid;
-    ros::Time last_laser_time;
-    ros::Duration diff_laser_time;
-    bool laser_detection_enable;
-    unsigned int laser_counter;
-    sensor_msgs::PointCloud laser_pointcloud_grid;
-    nav_msgs::OccupancyGrid laser_occupancy_grid;
-
 
     // Human
     ros::Publisher human_grid_pub;
@@ -104,6 +89,7 @@ private:
     double diff_time;
     double robot_angular_velocity;
     double robot_linear_velocity;
+    bool motion_model_enable;
 
 
     ///
@@ -136,22 +122,19 @@ private:
                        nav_msgs::OccupancyGrid *occupancy_grid);
 
     void initLegs(SensorFOV_t sensor_fov);              //NEEDED FOR EVERY HUMAN FEATURE
-    void initFaces(SensorFOV_t sensor_fov);
+    void initTorso(SensorFOV_t sensor_fov);
     void initSound(SensorFOV_t sensor_fov);
-    void initLaser(SensorFOV_t sensor_fov);
     void initHuman();
-    void publish();                                         // TO BE MODIFIED FOR EVERY HUMAN FEATURE
+    void publish();
 
 public:
     CartesianGridInterface();
-    CartesianGridInterface(ros::NodeHandle _n, tf::TransformListener* _tf_listener);   // TO BE MODIFIED FOR EVERY HUMAN FEATURE
-    void legCallBack(const geometry_msgs::PoseArray& leg_msg);      //NEEDED FOR EVERY HUMAN FEATURE
-    void faceCallBack(const autonomy_human::human& msg);
-    void soundCallBack(const hark_msgs::HarkSource& msg);
-    void laserCallBack(const sensor_msgs::LaserScan& msg);
-    void encoderCallBack(const nav_msgs::Odometry& encoder_msg);
-    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg, const nav_msgs::OdometryConstPtr& encoder_msg);
-    void spin();                            // TO BE MODIFIED FOR EVERY HUMAN FEATURE
+    CartesianGridInterface(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
+    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
+                      const nav_msgs::OdometryConstPtr& encoder_msg,
+                      const autonomy_human::humanConstPtr &torso_msg,
+                      const hark_msgs::HarkSourceConstPtr &sound_msg);
+    void spin();
     ~CartesianGridInterface();                             // TO BE MODIFIED FOR EVERY HUMAN FEATURE
 };
 

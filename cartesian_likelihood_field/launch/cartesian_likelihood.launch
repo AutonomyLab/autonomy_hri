@@ -1,8 +1,8 @@
 <launch>
+<arg name="use_encoder" value="true" />
 <arg name="leg_detection" value="true" />
-<arg name="torso_detection" value="false" />
-<arg name="sound_detection" value="false" />
-<arg name="laser_detection" value="false" />
+<arg name="torso_detection" value="true" />
+<arg name="sound_detection" value="true" />
 
 
 <node pkg="cartesian_likelihood_field" type="cartesian_likelihood_field" name="cartesian_likelihood_field" output="screen">
@@ -18,15 +18,17 @@
         <param name="LikelihoodGrid/unknown_cell_probability" value="0.5"/>
         <param name="LikelihoodGrid/sensitivity" value="1"/>
         <param name="loop_rate" value="5"/>
+        <param name="motion_model_enable" value="$(arg use_encoder)"/>
         <param name="leg_detection_enable" value="$(arg leg_detection)"/>
         <param name="torso_detection_enable" value="$(arg torso_detection)"/>
         <param name="sound_detection_enable" value="$(arg sound_detection)"/>
-        <param name="laser_detection_enable" value="$(arg laser_detection)"/>
     </node>
 <group if="$(arg leg_detection)">
     <include file="$(find autonomy_leg_detection)/launch/leg_detection.launch"/>
 </group>
+<!--
 <group if="$(arg torso_detection)">
     <include file="$(find autonomy_human)/launch/torso_detection.launch"/>
 </group>
+-->
 </launch>
