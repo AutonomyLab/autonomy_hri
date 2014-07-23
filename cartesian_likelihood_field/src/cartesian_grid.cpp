@@ -99,7 +99,6 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     predicted_posterior.resize(grid_size, cell_prob.free);
     predicted_likelihood.resize(grid_size, cell_prob.free);
 
-
     setUnknownProbability(posterior, cell_prob.unknown);
     setUnknownProbability(likelihood, cell_prob.unknown);
     setUnknownProbability(prior, cell_prob.unknown);
@@ -224,6 +223,16 @@ void CartesianGrid::scaleProbability(float* data, float s)
 {
     for(size_t i = 0; i < grid_size; i++){
         data[i] = data[i] * s;
+    }
+}
+
+void CartesianGrid::getPose(geometry_msgs::PoseArray& msg)
+{
+    if(!polar_pose_array.empty()) polar_pose_array.clear();
+    PolarPose polar_pose_point;
+    for(size_t i = 0; i < msg.poses.size(); i++){
+        polar_pose_point.fromCart(msg.poses.at(i).position.x, msg.poses.at(i).position.y);
+        polar_pose_array.push_back(polar_pose_point);
     }
 }
 

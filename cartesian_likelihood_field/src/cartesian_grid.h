@@ -9,7 +9,9 @@
 #include <iostream>
 #include <ros/ros.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/PointStamped.h>
 #include "polarcord.h"
 
 
@@ -84,6 +86,8 @@ public:
     std::vector<float> likelihood;
     std::vector<float> predicted_posterior;
     std::vector<float> predicted_likelihood;
+    std::vector<PolarPose> polar_pose_array;
+
 
     bool flag;
     SensorFOV_t sensor_fov;
@@ -101,6 +105,7 @@ public:
     void setUnknownProbability(std::vector<float>& data, const float val);
     void setFreeProbability(std::vector<float>& data, const float val);
     void bayesOccupancyFilter(const std::vector<PolarPose> &pose, const float std_range, const float std_angle);
+    void getPose(geometry_msgs::PoseArray& msg);
 };
 
 #endif

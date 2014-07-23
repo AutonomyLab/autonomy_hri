@@ -143,13 +143,13 @@ void CartesianGridInterface::init()
 
 }
 
-bool CartesianGridInterface::transformToBase(geometry_msgs::PointStamped& source_point, geometry_msgs::PointStamped &target_point, bool debug)
+bool CartesianGridInterface::transformToBase(geometry_msgs::PointStamped& source_point,
+                                             geometry_msgs::PointStamped& target_point,
+                                             bool debug)
 {
     bool can_transform;
     try
     {
-//        listener.waitForTransform("base_footprint", tmp_point.header.frame_id, ros::Time(0),
-//                    ros::Duration(5.0));
         tf_listener->transformPoint("base_footprint", source_point, target_point);
         if (debug) {
             tf::StampedTransform _t;
@@ -166,6 +166,56 @@ bool CartesianGridInterface::transformToBase(geometry_msgs::PointStamped& source
         ROS_ERROR("Received an exception trying to transform a point from \"%s\" to \"base_footprint\": %s", source_point.header.frame_id.c_str(), ex.what());
         can_transform = false;
     }
+    return can_transform;
+}
+
+bool CartesianGridInterface::transformToBase(geometry_msgs::PoseArray& source,
+                                             geometry_msgs::PoseArray& target,
+                                             bool debug)
+{
+    bool can_transform = true;
+
+    geometry_msgs::PointStamped source_point, target_point;
+    geometry_msgs::Pose source_pose, target_pose;
+
+//    target.header.frame_id = "base_footprint";
+//    target.header.stamp = ros::Time::now();
+//    source.header.stamp = ros::Time::now();
+
+//    source_pose.orientation.x = source_pose.orientation.y = source_pose.orientation.z = source_pose.orientation.w = 0.0;
+//    target_pose.orientation = source_pose.orientation;
+
+    target_point.header = target.header;
+    source_point.header = source.header;
+
+    for(size_t i = 0; i < source.poses.size(); i++){
+
+//        source_pose = source.poses.at(i);
+        source_point.point = source.poses.at(i).position;
+        try
+        {
+            tf_listener->transformPoint("base_footprint", source_point, target_point);
+            if (debug) {
+                tf::StampedTransform _t;
+                tf_listener->lookupTransform("base_footprint", source_point.header.frame_id, ros::Time(0), _t);
+                ROS_INFO("From %s to bfp: [%.2f, %.2f, %.2f] (%.2f %.2f %.2f %.2f)",
+                         source_point.header.frame_id.c_str(),
+                         _t.getOrigin().getX(), _t.getOrigin().getY(), _t.getOrigin().getZ(),
+                         _t.getRotation().getX(), _t.getRotation().getY(), _t.getRotation().getZ(), _t.getRotation().getW());
+            }
+        }
+        catch(tf::TransformException& ex)
+        {
+            ROS_ERROR("Received an exception trying to transform a point from \"%s\" to \"base_footprint\": %s", source_point.header.frame_id.c_str(), ex.what());
+            can_transform = false;
+        }
+
+        target_pose.position = target_point.point;
+        target_pose.position.z = 0.0;
+        target.poses.push_back(target_pose);
+    }
+
+
     return can_transform;
 }
 
@@ -199,39 +249,56 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
 //    ----------   LEG DETECTION CALLBACK   ----------
     if(leg_detection_enable){
-//        if(!leg_msg_crtsn->poses.empty()) last_leg_time = ros::Time::now();
-        geometry_msgs::Pose current_leg_pose_base_crtsn;
-        geometry_msgs::PoseArray current_leg_pose_array_base_crtsn;
-        current_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
-        current_leg_pose_array_base_crtsn.header.stamp = ros::Time::now();
-        if(!current_leg_pose_array_base_crtsn.poses.empty()) current_leg_pose_array_base_crtsn.poses.clear();
         leg_grid->flag = true;
 
-        geometry_msgs::PointStamped current_leg_point_laser_crtsn, current_leg_point_base_crtsn;
-        PolarPose current_leg_pose_base_polar;
-        current_leg_point_laser_crtsn.header = leg_msg_crtsn->header;
-        current_leg_point_laser_crtsn.header.frame_id = "laser";
+        geometry_msgs::Pose current_leg_pose_base_crtsn;
+
+        geometry_msgs::PoseArray current_leg_pose_array_base_crtsn, current_leg_pose_array_laser_crtsn;
 
         if(!current_leg_pose_array_base_polar.empty()) current_leg_pose_array_base_polar.clear();
+
+        current_leg_pose_array_laser_crtsn.poses = leg_msg_crtsn->poses;
+        current_leg_pose_array_laser_crtsn.header = leg_msg_crtsn->header;
+        current_leg_pose_array_laser_crtsn.header.frame_id = "laser";
+        current_leg_pose_array_base_crtsn.header = leg_msg_crtsn->header;
+        current_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
+
+//        if(!transformToBase(current_leg_pose_array_laser_crtsn, current_leg_pose_array_base_crtsn)){
+//            ROS_WARN("Can not transform from laser to base_footprint");
+//        }
+//        ROS_ASSERT(current_leg_pose_array_laser_crtsn.poses.size() == current_leg_pose_array_base_crtsn.poses.size());
+
+//        leg_grid->getPose(current_leg_pose_array_base_crtsn);
+//        current_leg_pose_array_base_polar = leg_grid->polar_pose_array;
+
+
+        geometry_msgs::PointStamped current_leg_point_laser_crtsn, current_leg_point_base_crtsn; // nemikham
+        PolarPose current_leg_pose_base_polar;
+        current_leg_point_laser_crtsn.header = leg_msg_crtsn->header; //nemikham
+        current_leg_point_laser_crtsn.header.frame_id = "laser"; //nemikham
+        current_leg_pose_array_base_crtsn.header = leg_msg_crtsn->header;
+        current_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
+
 
         for(size_t i = 0; i < leg_msg_crtsn->poses.size(); i++){
             current_leg_point_laser_crtsn.point = leg_msg_crtsn->poses.at(i).position;
 
             if(!transformToBase(current_leg_point_laser_crtsn, current_leg_point_base_crtsn)){
                 ROS_WARN("Can not transform from laser to base_footprint");
-                return;
+                //return;
             }
             current_leg_pose_base_crtsn.position = current_leg_point_base_crtsn.point;
             current_leg_pose_base_crtsn.position.z = 0.0;
-            current_leg_pose_array_base_crtsn.poses.push_back(current_leg_pose_base_crtsn);
+            current_leg_pose_array_base_crtsn.poses.push_back(current_leg_pose_base_crtsn); //nemikham
 
             current_leg_pose_base_polar.fromCart(current_leg_point_base_crtsn.point.x, current_leg_point_base_crtsn.point.y);
             current_leg_pose_array_base_polar.push_back(current_leg_pose_base_polar);
         }
 
-        current_leg_base_pub.publish(current_leg_pose_array_base_crtsn);
 
         ROS_ASSERT(current_leg_pose_array_base_polar.size() == leg_msg_crtsn->poses.size());
+        current_leg_base_pub.publish(current_leg_pose_array_base_crtsn); //rviz
+
 
 
         PolarPose predicted_leg_pose_base_polar;
@@ -279,8 +346,8 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
         }
 
-        predicted_leg_base_pub.publish(predicted_leg_pose_array_base_crtsn);
-        last_leg_base_pub.publish(last_leg_pose_array_base_crtsn);
+        predicted_leg_base_pub.publish(predicted_leg_pose_array_base_crtsn); //rviz
+        last_leg_base_pub.publish(last_leg_pose_array_base_crtsn); //rviz
 
         leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
         leg_grid->setFreeProbability(leg_grid->predicted_likelihood, 0.01);

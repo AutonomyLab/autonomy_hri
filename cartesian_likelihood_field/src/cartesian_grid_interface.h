@@ -1,7 +1,6 @@
 #ifndef CARTESIAN_GRID_INTERFACE_H
 #define CARTESIAN_GRID_INTERFACE_H
 #include <ros/ros.h>
-#include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Vector3.h>
 #include <sensor_msgs/LaserScan.h>
@@ -112,7 +111,10 @@ private:
     void initWorldGrids();
     bool transformToBase(geometry_msgs::PointStamped& source_point,
                          geometry_msgs::PointStamped& target_point,
-                         bool debug = false);
+                         bool debug = true);
+    bool transformToBase(geometry_msgs::PoseArray& source,
+                         geometry_msgs::PoseArray& target,
+                         bool debug = true);
     bool transformToOdom(geometry_msgs::PointStamped& source_point,
                          geometry_msgs::PointStamped target_point,
                          bool debug = false);
