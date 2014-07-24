@@ -130,7 +130,7 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                                       const float std_angle)
 {
     if(pose.empty()){
-        setFreeProbability(data, cell_prob.free);
+        setFreeProbability(data, 0.01);
         return;
     }
 
@@ -147,7 +147,7 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
 
         if(map.cell_inFOV.at(i)){
             for(size_t p = 0; p < pose.size(); p++){
-                if(pose.at(p).range > 0.0)
+                if(pose.at(p).range > 0.01)
                     Gr = normalDistribution(cell_range, pose.at(p).range, std_range);
 
                 Ga = normalDistribution(cell_angle, pose.at(p).angle, std_angle);
@@ -186,12 +186,22 @@ void CartesianGrid::updateGridProbability(std::vector<float>& pr,
 //    ROS_ASSERT(*std::min_element(po.begin(), po.end()) >= cell_prob.free);
 }
 
-void CartesianGrid::bayesOccupancyFilter(const std::vector<PolarPose>& pose,
-                                         const float std_range,
-                                         const float std_angle)
+void CartesianGrid::bayesOccupancyFilter()
 {
-//    computeLikelihood(pose,likelihood, std_range, std_angle);
-//    updateGridProbability(prior, likelihood, posterior);
+    setFreeProbability(likelihood, 0.01);
+    setFreeProbability(predicted_likelihood, 0.01);
+
+    computeLikelihood(predicted_polar_array, predicted_likelihood, 0.2, 3.0*M_PI/180.0);
+    updateGridProbability(prior, predicted_likelihood, predicted_posterior);
+
+    if(diff_time.toSec() < 2.0){
+        computeLikelihood(current_polar_array, likelihood, 0.1, 1.0*M_PI/180.0);
+    }
+
+    updateGridProbability(predicted_posterior, likelihood, posterior);
+
+    prior = posterior;
+    last_polar_array = current_polar_array;
 }
 
 
@@ -211,11 +221,24 @@ void CartesianGrid::fromLogOdd(std::vector<float>& logodd_data, std::vector<floa
 }
 
 
-void CartesianGrid::fuse(float *input)
+void CartesianGrid::fuse(const std::vector<float> data_1,
+                         const std::vector<float> data_2,
+                         const std::vector<float> data_3,
+                         bool multiply)
 {
-//    for(size_t i = 0; i < grid_size; i++){
-//        //likelihood[i] = likelihood[i] * input[i];
-//    }
+    if(multiply){
+        setFreeProbability(posterior, 1.0);
+        setUnknownProbability(posterior, 1.0);
+        for(size_t i = 0; i < grid_size; i++){
+            posterior.at(i) = (data_1.at(i) * data_2.at(i) * data_3.at(i));
+        }
+    } else {
+        setFreeProbability(posterior, 0.0);
+        setUnknownProbability(posterior, 0.0);
+        for(size_t i = 0; i < grid_size; i++){
+            posterior.at(i) = (data_1.at(i) + data_2.at(i) + data_3.at(i))/3.0;
+        }
+    }
 }
 
 
@@ -226,13 +249,103 @@ void CartesianGrid::scaleProbability(float* data, float s)
     }
 }
 
-void CartesianGrid::getPose(geometry_msgs::PoseArray& msg)
+void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
 {
-    if(!polar_pose_array.empty()) polar_pose_array.clear();
+    if(!current_polar_array.empty()) current_polar_array.clear();
     PolarPose polar_pose_point;
-    for(size_t i = 0; i < msg.poses.size(); i++){
-        polar_pose_point.fromCart(msg.poses.at(i).position.x, msg.poses.at(i).position.y);
-        polar_pose_array.push_back(polar_pose_point);
+
+    for(size_t i = 0; i < crtsn_array.poses.size(); i++){
+        polar_pose_point.fromCart(crtsn_array.poses.at(i).position.x, crtsn_array.poses.at(i).position.y);
+        current_polar_array.push_back(polar_pose_point);
+    }
+}
+
+void CartesianGrid::getPose(const autonomy_human::humanConstPtr& torso_img)
+{
+//    torso_frame_id = "base_footprint";
+//    torso_diff_time = ros::Time::now() - last_torso_time;
+    if(!current_polar_array.empty()) current_polar_array.clear();
+    PolarPose torso_polar_pose;
+    torso_polar_pose.range = -1.0;
+    torso_polar_pose.angle = 2 * M_PI;
+    geometry_msgs::Point torso_position_in_image;
+    double image_width = 640.0;
+//    double average_person_height = 1.69; //meter
+    double camera_fov = 65.0; // degree
+
+    for(size_t i = 0; i < torso_img->numFaces; i++){
+        torso_position_in_image.x = torso_img->faceROI.x_offset + 0.5 * torso_img->faceROI.width;
+        torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
+//            ROS_INFO("angle: %.2f   x offset: %.2f ",torso_pose_base_polar.angle, torso_position_in_image.x);
+        current_polar_array.push_back(torso_polar_pose);
+    }
+}
+
+void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
+{
+//    sound_frame_id = "base_footprint";
+//    sound_diff_time = ros::Time::now() - last_sound_time;
+    if(!current_polar_array.empty()) current_polar_array.clear();
+    PolarPose sound_src_polar;
+    sound_src_polar.range = -1.0;
+    sound_src_polar.angle = 2 * M_PI;
+
+    for(size_t i = 0; i < sound_src->src.size(); i++){
+        if(fabs(sound_src->src[i].y) > 0.0){
+            sound_src_polar.angle = toRadian(sound_src->src[i].azimuth);
+//            last_sound_time = ros::Time::now();
+            current_polar_array.push_back(sound_src_polar);
+        }
+    }
+}
+
+void CartesianGrid::updateVelocity(double robot_linear_velocity,
+                                   double robot_angular_velocity,
+                                   double last_polar_range,
+                                   double last_polar_angle)
+{
+    angular_velocity = (robot_linear_velocity * sin(last_polar_angle) /
+                            last_polar_range) - robot_angular_velocity;
+
+    linear_velocity = -robot_linear_velocity * cos(last_polar_angle);
+}
+
+void CartesianGrid::predict(double robot_linear_velocity, double robot_angular_velocity)
+{
+    if(!predicted_polar_array.empty()) predicted_polar_array.clear();
+    if(last_polar_array.empty()) return;
+
+    diff_time = ros::Time::now() - pre_time;
+
+    predicted_polar_array = last_polar_array;
+
+    for(size_t p = 0 ; p < last_polar_array.size(); p++){
+
+        updateVelocity(robot_linear_velocity, robot_angular_velocity,
+                                 last_polar_array.at(p).range,
+                                 last_polar_array.at(p).angle);
+
+        predicted_polar_array.at(p).range = linear_velocity * diff_time.toSec() + last_polar_array.at(p).range;
+        predicted_polar_array.at(p).angle = angular_velocity * diff_time.toSec() + last_polar_array.at(p).angle;
+
+    }
+    pre_time = ros::Time::now();
+}
+
+void CartesianGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,
+                 geometry_msgs::PoseArray &crtsn_array)
+{
+    geometry_msgs::Pose crtsn_pose;
+
+    crtsn_array.header.frame_id = "base_footprint";
+    crtsn_array.header.stamp = ros::Time::now();
+
+    if(!crtsn_array.poses.empty()) crtsn_array.poses.clear();
+
+    for(size_t p = 0 ; p < polar_array.size(); p++){
+        polar_array.at(p).toCart(crtsn_pose.position.x, crtsn_pose.position.y);
+        crtsn_pose.position.z = 0.0;
+        crtsn_array.poses.push_back(crtsn_pose);
     }
 }
 

@@ -5,9 +5,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h>
-#include <hark_msgs/HarkSource.h>
-#include <hark_msgs/HarkSourceVal.h>
-#include <autonomy_human/human.h>
+
 #include <tf/transform_listener.h>
 #include <geometry_msgs/PointStamped.h>
 #include <sensor_msgs/ChannelFloat32.h>
@@ -79,6 +77,7 @@ private:
     unsigned int reject_counter;
     sensor_msgs::PointCloud human_pointcloud_grid;
     nav_msgs::OccupancyGrid human_occupancy_grid;
+    bool fuse_multiply;
 
     //encoder
     ros::Time last_time_encoder;
@@ -89,12 +88,6 @@ private:
     double robot_angular_velocity;
     double robot_linear_velocity;
     bool motion_model_enable;
-
-
-    ///
-    /// \brief prior_threshold
-    ///
-    ///
 
     double prior_threshold;
     double update_rate;
@@ -111,10 +104,10 @@ private:
     void initWorldGrids();
     bool transformToBase(geometry_msgs::PointStamped& source_point,
                          geometry_msgs::PointStamped& target_point,
-                         bool debug = true);
-    bool transformToBase(geometry_msgs::PoseArray& source,
+                         bool debug = false);
+    bool transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
                          geometry_msgs::PoseArray& target,
-                         bool debug = true);
+                         bool debug = false);
     bool transformToOdom(geometry_msgs::PointStamped& source_point,
                          geometry_msgs::PointStamped target_point,
                          bool debug = false);
@@ -136,6 +129,9 @@ public:
                       const nav_msgs::OdometryConstPtr& encoder_msg,
                       const autonomy_human::humanConstPtr &torso_msg,
                       const hark_msgs::HarkSourceConstPtr &sound_msg);
+
+//    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
+//                      const nav_msgs::OdometryConstPtr& encoder_msg);
     void spin();
     ~CartesianGridInterface();                             // TO BE MODIFIED FOR EVERY HUMAN FEATURE
 };

@@ -65,6 +65,9 @@ void CartesianGridInterface::init()
     ros::param::param("~/sound_detection_enable",sound_detection_enable, false);
     ROS_INFO("/sound_detection_enable to %d",sound_detection_enable);
 
+    ros::param::param("~/fuse_multiply",fuse_multiply, false);
+    ROS_INFO("/fuse_multiply to %d",fuse_multiply);
+
     number_of_sensors = (leg_detection_enable) + (torso_detection_enable)
             + (sound_detection_enable);
 
@@ -169,7 +172,7 @@ bool CartesianGridInterface::transformToBase(geometry_msgs::PointStamped& source
     return can_transform;
 }
 
-bool CartesianGridInterface::transformToBase(geometry_msgs::PoseArray& source,
+bool CartesianGridInterface::transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
                                              geometry_msgs::PoseArray& target,
                                              bool debug)
 {
@@ -178,20 +181,11 @@ bool CartesianGridInterface::transformToBase(geometry_msgs::PoseArray& source,
     geometry_msgs::PointStamped source_point, target_point;
     geometry_msgs::Pose source_pose, target_pose;
 
-//    target.header.frame_id = "base_footprint";
-//    target.header.stamp = ros::Time::now();
-//    source.header.stamp = ros::Time::now();
-
-//    source_pose.orientation.x = source_pose.orientation.y = source_pose.orientation.z = source_pose.orientation.w = 0.0;
-//    target_pose.orientation = source_pose.orientation;
-
     target_point.header = target.header;
-    source_point.header = source.header;
+    source_point.header = source->header;
 
-    for(size_t i = 0; i < source.poses.size(); i++){
-
-//        source_pose = source.poses.at(i);
-        source_point.point = source.poses.at(i).position;
+    for(size_t i = 0; i < source->poses.size(); i++){
+        source_point.point = source->poses.at(i).position;
         try
         {
             tf_listener->transformPoint("base_footprint", source_point, target_point);
@@ -203,6 +197,7 @@ bool CartesianGridInterface::transformToBase(geometry_msgs::PoseArray& source,
                          _t.getOrigin().getX(), _t.getOrigin().getY(), _t.getOrigin().getZ(),
                          _t.getRotation().getX(), _t.getRotation().getY(), _t.getRotation().getZ(), _t.getRotation().getW());
             }
+            can_transform = true;
         }
         catch(tf::TransformException& ex)
         {
@@ -215,9 +210,9 @@ bool CartesianGridInterface::transformToBase(geometry_msgs::PoseArray& source,
         target.poses.push_back(target_pose);
     }
 
-
     return can_transform;
 }
+
 
 void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
 {
@@ -236,6 +231,9 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
                                           const nav_msgs::OdometryConstPtr& encoder_msg,
                                           const autonomy_human::humanConstPtr& torso_msg,
                                           const hark_msgs::HarkSourceConstPtr& sound_msg)
+
+//void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
+//                                          const nav_msgs::OdometryConstPtr& encoder_msg)
 {
 //    ROS_INFO("I received data");
 //    ----------   ENCODER CALLBACK   ----------
@@ -249,134 +247,32 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
 //    ----------   LEG DETECTION CALLBACK   ----------
     if(leg_detection_enable){
-        leg_grid->flag = true;
 
-        geometry_msgs::Pose current_leg_pose_base_crtsn;
+        if(!leg_grid->current_crtsn_array.poses.empty()) leg_grid->current_crtsn_array.poses.clear();
 
-        geometry_msgs::PoseArray current_leg_pose_array_base_crtsn, current_leg_pose_array_laser_crtsn;
-
-        if(!current_leg_pose_array_base_polar.empty()) current_leg_pose_array_base_polar.clear();
-
-        current_leg_pose_array_laser_crtsn.poses = leg_msg_crtsn->poses;
-        current_leg_pose_array_laser_crtsn.header = leg_msg_crtsn->header;
-        current_leg_pose_array_laser_crtsn.header.frame_id = "laser";
-        current_leg_pose_array_base_crtsn.header = leg_msg_crtsn->header;
-        current_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
-
-//        if(!transformToBase(current_leg_pose_array_laser_crtsn, current_leg_pose_array_base_crtsn)){
-//            ROS_WARN("Can not transform from laser to base_footprint");
-//        }
-//        ROS_ASSERT(current_leg_pose_array_laser_crtsn.poses.size() == current_leg_pose_array_base_crtsn.poses.size());
-
-//        leg_grid->getPose(current_leg_pose_array_base_crtsn);
-//        current_leg_pose_array_base_polar = leg_grid->polar_pose_array;
-
-
-        geometry_msgs::PointStamped current_leg_point_laser_crtsn, current_leg_point_base_crtsn; // nemikham
-        PolarPose current_leg_pose_base_polar;
-        current_leg_point_laser_crtsn.header = leg_msg_crtsn->header; //nemikham
-        current_leg_point_laser_crtsn.header.frame_id = "laser"; //nemikham
-        current_leg_pose_array_base_crtsn.header = leg_msg_crtsn->header;
-        current_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
-
-
-        for(size_t i = 0; i < leg_msg_crtsn->poses.size(); i++){
-            current_leg_point_laser_crtsn.point = leg_msg_crtsn->poses.at(i).position;
-
-            if(!transformToBase(current_leg_point_laser_crtsn, current_leg_point_base_crtsn)){
-                ROS_WARN("Can not transform from laser to base_footprint");
-                //return;
-            }
-            current_leg_pose_base_crtsn.position = current_leg_point_base_crtsn.point;
-            current_leg_pose_base_crtsn.position.z = 0.0;
-            current_leg_pose_array_base_crtsn.poses.push_back(current_leg_pose_base_crtsn); //nemikham
-
-            current_leg_pose_base_polar.fromCart(current_leg_point_base_crtsn.point.x, current_leg_point_base_crtsn.point.y);
-            current_leg_pose_array_base_polar.push_back(current_leg_pose_base_polar);
+        if(!transformToBase(leg_msg_crtsn, leg_grid->current_crtsn_array)){
+            ROS_WARN("Can not transform from laser to base_footprint");
+            leg_grid->current_crtsn_array.poses.clear();
+        } else{
+            ROS_ASSERT(leg_msg_crtsn->poses.size() == leg_grid->current_crtsn_array.poses.size());
+            leg_grid->getPose(leg_grid->current_crtsn_array);
+            ROS_ASSERT(leg_grid->current_polar_array.size() == leg_msg_crtsn->poses.size());
         }
 
+        leg_grid->predict(robot_linear_velocity, robot_angular_velocity);
 
-        ROS_ASSERT(current_leg_pose_array_base_polar.size() == leg_msg_crtsn->poses.size());
-        current_leg_base_pub.publish(current_leg_pose_array_base_crtsn); //rviz
+        /* FOR RVIZ */
+        leg_grid->current_crtsn_array.header.frame_id = "base_footprint";
+        current_leg_base_pub.publish(leg_grid->current_crtsn_array);
 
+        leg_grid->polar2Crtsn(leg_grid->predicted_polar_array, leg_grid->predicted_crtsn_array);
+        predicted_leg_base_pub.publish(leg_grid->predicted_crtsn_array);
 
+        leg_grid->polar2Crtsn(leg_grid->last_polar_array, leg_grid->last_crtsn_array);
+        last_leg_base_pub.publish(leg_grid->last_crtsn_array);
+        /* ******* */
 
-        PolarPose predicted_leg_pose_base_polar;
-        geometry_msgs::Pose predicted_leg_pose_base_crtsn, last_leg_pose_base_crtsn;
-        geometry_msgs::PoseArray last_leg_pose_array_base_crtsn, predicted_leg_pose_array_base_crtsn;
-        float diff_range;
-
-        leg_diff_time = ros::Time::now() - last_leg_time;
-        last_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
-        last_leg_pose_array_base_crtsn.header.stamp = ros::Time::now();
-
-        predicted_leg_pose_array_base_crtsn.header.frame_id = "base_footprint";
-        predicted_leg_pose_array_base_crtsn.header.stamp = ros::Time::now();
-
-        if(!predicted_leg_pose_array_base_crtsn.poses.empty()) predicted_leg_pose_array_base_crtsn.poses.clear();
-
-        if(!last_leg_pose_array_base_crtsn.poses.empty()) last_leg_pose_array_base_crtsn.poses.clear();
-
-        if(!predicted_leg_pose_array_base_polar.empty())    predicted_leg_pose_array_base_polar.clear();
-
-        for(size_t p = 0 ; p < last_leg_pose_array_base_polar.size(); p++){
-
-            last_leg_pose_array_base_polar.at(p).toCart(last_leg_pose_base_crtsn.position.x,last_leg_pose_base_crtsn.position.y);
-            last_leg_pose_base_crtsn.position.z = 0.0;
-            last_leg_pose_array_base_crtsn.poses.push_back(last_leg_pose_base_crtsn);
-
-            double leg_angular_velocity;
-            double leg_linear_velocity;
-
-            leg_angular_velocity = (robot_linear_velocity * sin(last_leg_pose_array_base_polar.at(p).angle) /
-                                    last_leg_pose_array_base_polar.at(p).range) - robot_angular_velocity;
-            leg_linear_velocity = -robot_linear_velocity * cos(last_leg_pose_array_base_polar.at(p).angle);
-
-            predicted_leg_pose_base_polar.range = leg_linear_velocity * diff_time + last_leg_pose_array_base_polar.at(p).range;
-            predicted_leg_pose_base_polar.angle = leg_angular_velocity * diff_time + last_leg_pose_array_base_polar.at(p).angle;
-
-            predicted_leg_pose_base_crtsn.position.x = predicted_leg_pose_base_polar.range * cos(predicted_leg_pose_base_polar.angle);
-            predicted_leg_pose_base_crtsn.position.y = predicted_leg_pose_base_polar.range * sin(predicted_leg_pose_base_polar.angle);
-            predicted_leg_pose_base_crtsn.position.z = 0.0;
-            predicted_leg_pose_array_base_crtsn.poses.push_back(predicted_leg_pose_base_crtsn);
-
-            diff_range = predicted_leg_pose_base_polar.range - last_leg_pose_array_base_polar.at(p).range;
-
-            predicted_leg_pose_array_base_polar.push_back(predicted_leg_pose_base_polar);
-
-        }
-
-        predicted_leg_base_pub.publish(predicted_leg_pose_array_base_crtsn); //rviz
-        last_leg_base_pub.publish(last_leg_pose_array_base_crtsn); //rviz
-
-        leg_grid->setFreeProbability(leg_grid->likelihood, 0.01);
-        leg_grid->setFreeProbability(leg_grid->predicted_likelihood, 0.01);
-
-
-        leg_grid->computeLikelihood(predicted_leg_pose_array_base_polar,
-                                    leg_grid->predicted_likelihood,
-                                    0.2,
-                                    3.0*M_PI/180.0);
-        leg_grid->updateGridProbability(leg_grid->prior,
-                                        leg_grid->predicted_likelihood,
-                                        leg_grid->predicted_posterior);
-
-
-
-        if(leg_diff_time.toSec() < 2.0){
-            leg_grid->computeLikelihood(current_leg_pose_array_base_polar,
-                                        leg_grid->likelihood,
-                                        0.1,
-                                        1.0*M_PI/180.0);
-        }
-
-        leg_grid->updateGridProbability(leg_grid->predicted_posterior,
-                                        leg_grid->likelihood,
-                                        leg_grid->posterior);
-
-        leg_grid->prior = leg_grid->posterior;
-        last_leg_pose_array_base_polar = current_leg_pose_array_base_polar;
-        last_leg_time = ros::Time::now();
+        leg_grid->bayesOccupancyFilter();
 
         // Publish
         occupancyGrid(leg_grid, &leg_occupancy_grid);
@@ -384,98 +280,44 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         leg_occupancy_grid_pub.publish(leg_occupancy_grid);
     }
 
-//    ----------   TORSO DETECTION CALLBACK   ----------
     if(torso_detection_enable){
+        torso_grid->getPose(torso_msg);
+        torso_grid->predict(robot_linear_velocity, robot_angular_velocity);
+        torso_grid->bayesOccupancyFilter();
 
-//            double theta, x, person_height, person_range;
-
-//            person_height = msg.faceROI.height;
-//            person_range = 0.0031*person_height*person_height - 0.8 * person_height + 53.02;
-//            tmp_polar.angle = theta;
-//            tmp_polar.range = person_range;
-
-        //*************************************8
-
-        std::vector<PolarPose> torso_pose_array_base_polar;
-        torso_frame_id = "base_footprint";
-        torso_diff_time = ros::Time::now() - last_torso_time;
-        PolarPose torso_pose_base_polar;
-        torso_pose_base_polar.range = -1.0;
-        torso_pose_base_polar.angle = 2 * M_PI;
-        geometry_msgs::Point torso_position_in_image;
-        double image_width = 640.0;
-        double average_person_height = 1.69; //meter
-        double camera_fov = 65.0; // degree
-
-        for(size_t i = 0; i < torso_msg->numFaces; i++){
-            last_torso_time = ros::Time::now();
-            torso_position_in_image.x = torso_msg->faceROI.x_offset + 0.5 * torso_msg->faceROI.width;
-            torso_pose_base_polar.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
-            ROS_INFO("angle: %.2f   x offset: %.2f ",torso_pose_base_polar.angle, torso_position_in_image.x);
-            torso_pose_array_base_polar.push_back(torso_pose_base_polar);
-        }
-
-        torso_grid->setFreeProbability(torso_grid->likelihood, 0.01);
-
-        if(torso_diff_time.toSec() < 1.0){
-
-            torso_grid->computeLikelihood(torso_pose_array_base_polar,
-                                          torso_grid->likelihood,
-                                          -1.0,
-                                          1.0*M_PI/180.0);
-        }
-
-        torso_grid->updateGridProbability(torso_grid->prior,
-                                          torso_grid->likelihood,
-                                          torso_grid->posterior);
-
-        torso_grid->prior = torso_grid->posterior;
-        torso_pose_array_base_polar.clear();
-
+        //Publish
         occupancyGrid(torso_grid, &torso_occupancy_grid);
         torso_occupancy_grid.header.stamp = ros::Time::now();
         torso_occupancy_grid_pub.publish(torso_occupancy_grid);
     }
 
-//    ----------   SOUND DETECTION CALLBACK   ----------
     if(sound_detection_enable){
+        sound_grid->getPose(sound_msg);
+        sound_grid->predict(robot_linear_velocity, robot_angular_velocity);
+        sound_grid->bayesOccupancyFilter();
 
-        std::vector<PolarPose> sound_src_array_polar;
-        sound_frame_id = "base_footprint";
-        sound_diff_time = ros::Time::now() - last_sound_time;
-        PolarPose sound_src_polar;
-        sound_src_polar.range = -1.0;
-        sound_src_polar.angle = 2 * M_PI;
-
-        for(size_t i = 0; i < sound_msg->src.size(); i++){
-            if(fabs(sound_msg->src[i].y) > 0.0){
-                sound_src_polar.angle = toRadian(sound_msg->src[i].azimuth);
-                last_sound_time = ros::Time::now();
-                sound_src_array_polar.push_back(sound_src_polar);
-            }
-        }
-
-
-        sound_grid->setFreeProbability(sound_grid->likelihood, 0.01);
-
-        if(sound_diff_time.toSec() < 1.0){
-
-            sound_grid->computeLikelihood(sound_src_array_polar,
-                                          sound_grid->likelihood,
-                                          -1.0,
-                                          2.0*M_PI/180.0);
-        }
-
-        sound_grid->updateGridProbability(sound_grid->prior,
-                                          sound_grid->likelihood,
-                                          sound_grid->posterior);
-        sound_grid->prior = sound_grid->posterior;
-        sound_src_array_polar.clear();
-
+        //Publish
         occupancyGrid(sound_grid, &sound_occupancy_grid);
         sound_occupancy_grid.header.stamp = ros::Time::now();
         sound_occupancy_grid_pub.publish(sound_occupancy_grid);
     }
+
+//    human_grid->setFreeProbability(human_grid->posterior, 0.0);
+//    human_grid->setUnknownProbability(human_grid->posterior, 0.0);
+
+//    if(leg_detection_enable)
+//        human_grid->fuse(leg_grid->posterior);
+//    if(torso_detection_enable)
+//        human_grid->fuse(torso_grid->posterior);
+//    if(sound_detection_enable)
+//        human_grid->fuse(sound_grid->posterior);
+
+
+    human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, fuse_multiply);
+
+    occupancyGrid(human_grid, &human_occupancy_grid);
+    human_occupancy_grid.header.stamp = ros::Time::now();
+    human_occupancy_grid_pub.publish(human_occupancy_grid);
 }
 
 void CartesianGridInterface::initTorso(SensorFOV_t sensor_fov)
@@ -562,8 +404,6 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
     }
 
     for(size_t i = 0; i < grid->grid_size; i++){
-
-//        uint temp_data = (int) cell_probability.unknown * 50;
         uint temp_data = 50;
 
         if(grid->map.cell_inFOV.at(i)){

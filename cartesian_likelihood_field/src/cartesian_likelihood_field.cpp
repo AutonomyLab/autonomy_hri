@@ -22,10 +22,6 @@ int main(int argc, char** argv)
 
    CartesianGridInterface likelihood_grid_interface(n,tf_listener);
 
-//    ros::Subscriber faces_sub = n.subscribe("human",1,
-//                                           &CartesianGridInterface::faceCallBack,
-//                                           &likelihood_grid_interface);
-
     message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 1);
     message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 1);
     message_filters::Subscriber<autonomy_human::human> torso_sub(n, "human", 1);
@@ -38,8 +34,17 @@ int main(int argc, char** argv)
 
     Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub, torso_sub, sound_sub);
 
+
+//    typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
+//            nav_msgs::Odometry> MySyncPolicy;
+
+//    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub);
+
     sync.registerCallback(boost::bind(&CartesianGridInterface::syncCallBack,
                                       &likelihood_grid_interface, _1, _2, _3, _4));
+
+//    sync.registerCallback(boost::bind(&CartesianGridInterface::syncCallBack,
+//                                      &likelihood_grid_interface, _1, _2));
 
     while (ros::ok()) {
         likelihood_grid_interface.spin();

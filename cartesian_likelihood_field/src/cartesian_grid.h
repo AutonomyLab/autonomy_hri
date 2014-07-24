@@ -12,6 +12,9 @@
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/PointStamped.h>
+#include <hark_msgs/HarkSource.h>
+#include <hark_msgs/HarkSourceVal.h>
+#include <autonomy_human/human.h>
 #include "polarcord.h"
 
 
@@ -86,8 +89,20 @@ public:
     std::vector<float> likelihood;
     std::vector<float> predicted_posterior;
     std::vector<float> predicted_likelihood;
-    std::vector<PolarPose> polar_pose_array;
+    std::vector<PolarPose> current_polar_array;
+    std::vector<PolarPose> last_polar_array;
+    std::vector<PolarPose> predicted_polar_array;
+    geometry_msgs::Pose last_crtsn_pose;
+    geometry_msgs::Pose predicted_crtsn_pose;
+    geometry_msgs::PoseArray current_crtsn_array;
+    geometry_msgs::PoseArray last_crtsn_array;
+    geometry_msgs::PoseArray predicted_crtsn_array;
 
+    ros::Time pre_time;
+    ros::Duration diff_time;
+
+    double angular_velocity;
+    double linear_velocity;
 
     bool flag;
     SensorFOV_t sensor_fov;
@@ -98,14 +113,24 @@ public:
                   CellProbability_t _cell_prob);
     CartesianGrid();
     ~CartesianGrid();
-    void fuse(float* input);
-    void computeLikelihood(const std::vector<PolarPose>& pose, std::vector<float> &data, const float std_range, const float std_angle);
-    void updateGridProbability(std::vector<float>& pr, std::vector<float>& lk, std::vector<float>& po);
+    void fuse(const std::vector<float> data_1, const std::vector<float> data_2,
+              const std::vector<float> data_3, bool multiply);
+    void computeLikelihood(const std::vector<PolarPose>& pose, std::vector<float> &data,
+                           const float std_range, const float std_angle);
+    void updateGridProbability(std::vector<float>& pr, std::vector<float>& lk,
+                               std::vector<float>& po);
     void scaleProbability(float* data, float s);
     void setUnknownProbability(std::vector<float>& data, const float val);
     void setFreeProbability(std::vector<float>& data, const float val);
-    void bayesOccupancyFilter(const std::vector<PolarPose> &pose, const float std_range, const float std_angle);
-    void getPose(geometry_msgs::PoseArray& msg);
+    void bayesOccupancyFilter();
+    void getPose(geometry_msgs::PoseArray &crtsn_array);
+    void getPose(const autonomy_human::humanConstPtr& torso_img);
+    void getPose(const hark_msgs::HarkSourceConstPtr& sound_src);
+    void updateVelocity(double robot_linear_velocity, double robot_angular_velocity,
+                        double last_polar_range, double last_polar_angle);
+    void predict(double robot_linear_velocity, double robot_angular_velocity);
+    void polar2Crtsn(std::vector<PolarPose> &polar_array,
+                     geometry_msgs::PoseArray &crtsn_array);
 };
 
 #endif
