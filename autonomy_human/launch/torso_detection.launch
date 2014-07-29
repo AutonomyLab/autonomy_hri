@@ -1,6 +1,7 @@
 <launch>
-  <node pkg="image_transport" name="republish" type="republish" args="compressed in:=/axis/image_raw raw out:=/axis/image_raw image_transport:=compressed">
-  </node>
+    <arg name="image_input" value="/camera/rgb/image_color" />
+
+    <node name="republish" type="republish" pkg="image_transport" args="compressed in:=$(arg image_input) _image_transport:=compressed raw out:=/camera/rgb/image_color" />
   <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node">
         <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascades/haarcascade_upperbody.xml" />
         <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
@@ -16,7 +17,8 @@
         <param name="max_face_width" value="200" />
         <param name="max_face_height" value="400" />
         <param name="debug_mode" value="18" />
-    <remap from="input_rgb_image" to="/camera/rgb/image_color" />
+      <remap from="input_rgb_image" to="/camera/rgb/image_color" />
+      <remap from="raw_detections" to="torso" />
   </node>
   <!--
     <node pkg="image_view" name="debugimage" type="image_view">

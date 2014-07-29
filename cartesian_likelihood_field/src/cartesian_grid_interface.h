@@ -120,14 +120,13 @@ private:
     void initTorso(SensorFOV_t sensor_fov);
     void initSound(SensorFOV_t sensor_fov);
     void initHuman();
-    void publish();
 
 public:
     CartesianGridInterface();
     CartesianGridInterface(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
     void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
                       const nav_msgs::OdometryConstPtr& encoder_msg,
-                      const autonomy_human::humanConstPtr &torso_msg,
+                      const autonomy_human::raw_detectionsConstPtr torso_msg,
                       const hark_msgs::HarkSourceConstPtr &sound_msg);
 
 //    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,

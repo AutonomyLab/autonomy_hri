@@ -15,6 +15,7 @@
 #include <hark_msgs/HarkSource.h>
 #include <hark_msgs/HarkSourceVal.h>
 #include <autonomy_human/human.h>
+#include <autonomy_human/raw_detections.h>
 #include "polarcord.h"
 
 
@@ -84,6 +85,8 @@ private:
 public:
     MapMetaData_t map;
     uint32_t grid_size;
+    PolarPose stdev;
+
     std::vector<float> posterior;
     std::vector<float> prior;
     std::vector<float> likelihood;
@@ -115,8 +118,7 @@ public:
     ~CartesianGrid();
     void fuse(const std::vector<float> data_1, const std::vector<float> data_2,
               const std::vector<float> data_3, bool multiply);
-    void computeLikelihood(const std::vector<PolarPose>& pose, std::vector<float> &data,
-                           const float std_range, const float std_angle);
+    void computeLikelihood(const std::vector<PolarPose>& pose, std::vector<float> &data);
     void updateGridProbability(std::vector<float>& pr, std::vector<float>& lk,
                                std::vector<float>& po);
     void scaleProbability(float* data, float s);
@@ -124,7 +126,7 @@ public:
     void setFreeProbability(std::vector<float>& data, const float val);
     void bayesOccupancyFilter();
     void getPose(geometry_msgs::PoseArray &crtsn_array);
-    void getPose(const autonomy_human::humanConstPtr& torso_img);
+    void getPose(const autonomy_human::raw_detectionsConstPtr torso_img);
     void getPose(const hark_msgs::HarkSourceConstPtr& sound_src);
     void updateVelocity(double robot_linear_velocity, double robot_angular_velocity,
                         double last_polar_range, double last_polar_angle);

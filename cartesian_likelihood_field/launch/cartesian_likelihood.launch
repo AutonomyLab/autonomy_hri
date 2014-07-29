@@ -17,12 +17,18 @@
         <param name="LikelihoodGrid/free_cell_probability" value="0.1"/>
         <param name="LikelihoodGrid/unknown_cell_probability" value="0.5"/>
         <param name="LikelihoodGrid/sensitivity" value="1"/>
-        <param name="loop_rate" value="5"/>
+        <param name="LikelihoodGrid/leg_range_stdev" value="0.1"/>
+        <param name="LikelihoodGrid/leg_angle_stded" value="1.0"/>
+        <param name="LikelihoodGrid/torso_range_stded" value="1.0"/>
+        <param name="LikelihoodGrid/torso_angle_stdev" value="1.0"/>
+        <param name="LikelihoodGrid/sound_range_stdev" value="1.0"/>
+        <param name="LikelihoodGrid/sound_angle_stdev" value="1.0"/>
+        <param name="loop_rate" value="50"/>
         <param name="motion_model_enable" value="$(arg use_encoder)"/>
         <param name="leg_detection_enable" value="$(arg leg_detection)"/>
         <param name="torso_detection_enable" value="$(arg torso_detection)"/>
         <param name="sound_detection_enable" value="$(arg sound_detection)"/>
-        <param name="fuse_multiply" value="$(false)"/>
+        <param name="fuse_multiply" value="false"/>
     </node>
 <group if="$(arg leg_detection)">
     <include file="$(find autonomy_leg_detection)/launch/leg_detection.launch"/>

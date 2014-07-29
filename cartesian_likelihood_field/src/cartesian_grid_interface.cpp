@@ -53,16 +53,16 @@ void CartesianGridInterface::init()
     ros::param::param("~/loop_rate",loop_rate, 10);
     ROS_INFO("/loop_rate is set to %d",loop_rate);
 
-    ros::param::param("~/motion_model_enable",motion_model_enable, false);
+    ros::param::param("~/motion_model_enable",motion_model_enable, true);
     ROS_INFO("/motion_model_enable to %d",motion_model_enable);
 
-    ros::param::param("~/leg_detection_enable",leg_detection_enable, false);
+    ros::param::param("~/leg_detection_enable",leg_detection_enable, true);
     ROS_INFO("/leg_detection_enable to %d",leg_detection_enable);
 
-    ros::param::param("~/torso_detection_enable",torso_detection_enable, false);
+    ros::param::param("~/torso_detection_enable",torso_detection_enable, true);
     ROS_INFO("/torso_detection_enable to %d",torso_detection_enable);
 
-    ros::param::param("~/sound_detection_enable",sound_detection_enable, false);
+    ros::param::param("~/sound_detection_enable",sound_detection_enable, true);
     ROS_INFO("/sound_detection_enable to %d",sound_detection_enable);
 
     ros::param::param("~/fuse_multiply",fuse_multiply, false);
@@ -72,21 +72,6 @@ void CartesianGridInterface::init()
             + (sound_detection_enable);
 
     ROS_INFO("number_of_sensors is set to %u",number_of_sensors);
-
-    //ROS_ASSERT(sensitivity <= number_of_sensors);
-
-////////// [???????]
-//    /* Calculating the prior */
-//    double upper_bound, lower_bound;
-//    upper_bound = pow(cell_probability.free, number_of_sensors - sensitivity) * pow(cell_probability.human,sensitivity);
-//    lower_bound = pow(cell_probability.free, number_of_sensors - sensitivity +1) * pow(cell_probability.human,sensitivity - 1);
-//    cell_probability.unknown = pow((upper_bound + lower_bound)/2.0, (1.0/number_of_sensors));
-
-//    prior_threshold = (upper_bound + lower_bound)/2.0;
-//    ROS_INFO("Threshold is  %lf",prior_threshold);
-
-//    ROS_INFO("/LikelihoodGrid/unknown_cell_probability has been changed to %.2lf",cell_probability.unknown);
-
 
     accept_counter = 0;
     reject_counter = 0;
@@ -100,6 +85,11 @@ void CartesianGridInterface::init()
         legs_fov.angle.min = toRadian(-120.0);//-2.35619449615;
         legs_fov.angle.max = toRadian(120.0);//2.35619449615;
         initLegs(legs_fov);
+        ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid->stdev.range, 0.1);
+        ROS_INFO("/LikelihoodGrid/leg_range_stdev is set to %.2f",leg_grid->stdev.range);
+
+        ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid->stdev.angle, 1.0);
+        ROS_INFO("/LikelihoodGrid/leg_angle_stdev is set to %.2f",leg_grid->stdev.angle);
         legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
         leg_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
         predicted_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
@@ -115,6 +105,12 @@ void CartesianGridInterface::init()
         camera_fov.angle.min = toRadian(-65.0/2);
         camera_fov.angle.max = toRadian(65.0/2);
         initTorso(camera_fov);
+
+        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid->stdev.range, 0.5);
+        ROS_INFO("/LikelihoodGrid/torso_range_stdev is set to %.2f",torso_grid->stdev.range);
+
+        ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid->stdev.angle, 1.0);
+        ROS_INFO("/LikelihoodGrid/torso_angle_stdev is set to %.2f",torso_grid->stdev.angle);
         torso_grid_pub = n.advertise<sensor_msgs::PointCloud>("torso_likelihood_grid",10);
         torso_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("torso_occupancy_grid",10);
         torso_counter = 0;
@@ -127,6 +123,12 @@ void CartesianGridInterface::init()
         mic_fov.angle.min = toRadian(-90.0);
         mic_fov.angle.max = toRadian(90.0);
         initSound(mic_fov);
+
+        ros::param::param("~/LikelihoodGrid/sound_range_stdev",sound_grid->stdev.range, 0.5);
+        ROS_INFO("/LikelihoodGrid/sound_range_stdev is set to %.2f",sound_grid->stdev.range);
+
+        ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid->stdev.angle, 1.0);
+        ROS_INFO("/LikelihoodGrid/sound_angle_stdev is set to %.2f",sound_grid->stdev.angle);
         sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
         sound_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
         sound_counter = 0;
@@ -229,13 +231,14 @@ void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
 
 void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
                                           const nav_msgs::OdometryConstPtr& encoder_msg,
-                                          const autonomy_human::humanConstPtr& torso_msg,
+                                          const autonomy_human::raw_detectionsConstPtr torso_msg,
                                           const hark_msgs::HarkSourceConstPtr& sound_msg)
 
 //void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
 //                                          const nav_msgs::OdometryConstPtr& encoder_msg)
 {
-//    ROS_INFO("I received data");
+    ROS_INFO("I received data: %.4f", ros::Time::now().toSec());
+    return;
 //    ----------   ENCODER CALLBACK   ----------
     if(motion_model_enable){
         current_time_encoder = ros::Time::now();
@@ -280,6 +283,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         leg_occupancy_grid_pub.publish(leg_occupancy_grid);
     }
 
+    //    ----------   TORSO DETECTION CALLBACK   ----------
     if(torso_detection_enable){
         torso_grid->getPose(torso_msg);
         torso_grid->predict(robot_linear_velocity, robot_angular_velocity);
@@ -291,6 +295,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         torso_occupancy_grid_pub.publish(torso_occupancy_grid);
     }
 
+    //    ----------   SOUND LOCALISATIAN CALLBACK   ----------
     if(sound_detection_enable){
         sound_grid->getPose(sound_msg);
         sound_grid->predict(robot_linear_velocity, robot_angular_velocity);
@@ -412,12 +417,6 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
 
         occupancy_grid->data.push_back(temp_data);
     }
-}
-
-
-void CartesianGridInterface::publish()
-{
-
 }
 
 

@@ -17,22 +17,23 @@ int main(int argc, char** argv)
     ros::NodeHandle n;
     tf::TransformListener *tf_listener;
     int loop_rate;
-    ros::param::param("~/loop_rate",loop_rate, 10);
+    ros::param::param("~/loop_rate",loop_rate, 20);
     ros::Rate looprate(loop_rate);
 
    CartesianGridInterface likelihood_grid_interface(n,tf_listener);
 
     message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 1);
     message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 1);
-    message_filters::Subscriber<autonomy_human::human> torso_sub(n, "human", 1);
+    message_filters::Subscriber<autonomy_human::raw_detections> torso_sub(n, "torso", 1);
     message_filters::Subscriber<hark_msgs::HarkSource> sound_sub(n, "HarkSource", 1);
 
     typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
             nav_msgs::Odometry,
-            autonomy_human::human,
+            autonomy_human::raw_detections,
             hark_msgs::HarkSource> MySyncPolicy;
 
     Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub, torso_sub, sound_sub);
+
 
 
 //    typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
@@ -47,10 +48,13 @@ int main(int argc, char** argv)
 //                                      &likelihood_grid_interface, _1, _2));
 
     while (ros::ok()) {
-        likelihood_grid_interface.spin();
-        ros::spinOnce();
+//        likelihood_grid_interface.spin();
+
         if(looprate.cycleTime() > looprate.expectedCycleTime())
             ROS_ERROR("It is taking too long! %f", looprate.cycleTime().toSec());
+
+        ros::spinOnce();
+
         if(!looprate.sleep())
             ROS_INFO("Not enough time left");
 

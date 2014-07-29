@@ -125,9 +125,7 @@ void CartesianGrid::setFreeProbability(std::vector<float>& data, const float val
 
 
 void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
-                                      std::vector<float> &data,
-                                      const float std_range,
-                                      const float std_angle)
+                                      std::vector<float> &data)
 {
     if(pose.empty()){
         setFreeProbability(data, 0.01);
@@ -148,9 +146,9 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
         if(map.cell_inFOV.at(i)){
             for(size_t p = 0; p < pose.size(); p++){
                 if(pose.at(p).range > 0.01)
-                    Gr = normalDistribution(cell_range, pose.at(p).range, std_range);
+                    Gr = normalDistribution(cell_range, pose.at(p).range, stdev.range);
 
-                Ga = normalDistribution(cell_angle, pose.at(p).angle, std_angle);
+                Ga = normalDistribution(cell_angle, pose.at(p).angle, toRadian(stdev.angle));
                 cell_probability += Gr * Ga;
             }
             data[i] = cell_probability / pose.size();
@@ -191,11 +189,11 @@ void CartesianGrid::bayesOccupancyFilter()
     setFreeProbability(likelihood, 0.01);
     setFreeProbability(predicted_likelihood, 0.01);
 
-    computeLikelihood(predicted_polar_array, predicted_likelihood, 0.2, 3.0*M_PI/180.0);
+    computeLikelihood(predicted_polar_array, predicted_likelihood);
     updateGridProbability(prior, predicted_likelihood, predicted_posterior);
 
     if(diff_time.toSec() < 2.0){
-        computeLikelihood(current_polar_array, likelihood, 0.1, 1.0*M_PI/180.0);
+        computeLikelihood(current_polar_array, likelihood);
     }
 
     updateGridProbability(predicted_posterior, likelihood, posterior);
@@ -260,31 +258,33 @@ void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
     }
 }
 
-void CartesianGrid::getPose(const autonomy_human::humanConstPtr& torso_img)
+void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
 {
-//    torso_frame_id = "base_footprint";
-//    torso_diff_time = ros::Time::now() - last_torso_time;
+
     if(!current_polar_array.empty()) current_polar_array.clear();
     PolarPose torso_polar_pose;
     torso_polar_pose.range = -1.0;
     torso_polar_pose.angle = 2 * M_PI;
     geometry_msgs::Point torso_position_in_image;
     double image_width = 640.0;
+    double estimated_range = 4.24;
+    double estimated_height = 98;
 //    double average_person_height = 1.69; //meter
     double camera_fov = 65.0; // degree
 
-    for(size_t i = 0; i < torso_img->numFaces; i++){
-        torso_position_in_image.x = torso_img->faceROI.x_offset + 0.5 * torso_img->faceROI.width;
+    for(size_t i = 0; i < torso_img->detections.size(); i++){
+        torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
+//        torso_position_in_image.x = torso_img->faceROI.x_offset + 0.5 * torso_img->faceROI.width;
         torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
-//            ROS_INFO("angle: %.2f   x offset: %.2f ",torso_pose_base_polar.angle, torso_position_in_image.x);
+//        torso_polar_pose.range = estimated_range * torso_img->faceROI.height / estimated_height;
+        torso_polar_pose.range = estimated_range * torso_img->detections.at(i).height / estimated_height;
         current_polar_array.push_back(torso_polar_pose);
     }
 }
 
 void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
 {
-//    sound_frame_id = "base_footprint";
-//    sound_diff_time = ros::Time::now() - last_sound_time;
+
     if(!current_polar_array.empty()) current_polar_array.clear();
     PolarPose sound_src_polar;
     sound_src_polar.range = -1.0;
@@ -293,7 +293,7 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
     for(size_t i = 0; i < sound_src->src.size(); i++){
         if(fabs(sound_src->src[i].y) > 0.0){
             sound_src_polar.angle = toRadian(sound_src->src[i].azimuth);
-//            last_sound_time = ros::Time::now();
+//            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
             current_polar_array.push_back(sound_src_polar);
         }
     }
