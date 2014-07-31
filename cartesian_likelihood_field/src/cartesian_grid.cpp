@@ -16,7 +16,7 @@ double normalize(const double val,const double x_min, const double x_max, const 
     return (range_min + ((range_max - range_min)*(val - x_min) / (x_max - x_min)));
 }
 
-float normalize(const float val,const float x_min, const float x_max)
+double normalize(const double val,const double x_min, const double x_max)
 {
     ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
     return ((val - x_min) / (x_max - x_min));
@@ -24,9 +24,11 @@ float normalize(const float val,const float x_min, const float x_max)
 
 
 CartesianGrid::CartesianGrid(uint32_t map_size,
-                             float_t map_resolution,
+                             double_t map_resolution,
                              SensorFOV_t _sensor_fov,
-                             CellProbability_t _cell_prob)
+                             CellProbability_t _cell_prob,
+                             double target_detection_probability,
+                             double false_positive_probability)
 {
     ROS_INFO("Constructing an instace of Cartesian Grid.");
     ROS_ASSERT(map_size%2 == 0);
@@ -34,10 +36,12 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     map.height = map_size;
     map.width = map_size;
     map.resolution = map_resolution;
-    map.origin.position.x = (float) map.height*map.resolution / -2.0;
-    map.origin.position.y = (float) map.width*map.resolution / -2.0;
+    map.origin.position.x = (double) map.height*map.resolution / -2.0;
+    map.origin.position.y = (double) map.width*map.resolution / -2.0;
 
     cell_prob = _cell_prob;
+    target_detection_prob = target_detection_probability;
+    false_positive_prob = false_positive_probability;
 
     grid_size = map.height * map.width;
     sensor_fov = _sensor_fov;
@@ -59,26 +63,25 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
              x.max,
              y.max);
 
-    geometry_msgs::Point temp_cell_cart_pos;
-    PolarPose temp_cell_pol_pos;
+    geometry_msgs::Point cell_crtsn_position;
+    PolarPose cell_polar_position;
     size_t i,r,c;
-
     i = 0;
     for(c = 0; c < map.width; c++){
         for(r = 0; r < map.height; r++){
 
-            temp_cell_cart_pos.x = ( x.min + ( map.resolution / 2.0 )) + r * map.resolution;
-            temp_cell_cart_pos.y = ( y.min + ( map.resolution / 2.0 )) + c * map.resolution;
-            temp_cell_cart_pos.z = 0.0;
-            map.cell_pos_crtsn.push_back(temp_cell_cart_pos);
+            cell_crtsn_position.x = ( x.min + ( map.resolution / 2.0 )) + r * map.resolution;
+            cell_crtsn_position.y = ( y.min + ( map.resolution / 2.0 )) + c * map.resolution;
+            cell_crtsn_position.z = 0.0;
+            map.cell_crtsn.push_back(cell_crtsn_position);
 
-            temp_cell_pol_pos.fromCart(temp_cell_cart_pos.x, temp_cell_cart_pos.y);
-            map.cell_pos_polar.push_back((temp_cell_pol_pos));
+            cell_polar_position.fromCart(cell_crtsn_position.x, cell_crtsn_position.y);
+            map.cell_pos_polar.push_back((cell_polar_position));
 
-            if( temp_cell_pol_pos.range > sensor_fov.range.min &&
-                    temp_cell_pol_pos.range < sensor_fov.range.max &&
-                    temp_cell_pol_pos.angle > sensor_fov.angle.min &&
-                    temp_cell_pol_pos.angle < sensor_fov.angle.max){
+            if( cell_polar_position.range > sensor_fov.range.min &&
+                    cell_polar_position.range < sensor_fov.range.max &&
+                    cell_polar_position.angle > sensor_fov.angle.min &&
+                    cell_polar_position.angle < sensor_fov.angle.max){
 
                 map.cell_inFOV.push_back(true);
             }else{
@@ -89,25 +92,34 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     }
 
     ROS_ASSERT( i == grid_size );
-    ROS_ASSERT( temp_cell_cart_pos.x > -x.max ); // The center of last cell is not out of grid
-    ROS_ASSERT( temp_cell_cart_pos.y > -y.max );
+    ROS_ASSERT( cell_crtsn_position.x > -x.max ); // The center of last cell is not out of grid
+    ROS_ASSERT( cell_crtsn_position.y > -y.max );
 
+//    det_prob = 0.9;
+//    false_pos_prob = 0.01;
 
     posterior.resize(grid_size, cell_prob.free);
     prior.resize(grid_size, cell_prob.free);
-    likelihood.resize(grid_size, cell_prob.free);
-    predicted_posterior.resize(grid_size, cell_prob.free);
-    predicted_likelihood.resize(grid_size, cell_prob.free);
+    true_likelihood.resize(grid_size, cell_prob.free);
+    false_likelihood.resize(grid_size, cell_prob.free);
 
-    setUnknownProbability(posterior, cell_prob.unknown);
-    setUnknownProbability(likelihood, cell_prob.unknown);
-    setUnknownProbability(prior, cell_prob.unknown);
-    setUnknownProbability(predicted_posterior, cell_prob.unknown);
-    setUnknownProbability(predicted_likelihood, cell_prob.unknown);
+    predicted_posterior.resize(grid_size, cell_prob.free);
+    pred_true_likelihood.resize(grid_size, cell_prob.free);
+    pred_false_likelihood.resize(grid_size, cell_prob.free);
+
+    setOutFOVProbability(posterior, cell_prob.unknown);
+    setOutFOVProbability(true_likelihood, cell_prob.unknown);
+    setOutFOVProbability(false_likelihood, cell_prob.unknown);
+
+    setOutFOVProbability(prior, cell_prob.unknown);
+    setOutFOVProbability(predicted_posterior, cell_prob.unknown);
+    setOutFOVProbability(pred_true_likelihood, cell_prob.unknown);
+    setOutFOVProbability(pred_false_likelihood, cell_prob.unknown);
+
 }
 
 
-void CartesianGrid::setUnknownProbability(std::vector<float> &data, const float val){
+void CartesianGrid::setOutFOVProbability(std::vector<double> &data, const double val){
     for(size_t i = 0; i < grid_size; i++){
         if(!map.cell_inFOV.at(i)){
             data[i] = val;
@@ -115,7 +127,7 @@ void CartesianGrid::setUnknownProbability(std::vector<float> &data, const float 
     }
 }
 
-void CartesianGrid::setFreeProbability(std::vector<float>& data, const float val){
+void CartesianGrid::setInFOVProbability(std::vector<double>& data, const double val){
     for(size_t i = 0; i < grid_size; i++){
         if(map.cell_inFOV.at(i)){
             data[i] = val;
@@ -123,129 +135,146 @@ void CartesianGrid::setFreeProbability(std::vector<float>& data, const float val
     }
 }
 
-
-void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
-                                      std::vector<float> &data)
+void CartesianGrid::predictLikelihood(const std::vector<PolarPose>& pose,
+                            std::vector<double> &lk_true,
+                            std::vector<double> &lk_false)
 {
-    if(pose.empty()){
-        setFreeProbability(data, 0.01);
-        return;
-    }
-
-    float cell_range = -1.0;
-    float cell_angle = 2 * M_PI;
-    float Gr = 1.0;
-    float Ga = 1.0;
+    double lk_det ;
+    double lk_mis ;
+    double cell_probability = 0.0;
+    double cell_range = -1.0;
+    double cell_angle = 2 * M_PI;
+    double Gr = 1.0;
+    double Ga = 1.0;
 
     for(size_t i = 0; i < grid_size; i++){
+
         cell_range = map.cell_pos_polar.at(i).range;
         cell_angle = map.cell_pos_polar.at(i).angle;
+//        lk_det = cell_prob.unknown;
+//        lk_mis = cell_prob.unknown;
 
-        float cell_probability = 0.0;
+        cell_probability = 0.0;
+        lk_det = 0.25;
+        lk_mis = 0.08;
 
-        if(map.cell_inFOV.at(i)){
+        if(pose.empty()) lk_mis = 0.8;
+        else{
+
             for(size_t p = 0; p < pose.size(); p++){
-                if(pose.at(p).range > 0.01)
-                    Gr = normalDistribution(cell_range, pose.at(p).range, stdev.range);
 
+                Gr = pose.at(p).range < 0.01 ? 1.0 : normalDistribution(cell_range, pose.at(p).range, stdev.range);
                 Ga = normalDistribution(cell_angle, pose.at(p).angle, toRadian(stdev.angle));
                 cell_probability += Gr * Ga;
             }
-            data[i] = cell_probability / pose.size();
+
+            lk_det = (((cell_probability)/(pose.size()) < cell_prob.free) ? cell_prob.free : (cell_probability)/(pose.size()));
         }
+
+        lk_true[i] = (lk_det * target_detection_prob) + (lk_mis * (1.0 - target_detection_prob));
+        lk_false[i] = (lk_det * false_positive_prob) + (lk_mis * (1.0 - false_positive_prob));
     }
 }
 
-void CartesianGrid::updateGridProbability(std::vector<float>& pr,
-                                          std::vector<float>& lk,
-                                          std::vector<float>& po)
+void CartesianGrid::detectionLikelihood(double &lk_det, double &lk_mis)
 {
-    std::vector<float> tmp(grid_size, cell_prob.unknown);
+}
+
+
+void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
+                                      std::vector<double> &lk_true,
+                                      std::vector<double> &lk_false)
+{
+    double lk_det ;
+    double lk_mis ;
+    double cell_probability = 0.0;
+    double cell_range = -1.0;
+    double cell_angle = 2 * M_PI;
+    double Gr = 1.0;
+    double Ga = 1.0;
 
     for(size_t i = 0; i < grid_size; i++){
-        if(map.cell_inFOV[i]){
 
-            float den = (lk[i] * pr[i]) + 0.1 * (1.0 - pr[i]);
-            tmp[i] = lk[i] * pr[i] / den;
+        cell_range = map.cell_pos_polar.at(i).range;
+        cell_angle = map.cell_pos_polar.at(i).angle;
+/*        lk_det = cell_prob.unknown;
+        lk_mis = cell_prob.unknown*/;
+        cell_probability = 0.0;
+
+        if(map.cell_inFOV.at(i)){
+
         }
+        lk_true[i] = (lk_det * target_detection_prob) + (lk_mis * (1.0 - target_detection_prob));
+        lk_false[i] = (lk_det * false_positive_prob) + (lk_mis * (1.0 - false_positive_prob));
     }
+}
 
-    float tmp_min = *std::min_element(tmp.begin(), tmp.end());
-    float tmp_max = *std::max_element(tmp.begin(), tmp.end());
-
+void CartesianGrid::updateGridProbability(std::vector<double>& pr,
+                                          std::vector<double>& true_lk,
+                                          std::vector<double>& false_lk,
+                                          std::vector<double>& po)
+{
+//    std::vector<double> tmp(grid_size, cell_prob.unknown);
+    double den = 1.0;
+    double tmp_po;
     for(size_t i = 0; i < grid_size; i++){
-        if(map.cell_inFOV[i]){
-            po[i] = normalize(tmp[i], tmp_min, tmp_max, cell_prob.free, cell_prob.human);
+
+        den = (true_lk[i] * pr[i]) + (false_lk[i] * (1.0 - pr[i]));
+        tmp_po = (true_lk[i] * pr[i]) / den;
+        po[i] = tmp_po;
+
+        if(tmp_po > cell_prob.human){
+            po[i] = tmp_po * cell_prob.human;
+        } else if (tmp_po < cell_prob.free) {
+            po[i] = cell_prob.free;
+        }
+
+        if((!map.cell_inFOV.at(i)) && (po[i]<cell_prob.unknown )){
+            po[i] = cell_prob.unknown;
         }
     }
-
-//    pr = po;
-//    ROS_ASSERT(*std::max_element(po.begin(), po.end()) <= cell_prob.human);
-//    ROS_ASSERT(*std::min_element(po.begin(), po.end()) >= cell_prob.free);
 }
 
 void CartesianGrid::bayesOccupancyFilter()
 {
-    setFreeProbability(likelihood, 0.01);
-    setFreeProbability(predicted_likelihood, 0.01);
-
-    computeLikelihood(predicted_polar_array, predicted_likelihood);
-    updateGridProbability(prior, predicted_likelihood, predicted_posterior);
-
-    if(diff_time.toSec() < 2.0){
-        computeLikelihood(current_polar_array, likelihood);
+    if((angular_velocity > 0.01) || (linear_velocity > 0.01)){
+            predictLikelihood(predicted_polar_array, pred_true_likelihood, pred_false_likelihood);
+            updateGridProbability(prior, pred_true_likelihood, pred_false_likelihood, predicted_posterior);
+    }else{
+        predicted_posterior = prior;
     }
 
-    updateGridProbability(predicted_posterior, likelihood, posterior);
+    if(diff_time.toSec() < 2.0){
+        computeLikelihood(current_polar_array, true_likelihood, false_likelihood);
+    }
+
+    updateGridProbability(predicted_posterior, true_likelihood, false_likelihood, posterior);
 
     prior = posterior;
     last_polar_array = current_polar_array;
 }
 
 
-void CartesianGrid::toLogOdd(std::vector<float>& pr_data, std::vector<float>& logodd_data)
-{
-    for(size_t i = 0; i < grid_size; i++){
-        ROS_ASSERT((1.0 - pr_data[i]) > 0.0);
-        logodd_data[i] = log((pr_data[i]) / (1.0 - pr_data[i]));
-    }
-}
-
-void CartesianGrid::fromLogOdd(std::vector<float>& logodd_data, std::vector<float>& pr_data)
-{
-    for(size_t i = 0; i < grid_size; i++){
-        pr_data[i] = 1.0 - (1.0 / (1.0 + exp(logodd_data[i])));
-    }
-}
-
-
-void CartesianGrid::fuse(const std::vector<float> data_1,
-                         const std::vector<float> data_2,
-                         const std::vector<float> data_3,
+void CartesianGrid::fuse(const std::vector<double> data_1,
+                         const std::vector<double> data_2,
+                         const std::vector<double> data_3,
                          bool multiply)
 {
     if(multiply){
-        setFreeProbability(posterior, 1.0);
-        setUnknownProbability(posterior, 1.0);
+        setInFOVProbability(posterior, 1.0);
+        setOutFOVProbability(posterior, 1.0);
         for(size_t i = 0; i < grid_size; i++){
             posterior.at(i) = (data_1.at(i) * data_2.at(i) * data_3.at(i));
         }
     } else {
-        setFreeProbability(posterior, 0.0);
-        setUnknownProbability(posterior, 0.0);
+        setInFOVProbability(posterior, 0.0);
+        setOutFOVProbability(posterior, 0.0);
         for(size_t i = 0; i < grid_size; i++){
             posterior.at(i) = (data_1.at(i) + data_2.at(i) + data_3.at(i))/3.0;
         }
     }
 }
 
-
-void CartesianGrid::scaleProbability(float* data, float s)
-{
-    for(size_t i = 0; i < grid_size; i++){
-        data[i] = data[i] * s;
-    }
-}
 
 void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
 {
@@ -267,8 +296,8 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
     torso_polar_pose.angle = 2 * M_PI;
     geometry_msgs::Point torso_position_in_image;
     double image_width = 640.0;
-    double estimated_range = 4.24;
-    double estimated_height = 98;
+    double estimated_range = 4.0;
+    double estimated_height = 100.0;
 //    double average_person_height = 1.69; //meter
     double camera_fov = 65.0; // degree
 
@@ -350,8 +379,7 @@ void CartesianGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,
 }
 
 CartesianGrid::~CartesianGrid()
-{
-}
+{}
 
 
 

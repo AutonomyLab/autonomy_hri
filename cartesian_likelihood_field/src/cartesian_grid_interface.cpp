@@ -46,6 +46,12 @@ void CartesianGridInterface::init()
     ros::param::param("~/LikelihoodGrid/unknown_cell_probability",cell_probability.unknown, 0.5);
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2f",cell_probability.unknown);
 
+    ros::param::param("~/LikelihoodGrid/target_detection_probability",target_detection_probability, 0.9);
+    ROS_INFO("/LikelihoodGrid/target_detection_probability is set to %.2f",target_detection_probability);
+
+    ros::param::param("~/LikelihoodGrid/false_positive_probability",false_positive_probability, 0.01);
+    ROS_INFO("/LikelihoodGrid/false_positive_probability is set to %.2f",false_positive_probability);
+
 
     ros::param::param("~/LikelihoodGrid/sensitivity",sensitivity, 1);
     ROS_INFO("/LikelihoodGrid/sensitivity is set to %u",sensitivity);
@@ -90,7 +96,7 @@ void CartesianGridInterface::init()
 
         ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/leg_angle_stdev is set to %.2f",leg_grid->stdev.angle);
-        legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
+//        legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
         leg_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
         predicted_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
         last_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("last_legs",10);
@@ -111,7 +117,7 @@ void CartesianGridInterface::init()
 
         ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/torso_angle_stdev is set to %.2f",torso_grid->stdev.angle);
-        torso_grid_pub = n.advertise<sensor_msgs::PointCloud>("torso_likelihood_grid",10);
+//        torso_grid_pub = n.advertise<sensor_msgs::PointCloud>("torso_likelihood_grid",10);
         torso_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("torso_occupancy_grid",10);
         torso_counter = 0;
     }
@@ -129,12 +135,12 @@ void CartesianGridInterface::init()
 
         ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/sound_angle_stdev is set to %.2f",sound_grid->stdev.angle);
-        sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
+//        sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
         sound_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
         sound_counter = 0;
     }
     initHuman();
-    human_grid_pub = n.advertise<sensor_msgs::PointCloud>("human_likelihood_grid",10);
+//    human_grid_pub = n.advertise<sensor_msgs::PointCloud>("human_likelihood_grid",10);
     human_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("human_occupancy_grid",10);
 
     try
@@ -220,7 +226,9 @@ void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
 {
     try
     {
-        leg_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability);
+        leg_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability,
+                                      target_detection_probability,
+                                      false_positive_probability);
     }
     catch (std::bad_alloc& ba)
     {
@@ -228,17 +236,56 @@ void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
     }
 }
 
+void CartesianGridInterface::initTorso(SensorFOV_t sensor_fov)
+{
+    try
+    {
+        torso_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability,
+                                       target_detection_probability,
+                                       false_positive_probability);
+    }
+    catch (std::bad_alloc& ba)
+    {
+        std::cerr << "In new torsoGrid: bad_alloc caught: " << ba.what() << '\n';
+    }
+}
+
+
+void CartesianGridInterface::initSound(SensorFOV_t sensor_fov)
+{
+    try
+    {
+        sound_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability, target_detection_probability,
+                                       false_positive_probability);
+    }
+    catch (std::bad_alloc& ba)
+    {
+        std::cerr << "In new sound_Grid: bad_alloc caught: " << ba.what() << '\n';
+    }
+}
+
+
+void CartesianGridInterface::initHuman()
+{
+    try
+    {
+        human_grid = new CartesianGrid(map_size, map_resolution, fov, cell_probability,
+                                       target_detection_probability,
+                                       false_positive_probability);
+    }
+    catch (std::bad_alloc& ba)
+    {
+        std::cerr << "In new humanGrid: bad_alloc caught: " << ba.what() << '\n';
+    }
+}
+
 
 void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
                                           const nav_msgs::OdometryConstPtr& encoder_msg,
-                                          const autonomy_human::raw_detectionsConstPtr torso_msg,
-                                          const hark_msgs::HarkSourceConstPtr& sound_msg)
-
-//void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
-//                                          const nav_msgs::OdometryConstPtr& encoder_msg)
+                                          const autonomy_human::raw_detectionsConstPtr torso_msg)
 {
-    ROS_INFO("I received data: %.4f", ros::Time::now().toSec());
-    return;
+//    ROS_INFO("Received SYNC data: %.4f", ros::Time::now().toSec());
+//    return;
 //    ----------   ENCODER CALLBACK   ----------
     if(motion_model_enable){
         current_time_encoder = ros::Time::now();
@@ -296,6 +343,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     }
 
     //    ----------   SOUND LOCALISATIAN CALLBACK   ----------
+ /*
     if(sound_detection_enable){
         sound_grid->getPose(sound_msg);
         sound_grid->predict(robot_linear_velocity, robot_angular_velocity);
@@ -306,17 +354,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         sound_occupancy_grid.header.stamp = ros::Time::now();
         sound_occupancy_grid_pub.publish(sound_occupancy_grid);
     }
-
-//    human_grid->setFreeProbability(human_grid->posterior, 0.0);
-//    human_grid->setUnknownProbability(human_grid->posterior, 0.0);
-
-//    if(leg_detection_enable)
-//        human_grid->fuse(leg_grid->posterior);
-//    if(torso_detection_enable)
-//        human_grid->fuse(torso_grid->posterior);
-//    if(sound_detection_enable)
-//        human_grid->fuse(sound_grid->posterior);
-
+*/
 
     human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, fuse_multiply);
 
@@ -325,44 +363,21 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     human_occupancy_grid_pub.publish(human_occupancy_grid);
 }
 
-void CartesianGridInterface::initTorso(SensorFOV_t sensor_fov)
+
+void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
 {
-    try
-    {
-        torso_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability);
-    }
-    catch (std::bad_alloc& ba)
-    {
-        std::cerr << "In new torsoGrid: bad_alloc caught: " << ba.what() << '\n';
+//    ROS_INFO("Received SOUND data: %.4f", ros::Time::now().toSec());
+    if(sound_detection_enable){
+        sound_grid->getPose(sound_msg);
+        sound_grid->predict(robot_linear_velocity, robot_angular_velocity);
+        sound_grid->bayesOccupancyFilter();
+
+        //Publish
+        occupancyGrid(sound_grid, &sound_occupancy_grid);
+        sound_occupancy_grid.header.stamp = ros::Time::now();
+        sound_occupancy_grid_pub.publish(sound_occupancy_grid);
     }
 }
-
-
-void CartesianGridInterface::initSound(SensorFOV_t sensor_fov)
-{
-    try
-    {
-        sound_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability);
-    }
-    catch (std::bad_alloc& ba)
-    {
-        std::cerr << "In new sound_Grid: bad_alloc caught: " << ba.what() << '\n';
-    }
-}
-
-
-void CartesianGridInterface::initHuman()
-{
-    try
-    {
-        human_grid = new CartesianGrid(map_size, map_resolution, fov, cell_probability);
-    }
-    catch (std::bad_alloc& ba)
-    {
-        std::cerr << "In new humanGrid: bad_alloc caught: " << ba.what() << '\n';
-    }
-}
-
 
 void CartesianGridInterface::pointCloudGrid(CartesianGrid* grid, sensor_msgs::PointCloud* pointcloud_grid)
 {
@@ -380,8 +395,8 @@ void CartesianGridInterface::pointCloudGrid(CartesianGrid* grid, sensor_msgs::Po
 
     for(size_t i = 0; i < grid->grid_size; i++){
 
-        points.x = grid->map.cell_pos_crtsn[i].x;
-        points.y = grid->map.cell_pos_crtsn[i].y;
+        points.x = grid->map.cell_crtsn[i].x;
+        points.y = grid->map.cell_crtsn[i].y;
         points.z = grid->posterior[i];
         probability_channel.values.push_back(grid->posterior[i]);
         threshold_channel.values.push_back(prior_threshold);
@@ -409,13 +424,8 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
     }
 
     for(size_t i = 0; i < grid->grid_size; i++){
-        uint temp_data = 50;
-
-        if(grid->map.cell_inFOV.at(i)){
-            temp_data = (uint) 100 * grid->posterior[i];
-        }
-
-        occupancy_grid->data.push_back(temp_data);
+        uint cell_prob = (uint) 100 * grid->posterior[i];
+        occupancy_grid->data.push_back(cell_prob);
     }
 }
 

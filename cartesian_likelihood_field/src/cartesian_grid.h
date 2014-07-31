@@ -66,7 +66,7 @@ uint32_t height;
 geometry_msgs::Pose origin;
 
 // robot-centric position of the cell (r,c) in the map
-std::vector<geometry_msgs::Point> cell_pos_crtsn;
+std::vector<geometry_msgs::Point> cell_crtsn;
 std::vector<PolarPose> cell_pos_polar;
 
 // is cell(r,c) in sensor fov?
@@ -79,19 +79,24 @@ class CartesianGrid
 private:
     FOV_t x;
     FOV_t y;
-    void toLogOdd(std::vector<float> &pr_data, std::vector<float> &logodd_data);
-    void fromLogOdd(std::vector<float> &logodd_data, std::vector<float> &pr_data);
+
+    void detectionLikelihood(double &lk_det, double &lk_mis);
 
 public:
     MapMetaData_t map;
     uint32_t grid_size;
     PolarPose stdev;
+    CellProbability_t cell_prob;
+    bool flag;
+    SensorFOV_t sensor_fov;
 
-    std::vector<float> posterior;
-    std::vector<float> prior;
-    std::vector<float> likelihood;
-    std::vector<float> predicted_posterior;
-    std::vector<float> predicted_likelihood;
+    std::vector<double> posterior;
+    std::vector<double> prior;
+    std::vector<double> true_likelihood;
+    std::vector<double> false_likelihood;
+    std::vector<double> predicted_posterior;
+    std::vector<double> pred_true_likelihood;
+    std::vector<double> pred_false_likelihood;
     std::vector<PolarPose> current_polar_array;
     std::vector<PolarPose> last_polar_array;
     std::vector<PolarPose> predicted_polar_array;
@@ -106,24 +111,32 @@ public:
 
     double angular_velocity;
     double linear_velocity;
+    double target_detection_prob;
+    double false_positive_prob;
 
-    bool flag;
-    SensorFOV_t sensor_fov;
-    CellProbability_t cell_prob;
     CartesianGrid(uint32_t map_size,
-                  float_t map_resolution,
+                  double_t map_resolution,
                   SensorFOV_t _sensor_fov,
-                  CellProbability_t _cell_prob);
+                  CellProbability_t _cell_prob,
+                  double target_detection_probability,
+                  double false_positive_probability);
     CartesianGrid();
     ~CartesianGrid();
-    void fuse(const std::vector<float> data_1, const std::vector<float> data_2,
-              const std::vector<float> data_3, bool multiply);
-    void computeLikelihood(const std::vector<PolarPose>& pose, std::vector<float> &data);
-    void updateGridProbability(std::vector<float>& pr, std::vector<float>& lk,
-                               std::vector<float>& po);
-    void scaleProbability(float* data, float s);
-    void setUnknownProbability(std::vector<float>& data, const float val);
-    void setFreeProbability(std::vector<float>& data, const float val);
+
+    void fuse(const std::vector<double> data_1, const std::vector<double> data_2,
+              const std::vector<double> data_3, bool multiply);
+    void predictLikelihood(const std::vector<PolarPose>& pose,
+                                std::vector<double> &lk_true,
+                                std::vector<double> &lk_false);
+    void computeLikelihood(const std::vector<PolarPose>& pose,
+                                std::vector<double> &lk_true,
+                                std::vector<double> &lk_false);
+    void updateGridProbability(std::vector<double> &pr,
+                               std::vector<double> &true_lk,
+                               std::vector<double> &false_lk,
+                               std::vector<double> &po);
+    void setOutFOVProbability(std::vector<double>& data, const double val);
+    void setInFOVProbability(std::vector<double>& data, const double val);
     void bayesOccupancyFilter();
     void getPose(geometry_msgs::PoseArray &crtsn_array);
     void getPose(const autonomy_human::raw_detectionsConstPtr torso_img);

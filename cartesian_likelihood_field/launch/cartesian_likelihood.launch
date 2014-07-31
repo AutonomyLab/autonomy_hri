@@ -13,9 +13,11 @@
         <param name="LikelihoodGrid/grid_range_min" value="0.0"/>
         <param name="LikelihoodGrid/grid_range_max" value="10.0"/>
         <param name="LikelihoodGrid/update_rate" value="0.25"/>
-        <param name="LikelihoodGrid/human_cell_probability" value="0.9"/>
-        <param name="LikelihoodGrid/free_cell_probability" value="0.1"/>
-        <param name="LikelihoodGrid/unknown_cell_probability" value="0.5"/>
+        <param name="LikelihoodGrid/human_cell_probability" value="0.95"/>
+        <param name="LikelihoodGrid/free_cell_probability" value="0.05"/>
+        <param name="LikelihoodGrid/unknown_cell_probability" value="0.2"/>
+        <param name="LikelihoodGrid/target_detection_probability" value="0.9"/>
+        <param name="LikelihoodGrid/false_positive_probability" value="0.01"/>
         <param name="LikelihoodGrid/sensitivity" value="1"/>
         <param name="LikelihoodGrid/leg_range_stdev" value="0.1"/>
         <param name="LikelihoodGrid/leg_angle_stded" value="1.0"/>
@@ -23,7 +25,7 @@
         <param name="LikelihoodGrid/torso_angle_stdev" value="1.0"/>
         <param name="LikelihoodGrid/sound_range_stdev" value="1.0"/>
         <param name="LikelihoodGrid/sound_angle_stdev" value="1.0"/>
-        <param name="loop_rate" value="50"/>
+        <param name="loop_rate" value="10"/>
         <param name="motion_model_enable" value="$(arg use_encoder)"/>
         <param name="leg_detection_enable" value="$(arg leg_detection)"/>
         <param name="torso_detection_enable" value="$(arg torso_detection)"/>

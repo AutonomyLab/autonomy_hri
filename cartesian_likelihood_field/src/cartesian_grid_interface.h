@@ -84,21 +84,23 @@ private:
     ros::Time current_time_encoder;
     geometry_msgs::Pose diff_pose_crtsn;
     PolarPose polar_diff_pose;
-    double diff_time;
-    double robot_angular_velocity;
-    double robot_linear_velocity;
+    CellProbability_t cell_probability;
+    SensorFOV_t fov;
     bool motion_model_enable;
 
     double prior_threshold;
     double update_rate;
+    double target_detection_probability;
+    double false_positive_probability;
+    double robot_angular_velocity;
+    double diff_time;
+    double robot_linear_velocity;
+    double map_resolution;
+
     int loop_rate;
     int number_of_sensors;
     int sensitivity;
-    CellProbability_t cell_probability;
-    SensorFOV_t fov;
-
     int map_size;
-    double map_resolution;
 
     void init();
     void initWorldGrids();
@@ -124,10 +126,17 @@ private:
 public:
     CartesianGridInterface();
     CartesianGridInterface(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
+
     void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
                       const nav_msgs::OdometryConstPtr& encoder_msg,
-                      const autonomy_human::raw_detectionsConstPtr torso_msg,
-                      const hark_msgs::HarkSourceConstPtr &sound_msg);
+                      const autonomy_human::raw_detectionsConstPtr torso_msg);
+
+    void soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg);
+
+//    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
+//                      const nav_msgs::OdometryConstPtr& encoder_msg,
+//                      const autonomy_human::raw_detectionsConstPtr torso_msg,
+//                      const hark_msgs::HarkSourceConstPtr &sound_msg);
 
 //    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
 //                      const nav_msgs::OdometryConstPtr& encoder_msg);
