@@ -284,6 +284,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
                                           const nav_msgs::OdometryConstPtr& encoder_msg,
                                           const autonomy_human::raw_detectionsConstPtr torso_msg)
 {
+    uint num_features = 0;
 //    ROS_INFO("Received SYNC data: %.4f", ros::Time::now().toSec());
 //    return;
 //    ----------   ENCODER CALLBACK   ----------
@@ -297,6 +298,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
 //    ----------   LEG DETECTION CALLBACK   ----------
     if(leg_detection_enable){
+
 
         if(!leg_grid->current_crtsn_array.poses.empty()) leg_grid->current_crtsn_array.poses.clear();
 
@@ -323,6 +325,17 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         /* ******* */
 
         leg_grid->bayesOccupancyFilter();
+
+//        PolarPose leg_max_pose = leg_grid->getHighestProbabilityPolarPose();
+
+//        ROS_INFO("leg highest probability position: \n   range:  %.2f    angle:  %.2f,   Probability:    %.5f",
+//                leg_max_pose.range, leg_max_pose.angle, leg_grid->max_probability);
+
+        std::vector<uint> leg_local_maxima = leg_grid->getLocalMaxima();
+
+        ROS_INFO("local maxima: %lu", leg_local_maxima.size());
+        ROS_INFO("num legs: %lu", leg_msg_crtsn->poses.size());
+
 
         // Publish
         occupancyGrid(leg_grid, &leg_occupancy_grid);
@@ -361,6 +374,10 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     occupancyGrid(human_grid, &human_occupancy_grid);
     human_occupancy_grid.header.stamp = ros::Time::now();
     human_occupancy_grid_pub.publish(human_occupancy_grid);
+
+    num_features = leg_grid->num_features + torso_grid->num_features + sound_grid->num_features;
+    uint tmp_num = leg_msg_crtsn->poses.size() + torso_msg->detections.size();
+//    ROS_INFO("Total number of features  %d      %d", num_features, tmp_num);
 }
 
 

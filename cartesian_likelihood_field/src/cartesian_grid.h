@@ -10,6 +10,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseArray.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/PointStamped.h>
 #include <hark_msgs/HarkSource.h>
@@ -71,6 +72,9 @@ std::vector<PolarPose> cell_pos_polar;
 
 // is cell(r,c) in sensor fov?
 std::vector<bool> cell_inFOV;
+
+//// cell number
+//size_t cell_num;
 };
 
 
@@ -81,6 +85,9 @@ private:
     FOV_t y;
 
     void detectionLikelihood(double &lk_det, double &lk_mis);
+    size_t maxProbCellNum();
+    double cellsDistance(size_t c1, size_t c2);
+
 
 public:
     MapMetaData_t map;
@@ -105,6 +112,7 @@ public:
     geometry_msgs::PoseArray current_crtsn_array;
     geometry_msgs::PoseArray last_crtsn_array;
     geometry_msgs::PoseArray predicted_crtsn_array;
+    geometry_msgs::PoseStamped highest_prob_pose;
 
     ros::Time pre_time;
     ros::Duration diff_time;
@@ -113,6 +121,9 @@ public:
     double linear_velocity;
     double target_detection_prob;
     double false_positive_prob;
+    double max_probability;
+
+    uint num_features;
 
     CartesianGrid(uint32_t map_size,
                   double_t map_resolution,
@@ -146,6 +157,10 @@ public:
     void predict(double robot_linear_velocity, double robot_angular_velocity);
     void polar2Crtsn(std::vector<PolarPose> &polar_array,
                      geometry_msgs::PoseArray &crtsn_array);
+    geometry_msgs::PoseStamped getHighestProbabilityPoseStamped();
+    PolarPose getHighestProbabilityPolarPose();
+
+    std::vector<uint> getLocalMaxima();
 };
 
 #endif
