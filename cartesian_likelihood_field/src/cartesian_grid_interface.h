@@ -29,6 +29,7 @@ private:
     ros::Publisher current_leg_base_pub;
     ros::Publisher legs_grid_pub;
     ros::Publisher leg_occupancy_grid_pub;
+    ros::Publisher local_maxima_pub;
     CartesianGrid* leg_grid;
     ros::Time last_leg_time;
     ros::Duration leg_diff_time;
@@ -78,6 +79,8 @@ private:
     sensor_msgs::PointCloud human_pointcloud_grid;
     nav_msgs::OccupancyGrid human_occupancy_grid;
     bool fuse_multiply;
+    geometry_msgs::PoseArray local_maxima;
+
 
     //encoder
     ros::Time last_time_encoder;

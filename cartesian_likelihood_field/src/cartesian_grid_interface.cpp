@@ -142,6 +142,8 @@ void CartesianGridInterface::init()
     initHuman();
 //    human_grid_pub = n.advertise<sensor_msgs::PointCloud>("human_likelihood_grid",10);
     human_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("human_occupancy_grid",10);
+    local_maxima_pub = n.advertise<geometry_msgs::PoseArray>("local_maxima",10);
+
 
     try
     {
@@ -325,17 +327,30 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         /* ******* */
 
         leg_grid->bayesOccupancyFilter();
+        leg_grid->updateLocalMaximas();
 
-//        PolarPose leg_max_pose = leg_grid->getHighestProbabilityPolarPose();
+        ROS_INFO("local maxima: %lu", leg_grid->main_lm.size());
+        ROS_INFO("num legs: %lu ", leg_msg_crtsn->poses.size());
+        local_maxima.poses.clear();
+        geometry_msgs::Pose tmp_pose;
+        for(size_t j = 0; j < leg_grid->main_lm.size(); j++){
+            uint index = leg_grid->main_lm.at(j).index;
 
-//        ROS_INFO("leg highest probability position: \n   range:  %.2f    angle:  %.2f,   Probability:    %.5f",
-//                leg_max_pose.range, leg_max_pose.angle, leg_grid->max_probability);
+            tmp_pose.position.x = leg_grid->map.cell_crtsn.at(index).x;
+            tmp_pose.position.y = leg_grid->map.cell_crtsn.at(index).y;
+            tmp_pose.position.z = 0.0;
+            local_maxima.poses.push_back(tmp_pose);
 
-        std::vector<uint> leg_local_maxima = leg_grid->getLocalMaxima();
-
-        ROS_INFO("local maxima: %lu", leg_local_maxima.size());
-        ROS_INFO("num legs: %lu", leg_msg_crtsn->poses.size());
-
+            ROS_INFO("main_lm x: %.2f   y: %.2f     prob: %.4f  counter: %d",leg_grid->map.cell_crtsn.at(index).x,
+                     leg_grid->map.cell_crtsn.at(index).y,
+                     leg_grid->posterior.at(index),
+                     leg_grid->main_lm.at(j).counter);
+            ROS_ASSERT(leg_grid->main_lm.at(j).tracking == true);
+        }
+        local_maxima.header.frame_id = "base_footprint";
+        local_maxima.header.stamp = ros::Time::now();
+        local_maxima_pub.publish(local_maxima);
+        ROS_INFO("----------------------------------");
 
         // Publish
         occupancyGrid(leg_grid, &leg_occupancy_grid);

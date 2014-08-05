@@ -432,23 +432,31 @@ PolarPose CartesianGrid::getHighestProbabilityPolarPose()
     return _highest_prob_pose;
 }
 
-std::vector<uint> CartesianGrid::getLocalMaxima()
+void CartesianGrid::getLocalMaximas()
 {
+    new_lm.clear();
+    LocalMaxima_t tmp_new;
+    tmp_new.counter = 1;
+    tmp_new.tracking = false;
     std::vector<int8_t> filter_grid(grid_size, -1);
-    std::vector<uint> local_maxima;
-    std::vector<uint> neighbors;
-    uint ss = 1; //searching size
+    std::vector<size_t> neighbors;
+    uint ss = 8; //searching size
     uint row_shift = 1;
     uint col_shift = map.height;
     bool lm = 1;
 
+    double distance = linear_velocity * diff_time.toSec();
+
+    ROS_INFO("ditance:  %.4f", distance);
+
     for(size_t k = 0; k < grid_size; k++){
+        tmp_new.index = k;
         if (posterior.at(k) <= cell_prob.unknown || filter_grid.at(k) == 0) filter_grid.at(k) = 0;
         else {
             for(uint c = -ss; c == ss; c++){
                 for(uint r = -ss; r == ss; r++){
 
-                    uint x = (r * row_shift) + (c * col_shift) + k;
+                    size_t x = (r * row_shift) + (c * col_shift) + k;
 
                     if(x > 0){ // if the index is valid
                         lm = lm * (posterior.at(k) >= posterior.at(x));
@@ -460,12 +468,12 @@ std::vector<uint> CartesianGrid::getLocalMaxima()
 
             if(lm == 1){
                 bool isLocalMaxima = true;
-                if(local_maxima.empty()) local_maxima.push_back(k);
+                if(new_lm.empty())new_lm.push_back(tmp_new);
                 else{
-                    for(size_t i = 0; i < local_maxima.size(); i++){
-                        isLocalMaxima = isLocalMaxima && (cellsDistance(k,local_maxima.at(i)) > 1.0);
+                    for(size_t i = 0; i < new_lm.size(); i++){
+                        isLocalMaxima = isLocalMaxima && (cellsDistance(k,new_lm.at(i).index) > 1.0);
                     }
-                    if(isLocalMaxima) local_maxima.push_back(k);
+                    if(isLocalMaxima) new_lm.push_back(tmp_new);
                 }
 
                 filter_grid.at(k) = 1;
@@ -478,11 +486,80 @@ std::vector<uint> CartesianGrid::getLocalMaxima()
         neighbors.clear();
         lm = 1;
     }
-    for(size_t j = 0; j < local_maxima.size(); j++){
-        uint index = local_maxima.at(j);
-        ROS_INFO("x: %.2f   y: %.2f     prob: %.2f",map.cell_crtsn.at(index).x, map.cell_crtsn.at(index).y, posterior.at(index));
+    for(size_t j = 0; j < new_lm.size(); j++){
+        uint index = new_lm.at(j).index;
+        ROS_INFO("new_lm: x %.2f   y: %.2f     prob: %.4f",map.cell_crtsn.at(index).x, map.cell_crtsn.at(index).y, posterior.at(index));
     }
-    return local_maxima;
+}
+
+void CartesianGrid::trackLocalMaximas()
+{
+    LocalMaxima_t tmp_match;
+    matched_lm = old_lm;
+    main_lm.clear();
+    int8_t counter_threshold = 0;
+
+    if(old_lm.empty()){
+        old_lm = new_lm;
+        return;
+    }
+
+    std::vector<bool> find_match(new_lm.size(),false);
+    double dist_threshold = 2.0;
+
+    for(size_t i = 0; i < new_lm.size(); i++){
+
+        for(size_t j = 0; j < old_lm.size(); j++){
+
+            if(cellsDistance(new_lm.at(i).index, old_lm.at(j).index) < dist_threshold && !find_match.at(i)){
+                matched_lm.at(j).index = new_lm.at(i).index;
+                matched_lm.at(j).counter = old_lm.at(j).counter + 1;
+                find_match.at(i) = true;
+            }
+        }
+
+        if(!find_match.at(i)){
+            tmp_match.index = new_lm.at(i).index;
+            tmp_match.counter = 1;
+            tmp_match.tracking = false;
+            matched_lm.push_back(tmp_match);
+        }
+    }
+    ROS_ASSERT(old_lm.size() <= matched_lm.size());
+    ROS_ERROR("size old %lu -- size match  %lu ", old_lm.size(), matched_lm.size());
+
+    for(size_t k = 0; k < old_lm.size(); k++){
+        if(matched_lm.at(k).counter == old_lm.at(k).counter){
+            matched_lm.at(k).counter = old_lm.at(k).counter - 1;
+        }
+    }
+
+    old_lm.clear();
+
+    for(size_t a = 0; a < matched_lm.size(); a++){
+        size_t index = matched_lm.at(a).index;
+//        int8_t counter =  matched_lm.at(a).counter;
+        ROS_ERROR("match_lm: x %.2f   y: %.2f     prob: %.4f   counter: %d", map.cell_crtsn.at(index).x,
+                  map.cell_crtsn.at(index).y, posterior.at(index), matched_lm.at(a).counter);
+        if(posterior.at(index) < cell_prob.unknown) matched_lm.at(a).counter = -counter_threshold-1;
+        if(matched_lm.at(a).counter > counter_threshold){
+            matched_lm.at(a).counter = counter_threshold +1;
+            if(!matched_lm.at(a).tracking) matched_lm.at(a).tracking = true;
+        }
+        if(matched_lm.at(a).counter <= -counter_threshold){
+            matched_lm.at(a).tracking = false;
+        } else {
+            old_lm.push_back(matched_lm.at(a));
+        }
+        if(matched_lm.at(a).tracking == true )
+            main_lm.push_back(matched_lm.at(a));
+    }
+}
+
+void CartesianGrid::updateLocalMaximas()
+{
+    getLocalMaximas();
+    trackLocalMaximas();
 }
 
 double CartesianGrid::cellsDistance(size_t c1, size_t c2)

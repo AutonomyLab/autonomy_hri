@@ -2,7 +2,6 @@
 #define CARTESIAN_GRID_H
 
 #include <vector>
-//#include <array>
 #include <cmath>
 //#include <math.h>
 #include <algorithm>
@@ -47,6 +46,12 @@ struct CellProbability_t{
     double human;
 };
 
+struct LocalMaxima_t{
+    size_t index;
+    bool tracking;
+    int8_t counter;
+};
+
 struct MapMetaData_t{
 // This hold basic information about the characterists of the CartesianGrid
 
@@ -87,7 +92,9 @@ private:
     void detectionLikelihood(double &lk_det, double &lk_mis);
     size_t maxProbCellNum();
     double cellsDistance(size_t c1, size_t c2);
-
+    std::vector<LocalMaxima_t> old_lm;
+    std::vector<LocalMaxima_t> new_lm;
+    std::vector<LocalMaxima_t> matched_lm;
 
 public:
     MapMetaData_t map;
@@ -97,6 +104,7 @@ public:
     bool flag;
     SensorFOV_t sensor_fov;
 
+    std::vector<LocalMaxima_t> main_lm;
     std::vector<double> posterior;
     std::vector<double> prior;
     std::vector<double> true_likelihood;
@@ -160,7 +168,9 @@ public:
     geometry_msgs::PoseStamped getHighestProbabilityPoseStamped();
     PolarPose getHighestProbabilityPolarPose();
 
-    std::vector<uint> getLocalMaxima();
+    void getLocalMaximas();
+    void trackLocalMaximas();
+    void updateLocalMaximas();
 };
 
 #endif
