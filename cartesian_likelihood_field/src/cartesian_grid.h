@@ -103,6 +103,7 @@ public:
     CellProbability_t cell_prob;
     bool flag;
     SensorFOV_t sensor_fov;
+    int8_t counter_max_prob;
 
     std::vector<LocalMaxima_t> main_lm;
     std::vector<double> posterior;
@@ -120,7 +121,9 @@ public:
     geometry_msgs::PoseArray current_crtsn_array;
     geometry_msgs::PoseArray last_crtsn_array;
     geometry_msgs::PoseArray predicted_crtsn_array;
-    geometry_msgs::PoseStamped highest_prob_pose;
+    geometry_msgs::PoseArray local_maxima_poses;
+    geometry_msgs::PointStamped highest_prob_point;
+    LocalMaxima_t last_highest_lm;
 
     ros::Time pre_time;
     ros::Duration diff_time;
@@ -171,6 +174,7 @@ public:
     void getLocalMaximas();
     void trackLocalMaximas();
     void updateLocalMaximas();
+    void trackMaxProbability();
 };
 
 #endif

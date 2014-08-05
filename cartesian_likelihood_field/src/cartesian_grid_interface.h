@@ -30,6 +30,7 @@ private:
     ros::Publisher legs_grid_pub;
     ros::Publisher leg_occupancy_grid_pub;
     ros::Publisher local_maxima_pub;
+    ros::Publisher max_local_maxima_pub;
     CartesianGrid* leg_grid;
     ros::Time last_leg_time;
     ros::Duration leg_diff_time;
@@ -80,6 +81,7 @@ private:
     nav_msgs::OccupancyGrid human_occupancy_grid;
     bool fuse_multiply;
     geometry_msgs::PoseArray local_maxima;
+    geometry_msgs::PointStamped maximum_probability;
 
 
     //encoder

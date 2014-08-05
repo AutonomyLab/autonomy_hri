@@ -143,6 +143,7 @@ void CartesianGridInterface::init()
 //    human_grid_pub = n.advertise<sensor_msgs::PointCloud>("human_likelihood_grid",10);
     human_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("human_occupancy_grid",10);
     local_maxima_pub = n.advertise<geometry_msgs::PoseArray>("local_maxima",10);
+    max_local_maxima_pub = n.advertise<geometry_msgs::PointStamped>("maximum_probability",10);
 
 
     try
@@ -327,30 +328,11 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         /* ******* */
 
         leg_grid->bayesOccupancyFilter();
-        leg_grid->updateLocalMaximas();
-
-        ROS_INFO("local maxima: %lu", leg_grid->main_lm.size());
-        ROS_INFO("num legs: %lu ", leg_msg_crtsn->poses.size());
-        local_maxima.poses.clear();
-        geometry_msgs::Pose tmp_pose;
-        for(size_t j = 0; j < leg_grid->main_lm.size(); j++){
-            uint index = leg_grid->main_lm.at(j).index;
-
-            tmp_pose.position.x = leg_grid->map.cell_crtsn.at(index).x;
-            tmp_pose.position.y = leg_grid->map.cell_crtsn.at(index).y;
-            tmp_pose.position.z = 0.0;
-            local_maxima.poses.push_back(tmp_pose);
-
-            ROS_INFO("main_lm x: %.2f   y: %.2f     prob: %.4f  counter: %d",leg_grid->map.cell_crtsn.at(index).x,
-                     leg_grid->map.cell_crtsn.at(index).y,
-                     leg_grid->posterior.at(index),
-                     leg_grid->main_lm.at(j).counter);
-            ROS_ASSERT(leg_grid->main_lm.at(j).tracking == true);
-        }
-        local_maxima.header.frame_id = "base_footprint";
-        local_maxima.header.stamp = ros::Time::now();
-        local_maxima_pub.publish(local_maxima);
-        ROS_INFO("----------------------------------");
+//        leg_grid->updateLocalMaximas();
+//        leg_grid->trackMaxProbability();
+//        local_maxima_pub.publish(leg_grid->local_maxima_poses);
+//        maximum_probability = leg_grid->highest_prob_point;
+//        max_local_maxima_pub.publish(maximum_probability);
 
         // Publish
         occupancyGrid(leg_grid, &leg_occupancy_grid);
@@ -385,6 +367,11 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 */
 
     human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, fuse_multiply);
+    human_grid->updateLocalMaximas();
+    human_grid->trackMaxProbability();
+    local_maxima_pub.publish(human_grid->local_maxima_poses);
+    maximum_probability = human_grid->highest_prob_point;
+    max_local_maxima_pub.publish(maximum_probability);
 
     occupancyGrid(human_grid, &human_occupancy_grid);
     human_occupancy_grid.header.stamp = ros::Time::now();
