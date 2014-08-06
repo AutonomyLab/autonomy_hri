@@ -287,9 +287,6 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
                                           const nav_msgs::OdometryConstPtr& encoder_msg,
                                           const autonomy_human::raw_detectionsConstPtr torso_msg)
 {
-    uint num_features = 0;
-//    ROS_INFO("Received SYNC data: %.4f", ros::Time::now().toSec());
-//    return;
 //    ----------   ENCODER CALLBACK   ----------
     if(motion_model_enable){
         current_time_encoder = ros::Time::now();
@@ -302,8 +299,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 //    ----------   LEG DETECTION CALLBACK   ----------
     if(leg_detection_enable){
 
-
-        if(!leg_grid->current_crtsn_array.poses.empty()) leg_grid->current_crtsn_array.poses.clear();
+        leg_grid->current_crtsn_array.poses.clear();
 
         if(!transformToBase(leg_msg_crtsn, leg_grid->current_crtsn_array)){
             ROS_WARN("Can not transform from laser to base_footprint");
@@ -328,11 +324,6 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         /* ******* */
 
         leg_grid->bayesOccupancyFilter();
-//        leg_grid->updateLocalMaximas();
-//        leg_grid->trackMaxProbability();
-//        local_maxima_pub.publish(leg_grid->local_maxima_poses);
-//        maximum_probability = leg_grid->highest_prob_point;
-//        max_local_maxima_pub.publish(maximum_probability);
 
         // Publish
         occupancyGrid(leg_grid, &leg_occupancy_grid);
@@ -371,15 +362,13 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     human_grid->trackMaxProbability();
     local_maxima_pub.publish(human_grid->local_maxima_poses);
     maximum_probability = human_grid->highest_prob_point;
+    maximum_probability.header.frame_id = "base_footprint";
+    maximum_probability.header.stamp = ros::Time::now();
     max_local_maxima_pub.publish(maximum_probability);
 
     occupancyGrid(human_grid, &human_occupancy_grid);
     human_occupancy_grid.header.stamp = ros::Time::now();
     human_occupancy_grid_pub.publish(human_occupancy_grid);
-
-    num_features = leg_grid->num_features + torso_grid->num_features + sound_grid->num_features;
-    uint tmp_num = leg_msg_crtsn->poses.size() + torso_msg->detections.size();
-//    ROS_INFO("Total number of features  %d      %d", num_features, tmp_num);
 }
 
 

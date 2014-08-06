@@ -267,10 +267,7 @@ void CartesianGrid::bayesOccupancyFilter()
         predicted_posterior = prior;
     }
 
-    if(diff_time.toSec() < 2.0){
-        computeLikelihood(current_polar_array, true_likelihood, false_likelihood);
-    }
-
+    computeLikelihood(current_polar_array, true_likelihood, false_likelihood);
     updateGridProbability(predicted_posterior, true_likelihood, false_likelihood, posterior);
 
     prior = posterior;
@@ -309,9 +306,10 @@ void CartesianGrid::fuse(const std::vector<double> data_1,
 
 void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
 {
-    if(!current_polar_array.empty()) current_polar_array.clear();
+//    if(!current_polar_array.empty())
+        current_polar_array.clear();
     PolarPose polar_pose_point;
-    uint num_features = crtsn_array.poses.size();
+//    uint num_features = crtsn_array.poses.size();
     for(size_t i = 0; i < crtsn_array.poses.size(); i++){
         polar_pose_point.fromCart(crtsn_array.poses.at(i).position.x, crtsn_array.poses.at(i).position.y);
         current_polar_array.push_back(polar_pose_point);
@@ -321,23 +319,19 @@ void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
 void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
 {
 
-    if(!current_polar_array.empty()) current_polar_array.clear();
+//    if(!current_polar_array.empty())
+        current_polar_array.clear();
     PolarPose torso_polar_pose;
     torso_polar_pose.range = -1.0;
     torso_polar_pose.angle = 2 * M_PI;
-    num_features = torso_img->detections.size();
     geometry_msgs::Point torso_position_in_image;
     double image_width = 640.0;
     double estimated_range = 4.0;
     double estimated_height = 100.0;
-//    double average_person_height = 1.69; //meter
     double camera_fov = 65.0; // degree
-
     for(size_t i = 0; i < torso_img->detections.size(); i++){
         torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
-//        torso_position_in_image.x = torso_img->faceROI.x_offset + 0.5 * torso_img->faceROI.width;
         torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
-//        torso_polar_pose.range = estimated_range * torso_img->faceROI.height / estimated_height;
         torso_polar_pose.range = estimated_range * torso_img->detections.at(i).height / estimated_height;
         current_polar_array.push_back(torso_polar_pose);
     }
@@ -346,11 +340,11 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
 void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
 {
 
-    if(!current_polar_array.empty()) current_polar_array.clear();
+//    if(!current_polar_array.empty())
+        current_polar_array.clear();
     PolarPose sound_src_polar;
     sound_src_polar.range = -1.0;
     sound_src_polar.angle = 2 * M_PI;
-    num_features = sound_src->src.size();
     for(size_t i = 0; i < sound_src->src.size(); i++){
         if(fabs(sound_src->src[i].y) > 0.0){
             sound_src_polar.angle = toRadian(sound_src->src[i].azimuth);
@@ -423,86 +417,91 @@ size_t CartesianGrid::maxProbCellNum()
 
 geometry_msgs::PoseStamped CartesianGrid::getHighestProbabilityPoseStamped()
 {
-    geometry_msgs::PoseStamped _highest_prob_pose;
-    _highest_prob_pose.header.stamp = ros::Time::now();
-    _highest_prob_pose.header.frame_id = "base_footprint";
-    _highest_prob_pose.pose.position.x = map.cell_crtsn.at(maxProbCellNum()).x;
-    _highest_prob_pose.pose.position.y = map.cell_crtsn.at(maxProbCellNum()).y;
-    _highest_prob_pose.pose.position.z = posterior.at(maxProbCellNum());
-    _highest_prob_pose.pose.orientation.w = 1.00;
-    return _highest_prob_pose;
+//    geometry_msgs::PoseStamped _highest_prob_pose;
+//    _highest_prob_pose.header.stamp = ros::Time::now();
+//    _highest_prob_pose.header.frame_id = "base_footprint";
+//    _highest_prob_pose.pose.position.x = map.cell_crtsn.at(maxProbCellNum()).x;
+//    _highest_prob_pose.pose.position.y = map.cell_crtsn.at(maxProbCellNum()).y;
+//    _highest_prob_pose.pose.position.z = posterior.at(maxProbCellNum());
+//    _highest_prob_pose.pose.orientation.w = 1.00;
+//    return _highest_prob_pose;
 }
 
 PolarPose CartesianGrid::getHighestProbabilityPolarPose()
 {
-    PolarPose _highest_prob_pose;
-    _highest_prob_pose.range = map.cell_pos_polar.at(maxProbCellNum()).range;
-    _highest_prob_pose.angle = map.cell_pos_polar.at(maxProbCellNum()).angle;
-    return _highest_prob_pose;
+//    PolarPose _highest_prob_pose;
+//    _highest_prob_pose.range = map.cell_pos_polar.at(maxProbCellNum()).range;
+//    _highest_prob_pose.angle = map.cell_pos_polar.at(maxProbCellNum()).angle;
+//    return _highest_prob_pose;
 }
 
 void CartesianGrid::getLocalMaximas()
 {
     new_lm.clear();
     LocalMaxima_t tmp_new;
+    int x = 0;
     tmp_new.counter = 1;
     tmp_new.tracking = false;
     std::vector<int8_t> filter_grid(grid_size, -1);
     std::vector<size_t> neighbors;
-    uint ss = 3; //searching size
-    uint row_shift = 1;
-    uint col_shift = map.height;
-    bool lm = 1;
+    int8_t ss = 3; //searching size : ss = 3 --> ~1.00 meter around the person
+    int8_t row_shift = 1;
+    int8_t col_shift = map.height;
+    bool lm = false;
     double dist_threshold = 1.0;
 
     for(size_t k = 0; k < grid_size; k++){
+        non_local_maxima:
         tmp_new.index = k;
-        if (posterior.at(k) <= posterior.at(0) || filter_grid.at(k) == 0) filter_grid.at(k) = 0;
+        lm = false;
+        uint8_t col = k / map.height;
+        uint8_t row = k % map.height;
+
+        if ((posterior.at(k) <= posterior.at(0)) ||(filter_grid.at(k) == 0)) filter_grid.at(k) = 0;
         else {
-            for(uint c = -ss; c == ss; c++){
-                for(uint r = -ss; r == ss; r++){
+            filter_grid.at(k) = 0;
+            for(int8_t c = -ss; c <= ss; c++){
+                int search_col = c + col;
+                if(search_col >= map.height || search_col < 0) continue;
 
-                    size_t x = (r * row_shift) + (c * col_shift) + k;
+                for(int8_t r = -ss; r <= ss; r++){
+                    int search_row = r + row;
+                    if(search_row > map.height || search_row < 0) continue;
 
-                    if(x > 0){ // if the index is valid
-                        lm = lm * (posterior.at(k) >= posterior.at(x));
+                    x = (search_row * row_shift) + (search_col * col_shift) ;
+                    if(x < 0 || x == k || x >= grid_size) continue;  // make sure the index is valid
+
+                    if(posterior.at(k) >= posterior.at(x)){ // if the cell(k) has higher prob. than its neighbor(x)
+                        lm = true;
                         neighbors.push_back(x);
-                        if(lm == 0) goto not_a_local_maxima;
-                    }
+                    } else goto non_local_maxima;
                 }
             }
 
-            if(lm == 1){
+            if(lm){
+//                if (new_lm.empty()) new_lm.push_back(tmp_new);
+//                else{
+//                    for(size_t i = 0; i < new_lm.size(); i++){
+//                        double dist = cellsDistance(tmp_new.index, new_lm.at(i).index);
+//                        if(dist <= 1.0){
+//                            if(posterior.at(new_lm.at(i).index) <= posterior.at(tmp_new.index)) new_lm.at(i).index = tmp_new.index;
+//                        }else{
+//                            new_lm.push_back(tmp_new);
+//                        }
+//                    }
+//                }
 
-                bool isLocalMaxima = true;
-                if(new_lm.empty()) new_lm.push_back(tmp_new);
-                else{
-                    for(size_t i = 0; i < new_lm.size(); i++){
-                        if(cellsDistance(k,new_lm.at(i).index) <= dist_threshold){
-                            new_lm.at(i).index = (posterior.at(k) > posterior.at(new_lm.at(i).index)) ? k : new_lm.at(i).index;
-                            isLocalMaxima = false;
-                        }
-                        else{
-                            isLocalMaxima = true;
-                        }
-//                        isLocalMaxima = (cellsDistance(k,new_lm.at(i).index) > dist_threshold);
-                    }
-                    if(isLocalMaxima) new_lm.push_back(tmp_new);
-                }
-
+                new_lm.push_back(tmp_new);
                 filter_grid.at(k) = 1;
                 for(size_t n = 0; n < neighbors.size(); n++){
                     filter_grid.at(neighbors.at(n)) = 0;
                 }
             }
         }
-        not_a_local_maxima:
         neighbors.clear();
-        lm = 1;
     }
-    for(size_t j = 0; j < new_lm.size(); j++){
-        uint index = new_lm.at(j).index;
-    }
+
+    //---------------------------
 }
 
 void CartesianGrid::trackLocalMaximas()
@@ -510,7 +509,7 @@ void CartesianGrid::trackLocalMaximas()
     LocalMaxima_t tmp_match;
     matched_lm = old_lm;
     main_lm.clear();
-    int8_t counter_threshold = 3;
+    int8_t counter_threshold = 5;
 
     if(old_lm.empty()){
         old_lm = new_lm;
@@ -519,13 +518,15 @@ void CartesianGrid::trackLocalMaximas()
 
     std::vector<bool> find_match(new_lm.size(),false);
     double dist_threshold = 1.0;
+    double prob_threshold = 0.1;
 
     for(size_t i = 0; i < new_lm.size(); i++){
 
         for(size_t j = 0; j < old_lm.size(); j++){
 
             if(cellsDistance(new_lm.at(i).index, old_lm.at(j).index) < dist_threshold && !find_match.at(i)){
-                matched_lm.at(j).index = new_lm.at(i).index;
+                matched_lm.at(j).index = ((posterior.at(new_lm.at(i).index) - posterior.at(matched_lm.at(j).index)) > prob_threshold) ? new_lm.at(i).index : matched_lm.at(j).index;
+//                matched_lm.at(j).index = new_lm.at(i).index;
                 matched_lm.at(j).counter = old_lm.at(j).counter + 1;
                 find_match.at(i) = true;
             }
@@ -552,11 +553,12 @@ void CartesianGrid::trackLocalMaximas()
         size_t index = matched_lm.at(a).index;
 
         if(posterior.at(index) < posterior.at(0)) matched_lm.at(a).counter = -counter_threshold-1;
+
         if(matched_lm.at(a).counter > counter_threshold){
             matched_lm.at(a).counter = counter_threshold +1;
             if(!matched_lm.at(a).tracking) matched_lm.at(a).tracking = true;
         }
-        if(matched_lm.at(a).counter <= -counter_threshold){
+        if(matched_lm.at(a).counter <= 0){
             matched_lm.at(a).tracking = false;
         } else {
             old_lm.push_back(matched_lm.at(a));
@@ -564,6 +566,8 @@ void CartesianGrid::trackLocalMaximas()
         if(matched_lm.at(a).tracking == true )
             main_lm.push_back(matched_lm.at(a));
     }
+
+//    main_lm = new_lm;
 
     local_maxima_poses.poses.clear();
     geometry_msgs::Pose tmp_pose;
@@ -581,8 +585,14 @@ void CartesianGrid::trackLocalMaximas()
 void CartesianGrid::trackMaxProbability()
 {
     int8_t counter_threshold = 5;
+    double dist_threshold = 1.0;
 
-    if(main_lm.empty()) return;
+    if(main_lm.empty()){
+        LocalMaxima_t look_behind;
+        look_behind.index = 0;
+        main_lm.push_back(look_behind);
+        return;
+    }
     uint max_index = main_lm.at(0).index;
     for(size_t i = 0; i < main_lm.size(); i++){
         uint index = main_lm.at(i).index;
@@ -591,8 +601,8 @@ void CartesianGrid::trackMaxProbability()
         }
     }
 
-    if(cellsDistance(max_index, last_highest_lm.index) < 1.0){
-        last_highest_lm.index = max_index;
+    if(cellsDistance(max_index, last_highest_lm.index) < dist_threshold){
+        last_highest_lm.index = (posterior.at(max_index) < posterior.at(last_highest_lm.index)) ? last_highest_lm.index : max_index;
         last_highest_lm.counter = last_highest_lm.counter + 1;
     }else{
         last_highest_lm.counter = last_highest_lm.counter -1;
