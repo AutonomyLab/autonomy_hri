@@ -134,8 +134,6 @@ public:
     double false_positive_prob;
     double max_probability;
 
-    uint num_features;
-
     CartesianGrid(uint32_t map_size,
                   double_t map_resolution,
                   SensorFOV_t _sensor_fov,
