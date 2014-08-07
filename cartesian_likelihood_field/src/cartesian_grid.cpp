@@ -326,13 +326,17 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
     torso_polar_pose.angle = 2 * M_PI;
     geometry_msgs::Point torso_position_in_image;
     double image_width = 640.0;
-    double estimated_range = 4.0;
-    double estimated_height = 100.0;
+//    double estimated_range = 4.0;
+//    double estimated_height = 100.0;
     double camera_fov = 65.0; // degree
+    //(2.4,280),(3,250),(4,210),(5,180)
+    // 0.0000952381 x^2-0.0696716 x+14.4483
     for(size_t i = 0; i < torso_img->detections.size(); i++){
+        double h = torso_img->detections.at(i).height;
         torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
         torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
-        torso_polar_pose.range = estimated_range * torso_img->detections.at(i).height / estimated_height;
+//        torso_polar_pose.range = estimated_range * torso_img->detections.at(i).height / estimated_height;
+        torso_polar_pose.range = 0.0000952381*h*h-0.0696716*h+14.4483;
         current_polar_array.push_back(torso_polar_pose);
     }
 }
