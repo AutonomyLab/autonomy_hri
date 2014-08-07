@@ -31,8 +31,8 @@
         <param name="torso_detection_enable" value="$(arg torso_detection)"/>
         <param name="sound_detection_enable" value="$(arg sound_detection)"/>
         <param name="fuse_multiply" value="false"/>
+        <remap to="/person_detection/people" from="/torso" />
     </node>
-<remap from="/person_detection/people" to="/torso" />
 
 <group if="$(arg leg_detection)">
     <include file="$(find autonomy_leg_detection)/launch/leg_detection.launch"/>
