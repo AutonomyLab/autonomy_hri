@@ -29,12 +29,12 @@
       <Parameter name="LENGTH" type="subnet_param" value="LENGTH" description="The length of a frame (per channel)."/>
       <Parameter name="SAMPLING_RATE" type="subnet_param" value="SAMPLING_RATE" description="Sampling Rate (Hz)."/>
       <Parameter name="A_MATRIX" type="subnet_param" value="A_MATRIX" description="Filename of a transfer function matrix."/>
-      <Parameter name="WINDOW" type="int" value="50" description="The number of frames used for calculating a correlation function."/>
+      <Parameter name="WINDOW" type="int" value="10" description="The number of frames used for calculating a correlation function."/>
       <Parameter name="WINDOW_TYPE" type="string" value="MIDDLE" description="Window selection to accumulate a correlation function. If PAST, the past WINDOW frames from the current frame are used for the accumulation. If MIDDLE, the current frame will be the middle of the accumulated frames. If FUTURE, the future WINDOW frames from the current frame are used for the accumulation. FUTURE is the default from version 1.0, but this makes a delay since we have to wait for the future information. PAST generates a internal buffers for the accumulation, which realizes no delay for localization."/>
       <Parameter name="PERIOD" type="int" value="100" description="The period in which the source localization is processed."/>
       <Parameter name="NUM_SOURCE" type="int" value="2" description="Number of sources, which should be less than number of channels."/>
-      <Parameter name="MIN_DEG" type="int" value="-150" description="source direction (lower)."/>
-      <Parameter name="MAX_DEG" type="int" value="150" description="source direction (higher)."/>
+      <Parameter name="MIN_DEG" type="int" value="-100" description="source direction (lower)."/>
+      <Parameter name="MAX_DEG" type="int" value="100" description="source direction (higher)."/>
       <Parameter name="LOWER_BOUND_FREQUENCY" type="int" value="300" description="Lower bound of frequency (Hz) used for correlation function calculation."/>
       <Parameter name="UPPER_BOUND_FREQUENCY" type="int" value="3000" description="Upper bound of frequency (Hz) used for correlation function calculation."/>
       <Parameter name="SPECTRUM_WEIGHT_TYPE" type="string" value="A_Characteristic" description="MUSIC spectrum weight for each frequency bin."/>

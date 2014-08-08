@@ -83,7 +83,6 @@ struct Time_t{
 };
 
 
-
 class CartesianGrid
 {
 private:
