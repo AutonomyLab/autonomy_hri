@@ -84,7 +84,7 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
             map.cell_crtsn.push_back(cell_crtsn_position);
 
             cell_polar_position.fromCart(cell_crtsn_position.x, cell_crtsn_position.y);
-            map.cell_pos_polar.push_back((cell_polar_position));
+            map.cell_polar.push_back((cell_polar_position));
 
             if( cell_polar_position.range > sensor_fov.range.min &&
                     cell_polar_position.range < sensor_fov.range.max &&
@@ -157,8 +157,8 @@ void CartesianGrid::predictLikelihood(const std::vector<PolarPose>& pose,
 
     for(size_t i = 0; i < grid_size; i++){
 
-        cell_range = map.cell_pos_polar.at(i).range;
-        cell_angle = map.cell_pos_polar.at(i).angle;
+        cell_range = map.cell_polar.at(i).range;
+        cell_angle = map.cell_polar.at(i).angle;
         lk_det = cell_prob.unknown;
         lk_mis = cell_prob.unknown;
 
@@ -184,11 +184,6 @@ void CartesianGrid::predictLikelihood(const std::vector<PolarPose>& pose,
     }
 }
 
-void CartesianGrid::detectionLikelihood(double &lk_det, double &lk_mis)
-{
-}
-
-
 void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                                       std::vector<double> &lk_true,
                                       std::vector<double> &lk_false)
@@ -203,8 +198,8 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
 
     for(size_t i = 0; i < grid_size; i++){
 
-        cell_range = map.cell_pos_polar.at(i).range;
-        cell_angle = map.cell_pos_polar.at(i).angle;
+        cell_range = map.cell_polar.at(i).range;
+        cell_angle = map.cell_polar.at(i).angle;
         lk_det = cell_prob.unknown;
         lk_mis = cell_prob.unknown;
         cell_probability = 0.0;
@@ -306,8 +301,7 @@ void CartesianGrid::fuse(const std::vector<double> data_1,
 
 void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
 {
-//    if(!current_polar_array.empty())
-        current_polar_array.clear();
+    current_polar_array.clear();
     PolarPose polar_pose_point;
 //    uint num_features = crtsn_array.poses.size();
     for(size_t i = 0; i < crtsn_array.poses.size(); i++){
@@ -318,9 +312,7 @@ void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
 
 void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
 {
-
-//    if(!current_polar_array.empty())
-        current_polar_array.clear();
+    current_polar_array.clear();
     PolarPose torso_polar_pose;
     torso_polar_pose.range = -1.0;
     torso_polar_pose.angle = 2 * M_PI;
@@ -343,9 +335,7 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
 
 void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
 {
-
-//    if(!current_polar_array.empty())
-        current_polar_array.clear();
+    current_polar_array.clear();
     PolarPose sound_src_polar;
     sound_src_polar.range = -1.0;
     sound_src_polar.angle = 2 * M_PI;
@@ -371,7 +361,7 @@ void CartesianGrid::updateVelocity(double robot_linear_velocity,
 
 void CartesianGrid::predict(double robot_linear_velocity, double robot_angular_velocity)
 {
-    if(!predicted_polar_array.empty()) predicted_polar_array.clear();
+    predicted_polar_array.clear();
     if(last_polar_array.empty()) return;
 
     diff_time = ros::Time::now() - pre_time;
@@ -399,7 +389,7 @@ void CartesianGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,
     crtsn_array.header.frame_id = "base_footprint";
     crtsn_array.header.stamp = ros::Time::now();
 
-    if(!crtsn_array.poses.empty()) crtsn_array.poses.clear();
+    crtsn_array.poses.clear();
 
     for(size_t p = 0 ; p < polar_array.size(); p++){
         polar_array.at(p).toCart(crtsn_pose.position.x, crtsn_pose.position.y);

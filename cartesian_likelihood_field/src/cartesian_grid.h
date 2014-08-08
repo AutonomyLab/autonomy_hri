@@ -73,7 +73,7 @@ geometry_msgs::Pose origin;
 
 // robot-centric position of the cell (r,c) in the map
 std::vector<geometry_msgs::Point> cell_crtsn;
-std::vector<PolarPose> cell_pos_polar;
+std::vector<PolarPose> cell_polar;
 
 // is cell(r,c) in sensor fov?
 std::vector<bool> cell_inFOV;
@@ -89,21 +89,18 @@ private:
     FOV_t x;
     FOV_t y;
 
-    void detectionLikelihood(double &lk_det, double &lk_mis);
     size_t maxProbCellNum();
     double cellsDistance(size_t c1, size_t c2);
     std::vector<LocalMaxima_t> old_lm;
     std::vector<LocalMaxima_t> new_lm;
     std::vector<LocalMaxima_t> matched_lm;
+    SensorFOV_t sensor_fov;
 
 public:
     MapMetaData_t map;
     uint32_t grid_size;
     PolarPose stdev;
     CellProbability_t cell_prob;
-    bool flag;
-    SensorFOV_t sensor_fov;
-    int8_t counter_max_prob;
 
     std::vector<LocalMaxima_t> main_lm;
     std::vector<double> posterior;
