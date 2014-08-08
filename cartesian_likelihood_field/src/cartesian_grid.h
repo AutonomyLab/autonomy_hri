@@ -19,13 +19,6 @@
 #include "polarcord.h"
 
 
-//struct PointXYP_t{
-//    double x;
-//    double y;
-//    double p;
-//    double dist(PointXYP_t target){return sqrt(pow(x-target.x,2) + pow(y - target.y,2));}
-//};
-
 double normalize(const double val, const double x_min, const double x_max, const double range_min, const double range_max);
 
 struct FOV_t{
@@ -82,6 +75,14 @@ std::vector<bool> cell_inFOV;
 //size_t cell_num;
 };
 
+template <typename T>
+struct Time_t{
+    T current;
+    T past;
+    T predicted;
+};
+
+
 
 class CartesianGrid
 {
@@ -95,34 +96,13 @@ private:
     std::vector<LocalMaxima_t> new_lm;
     std::vector<LocalMaxima_t> matched_lm;
     SensorFOV_t sensor_fov;
-
-public:
-    MapMetaData_t map;
-    uint32_t grid_size;
-    PolarPose stdev;
-    CellProbability_t cell_prob;
-
-    std::vector<LocalMaxima_t> main_lm;
-    std::vector<double> posterior;
-    std::vector<double> prior;
     std::vector<double> true_likelihood;
     std::vector<double> false_likelihood;
     std::vector<double> predicted_posterior;
     std::vector<double> pred_true_likelihood;
     std::vector<double> pred_false_likelihood;
-    std::vector<PolarPose> current_polar_array;
-    std::vector<PolarPose> last_polar_array;
-    std::vector<PolarPose> predicted_polar_array;
-    geometry_msgs::Pose last_crtsn_pose;
-    geometry_msgs::Pose predicted_crtsn_pose;
-    geometry_msgs::PoseArray current_crtsn_array;
-    geometry_msgs::PoseArray last_crtsn_array;
-    geometry_msgs::PoseArray predicted_crtsn_array;
-    geometry_msgs::PoseArray local_maxima_poses;
-    geometry_msgs::PointStamped highest_prob_point;
     LocalMaxima_t last_highest_lm;
-
-    ros::Time pre_time;
+    ros::Time past_time;
     ros::Duration diff_time;
 
     double angular_velocity;
@@ -131,17 +111,6 @@ public:
     double false_positive_prob;
     double max_probability;
 
-    CartesianGrid(uint32_t map_size,
-                  double_t map_resolution,
-                  SensorFOV_t _sensor_fov,
-                  CellProbability_t _cell_prob,
-                  double target_detection_probability,
-                  double false_positive_probability);
-    CartesianGrid();
-    ~CartesianGrid();
-
-    void fuse(const std::vector<double> data_1, const std::vector<double> data_2,
-              const std::vector<double> data_3, bool multiply);
     void predictLikelihood(const std::vector<PolarPose>& pose,
                                 std::vector<double> &lk_true,
                                 std::vector<double> &lk_false);
@@ -154,20 +123,50 @@ public:
                                std::vector<double> &po);
     void setOutFOVProbability(std::vector<double>& data, const double val);
     void setInFOVProbability(std::vector<double>& data, const double val);
+    void updateVelocity(double robot_linear_velocity, double robot_angular_velocity,
+                        double last_polar_range, double last_polar_angle);
+    void getLocalMaximas();
+    void trackLocalMaximas();
+
+public:
+    MapMetaData_t map;
+    uint32_t grid_size;
+    PolarPose stdev;
+    CellProbability_t cell_prob;
+
+    std::vector<LocalMaxima_t> main_lm;
+    std::vector<double> posterior;
+    std::vector<double> prior;
+
+    Time_t<std::vector<PolarPose> > polar_array;
+
+    Time_t<geometry_msgs::PoseArray> crtsn_array;
+    geometry_msgs::PoseArray local_maxima_poses;
+    geometry_msgs::PointStamped highest_prob_point;
+
+
+    CartesianGrid(uint32_t map_size,
+                  double_t map_resolution,
+                  SensorFOV_t _sensor_fov,
+                  CellProbability_t _cell_prob,
+                  double target_detection_probability,
+                  double false_positive_probability);
+    CartesianGrid();
+    ~CartesianGrid();
+
+    void fuse(const std::vector<double> data_1, const std::vector<double> data_2,
+              const std::vector<double> data_3, bool multiply);
+
+
     void bayesOccupancyFilter();
     void getPose(geometry_msgs::PoseArray &crtsn_array);
     void getPose(const autonomy_human::raw_detectionsConstPtr torso_img);
     void getPose(const hark_msgs::HarkSourceConstPtr& sound_src);
-    void updateVelocity(double robot_linear_velocity, double robot_angular_velocity,
-                        double last_polar_range, double last_polar_angle);
+
     void predict(double robot_linear_velocity, double robot_angular_velocity);
     void polar2Crtsn(std::vector<PolarPose> &polar_array,
                      geometry_msgs::PoseArray &crtsn_array);
-    geometry_msgs::PoseStamped getHighestProbabilityPoseStamped();
-    PolarPose getHighestProbabilityPolarPose();
 
-    void getLocalMaximas();
-    void trackLocalMaximas();
     void updateLocalMaximas();
     void trackMaxProbability();
 };

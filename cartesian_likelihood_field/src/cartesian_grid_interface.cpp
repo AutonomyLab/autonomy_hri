@@ -299,28 +299,28 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 //    ----------   LEG DETECTION CALLBACK   ----------
     if(leg_detection_enable){
 
-        leg_grid->current_crtsn_array.poses.clear();
+        leg_grid->crtsn_array.current.poses.clear();
 
-        if(!transformToBase(leg_msg_crtsn, leg_grid->current_crtsn_array)){
+        if(!transformToBase(leg_msg_crtsn, leg_grid->crtsn_array.current)){
             ROS_WARN("Can not transform from laser to base_footprint");
-            leg_grid->current_crtsn_array.poses.clear();
+            leg_grid->crtsn_array.current.poses.clear();
         } else{
-            ROS_ASSERT(leg_msg_crtsn->poses.size() == leg_grid->current_crtsn_array.poses.size());
-            leg_grid->getPose(leg_grid->current_crtsn_array);
-            ROS_ASSERT(leg_grid->current_polar_array.size() == leg_msg_crtsn->poses.size());
+            ROS_ASSERT(leg_msg_crtsn->poses.size() == leg_grid->crtsn_array.current.poses.size());
+            leg_grid->getPose(leg_grid->crtsn_array.current);
+            ROS_ASSERT(leg_grid->polar_array.current.size() == leg_msg_crtsn->poses.size());
         }
 
         leg_grid->predict(robot_linear_velocity, robot_angular_velocity);
 
         /* FOR RVIZ */
-        leg_grid->current_crtsn_array.header.frame_id = "base_footprint";
-        current_leg_base_pub.publish(leg_grid->current_crtsn_array);
+        leg_grid->crtsn_array.current.header.frame_id = "base_footprint";
+        current_leg_base_pub.publish(leg_grid->crtsn_array.current);
 
-        leg_grid->polar2Crtsn(leg_grid->predicted_polar_array, leg_grid->predicted_crtsn_array);
-        predicted_leg_base_pub.publish(leg_grid->predicted_crtsn_array);
+        leg_grid->polar2Crtsn(leg_grid->polar_array.predicted, leg_grid->crtsn_array.predicted);
+        predicted_leg_base_pub.publish(leg_grid->crtsn_array.predicted);
 
-        leg_grid->polar2Crtsn(leg_grid->last_polar_array, leg_grid->last_crtsn_array);
-        last_leg_base_pub.publish(leg_grid->last_crtsn_array);
+        leg_grid->polar2Crtsn(leg_grid->polar_array.past, leg_grid->crtsn_array.past);
+        last_leg_base_pub.publish(leg_grid->crtsn_array.past);
         /* ******* */
 
         leg_grid->bayesOccupancyFilter();
