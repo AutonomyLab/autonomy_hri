@@ -1,0 +1,10 @@
+<launch>
+<arg name="bag_file" />
+
+    <node pkg="rosbag" type="play" name="play" output="screen" args="--bags $(arg bag_file) --clock" />
+
+</launch>
+
+<!--
+roslaunch cartesian_likelihood_field play_bag.launch bag_file:=`pwd`/1.bag
+-->
