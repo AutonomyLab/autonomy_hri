@@ -293,9 +293,9 @@ void CartesianGrid::fuse(const std::vector<double> data_1,
     double x_min = *std::min_element(posterior.begin(), posterior.end());
     double x_max = *std::max_element(posterior.begin(), posterior.end());
 
-    for(size_t i = 0; i < posterior.size(); i++){
-        normalize(posterior.at(i),x_min, x_max, cell_prob.free, cell_prob.human);
-    }
+//    for(size_t i = 0; i < posterior.size(); i++){
+//        normalize(posterior.at(i),x_min, x_max, cell_prob.free, cell_prob.human);
+//    }
 }
 
 
@@ -423,7 +423,7 @@ void CartesianGrid::getLocalMaximas()
     int8_t row_shift = 1;
     int8_t col_shift = map.height;
     bool lm = false;
-    double dist_threshold = 1.0;
+    double dist_threshold = 0.5;
 
     for(size_t k = 0; k < grid_size; k++){
         non_local_maxima:
@@ -492,7 +492,7 @@ void CartesianGrid::trackLocalMaximas()
     }
 
     std::vector<bool> find_match(new_lm.size(),false);
-    double dist_threshold = 1.0;
+    double dist_threshold = 0.5;
     double prob_threshold = 0.1;
 
     for(size_t i = 0; i < new_lm.size(); i++){
@@ -560,7 +560,7 @@ void CartesianGrid::trackLocalMaximas()
 void CartesianGrid::trackMaxProbability()
 {
     int8_t counter_threshold = 5;
-    double dist_threshold = 1.0;
+    double dist_threshold = 0.5;
 
     if(main_lm.empty()){
         LocalMaxima_t look_behind;
@@ -610,11 +610,9 @@ void CartesianGrid::updateLocalMaximas()
 
 double CartesianGrid::cellsDistance(size_t c1, size_t c2)
 {
-    double distance = 0.0;
     double diff_x = map.cell_crtsn.at(c1).x - map.cell_crtsn.at(c2).x;
     double diff_y = map.cell_crtsn.at(c1).y - map.cell_crtsn.at(c2).y;
-    distance = sqrt(diff_x*diff_x + diff_y*diff_y);
-    return distance;
+    return (sqrt(diff_x*diff_x + diff_y*diff_y));
 }
 
 
