@@ -27,8 +27,8 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
                              double_t map_resolution,
                              SensorFOV_t _sensor_fov,
                              CellProbability_t _cell_prob,
-                             double target_detection_probability,
-                             double false_positive_probability)
+                             double _target_detection_probability,
+                             double _false_positive_probability)
 {
     ROS_INFO("Constructing an instace of Cartesian Grid.");
     ROS_ASSERT(map_size%2 == 0);
@@ -40,8 +40,8 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     map.origin.position.y = (double) map.width*map.resolution / -2.0;
 
     cell_prob = _cell_prob;
-    target_detection_prob = target_detection_probability;
-    false_positive_prob = false_positive_probability;
+    target_detection_probability = _target_detection_probability;
+    false_positive_probability = _false_positive_probability;
 
     grid_size = map.height * map.width; // 1600
     sensor_fov = _sensor_fov;
@@ -144,11 +144,11 @@ void CartesianGrid::setInFOVProbability(std::vector<double>& data, const double 
 }
 
 void CartesianGrid::predictLikelihood(const std::vector<PolarPose>& pose,
-                            std::vector<double> &lk_true,
-                            std::vector<double> &lk_false)
+                            std::vector<double> &true_lk,
+                            std::vector<double> &false_lk)
 {
-    double lk_det ;
-    double lk_mis ;
+    double target_detection_likelihood ;
+    double false_positive_likelihood ;
     double cell_probability = 0.0;
     double cell_range = -1.0;
     double cell_angle = 2 * M_PI;
@@ -159,14 +159,14 @@ void CartesianGrid::predictLikelihood(const std::vector<PolarPose>& pose,
 
         cell_range = map.cell_polar.at(i).range;
         cell_angle = map.cell_polar.at(i).angle;
-        lk_det = cell_prob.unknown;
-        lk_mis = cell_prob.unknown;
+        target_detection_likelihood = cell_prob.unknown;
+        false_positive_likelihood = cell_prob.unknown;
 
         cell_probability = 0.0;
-        lk_det = 0.25;
-        lk_mis = 0.08;
+        target_detection_likelihood = 0.25;
+        false_positive_likelihood = 0.08;
 
-        if(pose.empty()) lk_mis = 0.8;
+        if(pose.empty()) false_positive_likelihood = 0.8;
         else{
 
             for(size_t p = 0; p < pose.size(); p++){
@@ -176,20 +176,20 @@ void CartesianGrid::predictLikelihood(const std::vector<PolarPose>& pose,
                 cell_probability += Gr * Ga;
             }
 
-            lk_det = (((cell_probability)/(pose.size()) < cell_prob.free) ? cell_prob.free : (cell_probability)/(pose.size()));
+            target_detection_likelihood = (((cell_probability)/(pose.size()) < cell_prob.free) ? cell_prob.free : (cell_probability)/(pose.size()));
         }
 
-        lk_true[i] = (lk_det * target_detection_prob) + (lk_mis * (1.0 - target_detection_prob));
-        lk_false[i] = (lk_det * false_positive_prob) + (lk_mis * (1.0 - false_positive_prob));
+        true_lk[i] = (target_detection_likelihood * target_detection_probability) + (false_positive_likelihood * (1.0 - target_detection_probability));
+        false_lk[i] = (target_detection_likelihood * false_positive_probability) + (false_positive_likelihood * (1.0 - false_positive_probability));
     }
 }
 
 void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
-                                      std::vector<double> &lk_true,
-                                      std::vector<double> &lk_false)
+                                      std::vector<double> &true_lk,
+                                      std::vector<double> &false_lk)
 {
-    double lk_det ;
-    double lk_mis ;
+    double target_detection_likelihood ;
+    double false_positive_likelihood ;
     double cell_probability = 0.0;
     double cell_range = -1.0;
     double cell_angle = 2 * M_PI;
@@ -200,16 +200,16 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
 
         cell_range = map.cell_polar.at(i).range;
         cell_angle = map.cell_polar.at(i).angle;
-        lk_det = cell_prob.unknown;
-        lk_mis = cell_prob.unknown;
+        target_detection_likelihood = cell_prob.unknown;
+        false_positive_likelihood = cell_prob.unknown;
         cell_probability = 0.0;
 //        lk_det = 0.25;
 //        lk_mis = 0.08;
 
         if(map.cell_inFOV.at(i)){
-            lk_det = 0.25;
-            lk_mis = 0.08;
-            if(pose.empty()) lk_mis = 0.8;
+            target_detection_likelihood = 0.25;
+            false_positive_likelihood = 0.08;
+            if(pose.empty()) false_positive_likelihood = 0.8;
             else{
 
                 for(size_t p = 0; p < pose.size(); p++){
@@ -219,32 +219,34 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                     cell_probability += Gr * Ga;
                 }
 
-                lk_det = (((cell_probability)/(pose.size()) < cell_prob.free) ? cell_prob.free : (cell_probability)/(pose.size()));
+                target_detection_likelihood = (((cell_probability)/(pose.size()) < cell_prob.free) ? cell_prob.free : (cell_probability)/(pose.size()));
             }
         }
-        lk_true[i] = (lk_det * target_detection_prob) + (lk_mis * (1.0 - target_detection_prob));
-        lk_false[i] = (lk_det * false_positive_prob) + (lk_mis * (1.0 - false_positive_prob));
+        true_lk[i] = (target_detection_likelihood * target_detection_probability) + (false_positive_likelihood * (1.0 - target_detection_probability));
+        false_lk[i] = (target_detection_likelihood * false_positive_probability) + (false_positive_likelihood * (1.0 - false_positive_probability));
     }
 }
 
 void CartesianGrid::updateGridProbability(std::vector<double>& pr,
-                                          std::vector<double>& true_lk,
-                                          std::vector<double>& false_lk,
+                                          const std::vector<double>& true_lk,
+                                          const std::vector<double>& false_lk,
                                           std::vector<double>& po)
 {
-//    std::vector<double> tmp(grid_size, cell_prob.unknown);
+    /* posterior = target localization probability */
     double den = 1.0;
     double tmp_po;
     for(size_t i = 0; i < grid_size; i++){
 
         den = (true_lk[i] * pr[i]) + (false_lk[i] * (1.0 - pr[i]));
         tmp_po = (true_lk[i] * pr[i]) / den;
-        po[i] = tmp_po;
+
 
         if(tmp_po > cell_prob.human){
             po[i] = tmp_po * cell_prob.human;
         } else if (tmp_po < cell_prob.free) {
             po[i] = cell_prob.free;
+        } else{
+            po[i] = tmp_po;
         }
 
         if((!map.cell_inFOV.at(i)) && (po[i]<cell_prob.unknown )){

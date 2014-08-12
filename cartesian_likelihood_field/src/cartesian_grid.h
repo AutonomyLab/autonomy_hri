@@ -106,19 +106,19 @@ private:
 
     double angular_velocity;
     double linear_velocity;
-    double target_detection_prob;
-    double false_positive_prob;
+    double target_detection_probability;
+    double false_positive_probability;
     double max_probability;
 
     void predictLikelihood(const std::vector<PolarPose>& pose,
-                                std::vector<double> &lk_true,
-                                std::vector<double> &lk_false);
+                                std::vector<double> &true_lk,
+                                std::vector<double> &false_lk);
     void computeLikelihood(const std::vector<PolarPose>& pose,
-                                std::vector<double> &lk_true,
-                                std::vector<double> &lk_false);
+                                std::vector<double> &true_lk,
+                                std::vector<double> &false_lk);
     void updateGridProbability(std::vector<double> &pr,
-                               std::vector<double> &true_lk,
-                               std::vector<double> &false_lk,
+                               const std::vector<double> &true_lk,
+                               const std::vector<double> &false_lk,
                                std::vector<double> &po);
     void setOutFOVProbability(std::vector<double>& data, const double val);
     void setInFOVProbability(std::vector<double>& data, const double val);
@@ -148,8 +148,8 @@ public:
                   double_t map_resolution,
                   SensorFOV_t _sensor_fov,
                   CellProbability_t _cell_prob,
-                  double target_detection_probability,
-                  double false_positive_probability);
+                  double _target_detection_probability,
+                  double _false_positive_probability);
     CartesianGrid();
     ~CartesianGrid();
 

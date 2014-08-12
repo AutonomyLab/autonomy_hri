@@ -87,7 +87,8 @@ void CartesianGridInterface::init()
     if(leg_detection_enable){
         SensorFOV_t legs_fov = fov;
         //legs_fov.range.max = 20.0;
-        legs_fov.range.max = (fov.range.max < 20.0 ? fov.range.max:20.0);
+        legs_fov.range.max = (fov.range.max < 20.0 ? fov.range.max : 20.0);
+        legs_fov.range.min = fov.range.min;
         legs_fov.angle.min = toRadian(-120.0);//-2.35619449615;
         legs_fov.angle.max = toRadian(120.0);//2.35619449615;
         initLegs(legs_fov);
@@ -106,8 +107,8 @@ void CartesianGridInterface::init()
 
     if(torso_detection_enable){
         SensorFOV_t camera_fov = fov;
-        camera_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
-        camera_fov.range.max = 10.00; // TODO: MAKE SURE OF THE REAL FOV
+        camera_fov.range.min = 2.5;
+        camera_fov.range.max = 6.5;
         camera_fov.angle.min = toRadian(-65.0/2);
         camera_fov.angle.max = toRadian(65.0/2);
         initTorso(camera_fov);
@@ -124,8 +125,8 @@ void CartesianGridInterface::init()
 
     if(sound_detection_enable){
         SensorFOV_t mic_fov = fov;
-        mic_fov.range.min = 1.00; // TODO: MAKE SURE OF THE REAL FOV
-        mic_fov.range.max = 10.00;
+        mic_fov.range.min = 1.00;
+        mic_fov.range.max = 15.00;
         mic_fov.angle.min = toRadian(-90.0);
         mic_fov.angle.max = toRadian(90.0);
         initSound(mic_fov);
