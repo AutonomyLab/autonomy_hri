@@ -89,11 +89,13 @@ private:
     FOV_t x;
     FOV_t y;
 
-    size_t maxProbCellNum();
+    size_t maxProbCellIndex();
     double cellsDistance(size_t c1, size_t c2);
     std::vector<LocalMaxima_t> old_lm;
     std::vector<LocalMaxima_t> new_lm;
     std::vector<LocalMaxima_t> matched_lm;
+    std::vector<LocalMaxima_t> main_local_maxima;
+
     SensorFOV_t sensor_fov;
     std::vector<double> true_likelihood;
     std::vector<double> false_likelihood;
@@ -122,7 +124,7 @@ private:
                                std::vector<double> &po);
     void setOutFOVProbability(std::vector<double>& data, const double val);
     void setInFOVProbability(std::vector<double>& data, const double val);
-    void updateVelocity(double robot_linear_velocity, double robot_angular_velocity,
+    void updateVelocity(const double robot_linear_velocity, const double robot_angular_velocity,
                         double last_polar_range, double last_polar_angle);
     void getLocalMaximas();
     void trackLocalMaximas();
@@ -133,7 +135,6 @@ public:
     PolarPose stdev;
     CellProbability_t cell_prob;
 
-    std::vector<LocalMaxima_t> main_lm;
     std::vector<double> posterior;
     std::vector<double> prior;
 

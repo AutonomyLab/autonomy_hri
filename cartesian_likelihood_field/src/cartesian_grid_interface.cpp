@@ -87,7 +87,7 @@ void CartesianGridInterface::init()
     if(leg_detection_enable){
         SensorFOV_t legs_fov = fov;
         //legs_fov.range.max = 20.0;
-        legs_fov.range.max = (fov.range.max < 20.0 ? fov.range.max : 20.0);
+        legs_fov.range.max = (fov.range.max < 10.0 ? fov.range.max : 10.0);
         legs_fov.range.min = fov.range.min;
         legs_fov.angle.min = toRadian(-120.0);//-2.35619449615;
         legs_fov.angle.max = toRadian(120.0);//2.35619449615;
@@ -107,8 +107,8 @@ void CartesianGridInterface::init()
 
     if(torso_detection_enable){
         SensorFOV_t camera_fov = fov;
-        camera_fov.range.min = 2.5;
-        camera_fov.range.max = 6.5;
+        camera_fov.range.min = 2.0;
+        camera_fov.range.max = 8.0;
         camera_fov.angle.min = toRadian(-65.0/2);
         camera_fov.angle.max = toRadian(65.0/2);
         initTorso(camera_fov);
@@ -127,6 +127,8 @@ void CartesianGridInterface::init()
         SensorFOV_t mic_fov = fov;
         mic_fov.range.min = 1.00;
         mic_fov.range.max = 15.00;
+        mic_fov.range.max = (fov.range.max < 10.0 ? fov.range.max : 10.0);
+
         mic_fov.angle.min = toRadian(-90.0);
         mic_fov.angle.max = toRadian(90.0);
         initSound(mic_fov);
@@ -360,7 +362,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
     human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, fuse_multiply);
     human_grid->updateLocalMaximas();
-    human_grid->trackMaxProbability();
+//    human_grid->trackMaxProbability();
     local_maxima_pub.publish(human_grid->local_maxima_poses);
     maximum_probability = human_grid->highest_prob_point;
     maximum_probability.header.frame_id = "base_footprint";

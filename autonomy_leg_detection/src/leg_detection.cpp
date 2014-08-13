@@ -131,11 +131,12 @@ bool FindLegPatterns(){
         LaserFeatureX::segment right = laserFeature.segments.at(right_index);
         LaserFeatureX::segment left = laserFeature.segments.at(left_index);
 
-        if((abs(segment_size(right) - segment_size(left)) < 3) &&
-               (segments_distance(right, left) < 2*laserFeature.max_leg_diameter)&&
+        if((abs(segment_size(right) - segment_size(left)) < 10) &&
+               (segments_distance(right, left) < 4 * laserFeature.max_leg_diameter)&&
                 distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter &&
                 distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) < (int)laserFeature.max_leg_diameter)
         {
+
             int right_legmid = int(right.begin + right.end)/2; // index of right leg mid point
             int left_legmid = int(left.begin + left.end)/2; // index of left leg mid point
 
@@ -196,8 +197,11 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
     // look for leg patterns
     for(size_t i = 0; i < laserFeature.segments.size(); i++){
         bool check2legs = 1;
-        check2legs = !laserFeature.FitArc(laserFeature.segments.at(i).begin, laserFeature.segments.at(i).end);
-        laserFeature.FindLeg(laserFeature.segments.at(i).begin, laserFeature.segments.at(i).end, check2legs);
+        check2legs = laserFeature.FitArc(laserFeature.segments.at(i).begin, laserFeature.segments.at(i).end);
+//        ROS_INFO("check2legs: %d", check2legs);
+        bool asghar = laserFeature.FindLeg(laserFeature.segments.at(i).begin, laserFeature.segments.at(i).end, check2legs);
+//        ROS_INFO("findleg: %d", asghar);
+
     }
     FindLegPatterns();
 
@@ -379,7 +383,7 @@ int main(int argc, char **argv)
     leg_pub = n.advertise<geometry_msgs::PoseArray>("legs",10);
     if(show_viz){
             cv::namedWindow(lw_window);
-    clearVisWindow(1000.0,1000.0);
+            clearVisWindow(1000.0,1000.0);
     }
 
     float fps_ts[FPS_BUF_SIZE];
