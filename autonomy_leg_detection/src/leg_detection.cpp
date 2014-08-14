@@ -107,13 +107,19 @@ void insertPoint(float r,
 ros::Publisher leg_pub;
 LaserFeatureX laserFeature;
 FeatureLegTracker featureLegTracker;
+geometry_msgs::PoseArray global_legs;
 
-unsigned int segment_size(const LaserFeatureX::segment &seg){return (seg.begin - seg.end + 1);}
+unsigned int segment_size(const LaserFeatureX::segment &seg){return (seg.end - seg.begin + 1);}
 
 float segments_distance(LaserFeatureX::segment &right, LaserFeatureX::segment &left){
     int right_legmid = int(right.begin + right.end)/2;
     int left_legmid = int(left.begin + left.end)/2;
     return (distance(laserFeature.point_xy.at(right_legmid), laserFeature.point_xy.at(left_legmid)));
+}
+
+float distanceXY(float x1, float y1, float x2, float y2)
+{
+    return(sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)));
 }
 
 bool FindLegPatterns(){
@@ -122,24 +128,62 @@ bool FindLegPatterns(){
     // AND CHECK IF THE DISTANCE BETWEEN THE MIDDLE POINTS OF TWO CANDIDATE SEGMENTS
     //IS LESS THAN TWO*MAX LEG DIAMETER
 
-    if(laserFeature.segments.empty()) return 0;
+    bool find_leg_patterns = false;
+    if(laserFeature.segments.empty()) return find_leg_patterns;
 
     for(size_t i = 0; i < laserFeature.segments.size()-1; i++){
+        if(abs(segment_size(laserFeature.segments.at(i))) < 3) continue;
+
+        geometry_msgs::Pose tmp_leg_pose;
         size_t right_index, left_index;
         right_index = i;
         left_index = i+1;
         LaserFeatureX::segment right = laserFeature.segments.at(right_index);
         LaserFeatureX::segment left = laserFeature.segments.at(left_index);
 
-        if((abs(segment_size(right) - segment_size(left)) < 10) &&
-               (segments_distance(right, left) < 4 * laserFeature.max_leg_diameter)&&
+        int right_legmid = int(right.begin + right.end)/2; // index of right leg mid point
+        int left_legmid = int(left.begin + left.end)/2; // index of left leg mid point
+
+        //ADDTION TO MIARN LEG-DETECTOR
+
+        // CHECK IF THERE IS A PATTERN OF FALL-...-RISE-...-FALL-...-RISE IN A SEGMENT THAT ITS SIZE IS BIGGER THAN 4
+
+        bool first_fall = false;
+        bool last_rise = false;
+        bool inside_fall = false;
+        bool inside_rise = false;
+        unsigned int right_segment_size = abs(segment_size(right));
+        float range_derivative [right_segment_size-1];
+
+        if(right_segment_size > 4){
+            for(size_t j = 0; j < right_segment_size-1; j++){
+                range_derivative[j] = (laserFeature.ranges.at(right.begin + j + 1) - laserFeature.ranges.at(right.begin + j));
+            }
+
+            if(range_derivative[0] < 0.0) first_fall = true;
+            if(range_derivative[right_segment_size-2] > 0.0 ) last_rise = true;
+
+            for(size_t k = 1; k < right_segment_size-2; k++){
+                if(range_derivative[k] < 0.0) inside_fall = true;
+                if(range_derivative[k] > 0.0) inside_rise = true;
+            }
+
+            if(first_fall && last_rise && inside_fall && inside_rise &&
+                    distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter*2){
+                tmp_leg_pose.position.x = laserFeature.point_xy.at(right_legmid).x/M2MM_RATIO;
+                tmp_leg_pose.position.y = laserFeature.point_xy.at(right_legmid).y/M2MM_RATIO;
+                tmp_leg_pose.position.z = 0.0;
+                global_legs.poses.push_back(tmp_leg_pose);
+                find_leg_patterns = true;
+            }
+        }
+        //END OF ADDITION
+
+        if((abs(segment_size(right) - segment_size(left)) < 5) &&
+               (segments_distance(right, left) < 2 * laserFeature.max_leg_diameter)&&
                 distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter &&
                 distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) < (int)laserFeature.max_leg_diameter)
         {
-
-            int right_legmid = int(right.begin + right.end)/2; // index of right leg mid point
-            int left_legmid = int(left.begin + left.end)/2; // index of left leg mid point
-
             //ADDPROBABLELEGS
             laserFeature.AddProbableLeg(
                         laserFeature.point_xy.at(right_legmid).x, laserFeature.point_xy.at(right_legmid).y,
@@ -151,11 +195,38 @@ bool FindLegPatterns(){
                         laserFeature.point_xy.at(left.begin).x, laserFeature.point_xy.at(left.end).x,
                         laserFeature.point_xy.at(left.begin).y, laserFeature.point_xy.at(left.end).y,
                         left.begin, left.end);
-            return 1;
+            find_leg_patterns = true;
+
         } else
-            if(i < laserFeature.segments.size()-2) left_index = i + 2;
+            if(i < laserFeature.segments.size()-2){
+                left_index = i + 2;
+                left = laserFeature.segments.at(left_index);
+                left_legmid = int(left.begin + left.end)/2; // index of left leg mid point
+
+                if((abs(segment_size(right) - segment_size(left)) < 5) &&
+                       (segments_distance(right, left) < 2 * laserFeature.max_leg_diameter)&&
+                        distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter &&
+                        distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) < (int)laserFeature.max_leg_diameter)
+                {
+
+                    //ADDPROBABLELEGS
+                    laserFeature.AddProbableLeg(
+                                laserFeature.point_xy.at(right_legmid).x, laserFeature.point_xy.at(right_legmid).y,
+                                laserFeature.point_xy.at(right.begin).x, laserFeature.point_xy.at(right.end).x,
+                                laserFeature.point_xy.at(right.begin).y, laserFeature.point_xy.at(right.end).y,
+                                right.begin,right.end);
+                    laserFeature.AddProbableLeg(
+                                laserFeature.point_xy.at(left_legmid).x, laserFeature.point_xy.at(left_legmid).y,
+                                laserFeature.point_xy.at(left.begin).x, laserFeature.point_xy.at(left.end).x,
+                                laserFeature.point_xy.at(left.begin).y, laserFeature.point_xy.at(left.end).y,
+                                left.begin, left.end);
+                    find_leg_patterns = true;
+
+                }
+            }
     }
-    return 0;
+
+    return find_leg_patterns;
 }
 
 void laser_cb(const sensor_msgs::LaserScan & msg)
@@ -170,6 +241,9 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
     laserFeature.point_xy.clear();
     featureLegTracker.fdata_out.clear();
     featureLegTracker.fdata.clear();
+
+    geometry_msgs::PoseArray legs, tmp_legs, publish_legs;
+    geometry_msgs::Pose tmp_leg_pose;
 
     laserFeature.max_laser_range = msg.range_max*M2MM_RATIO;
     b = msg.angle_min;
@@ -191,19 +265,22 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
         b += db;
     }
 
-    // Segments laser data
+    // SEGMENTS LASER DATA
     laserFeature.Segmentation();
     assert(laserFeature.segments.size() < laserFeature.point_xy.size());
-    // look for leg patterns
+
+    // CHECK FOR LEG PATTERNS
     for(size_t i = 0; i < laserFeature.segments.size(); i++){
         bool check2legs = 1;
         check2legs = laserFeature.FitArc(laserFeature.segments.at(i).begin, laserFeature.segments.at(i).end);
-//        ROS_INFO("check2legs: %d", check2legs);
         bool asghar = laserFeature.FindLeg(laserFeature.segments.at(i).begin, laserFeature.segments.at(i).end, check2legs);
-//        ROS_INFO("findleg: %d", asghar);
 
     }
+    global_legs.poses.clear();
     FindLegPatterns();
+    for(size_t i = 0; i < global_legs.poses.size(); i++){
+        legs.poses.push_back(global_legs.poses.at(i));
+    }
 
     //+++++++++++++++ PLOT LASER DATA
     //show_viz = true;
@@ -225,15 +302,13 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
 
 
 
-    geometry_msgs::PoseArray legs, tmp_legs;
-    geometry_msgs::Pose tmp_leg_pose;
 
-// TRACK THE LEGS AND PERSONS
+
+    // TRACK THE LEGS AND PERSONS
 
     featureLegTracker.fdata.clear();
     for(size_t i = 0; i < laserFeature.fdata.size(); i++)
         featureLegTracker.fdata.push_back(laserFeature.fdata.at(i));
-
     featureLegTracker.LCReset();
     featureLegTracker.CreateIncoming();
     featureLegTracker.LegMatchInTime();
@@ -243,30 +318,27 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
     featureLegTracker.PersonCreate();
     featureLegTracker.FillFeature();
 
-    size_t legcount;
     for (size_t i = 0; i < featureLegTracker.fdata_out.size(); i++) {
         if(featureLegTracker.fdata_out.at(i).type == MIARN_FEATURE_TYPE_PERSON) {
-            legcount ++;
             xy pose1, pose2;
             pose1.x = featureLegTracker.fdata_out.at(i).pos[0];
             pose1.y = featureLegTracker.fdata_out.at(i).pos[1];
 
-            tmp_leg_pose.position.x = pose1.x;
-            tmp_leg_pose.position.y = pose1.y;
+            tmp_leg_pose.position.x = pose1.x/M2MM_RATIO;
+            tmp_leg_pose.position.y = pose1.y/M2MM_RATIO;
             tmp_leg_pose.position.z = 0.0;
 
             if(!legs.poses.empty()){
                 pose2.x = legs.poses.back().position.x;
                 pose2.y = legs.poses.back().position.y;
 
-                // check if this is acually a new pair of legs!
-                if(distance(pose1,pose2) > laserFeature.max_leg_diameter*2){
+                // CHECK IF THIS IS ACTUALLY A NEW PAIR OF LEGS
+                if(distance(pose1,pose2) > laserFeature.max_leg_diameter * 2){
                     legs.poses.push_back(tmp_leg_pose);
                     insertPoint(sqrt(pose1.x*pose1.x + pose1.y*pose1.y), atan2(pose1.y,pose1.x), CV_RGB(255, 0, 0),lw_height,lw_width, 20);
                 }
             }
         } else if(featureLegTracker.fdata_out.at(i).type == MIARN_FEATURE_TYPE_LEG) {
-            legcount ++;
             xy pose1;
 
             pose1.x = featureLegTracker.fdata_out.at(i).pos[0];
@@ -280,7 +352,7 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
         }
     }
 
-    //check if there is a pair of legs in leg data
+    //CHECK IF THERE IS A PAIR OF LEGS IN TEMPLATE LEGS
     if(!tmp_legs.poses.empty()){
         xy pose1, pose2;
         for(size_t i = 0; i < tmp_legs.poses.size()-1; i++){
@@ -304,10 +376,22 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
             }
         }
     }
-    legs.header.frame_id = msg.header.frame_id;
-    legs.header.stamp = ros::Time::now();
 
-    leg_pub.publish(legs);
+    for(size_t i = 0; i < legs.poses.size(); i++){
+        bool new_leg = true;
+        geometry_msgs::Pose pose1 = legs.poses.at(i);
+
+        for(size_t j = 0; j < publish_legs.poses.size(); j++){
+            geometry_msgs::Pose pose2 = publish_legs.poses.at(j);
+
+            new_leg = new_leg * (distanceXY(pose1.position.x, pose1.position.y,pose2.position.x, pose2.position.y) > laserFeature.max_leg_diameter/M2MM_RATIO);
+        }
+        if(new_leg) publish_legs.poses.push_back(legs.poses.at(i));
+    }
+
+    publish_legs.header.frame_id = msg.header.frame_id;
+    publish_legs.header.stamp = ros::Time::now();
+    leg_pub.publish(publish_legs);
 }
 
 
@@ -404,9 +488,9 @@ int main(int argc, char **argv)
 
         ros::spinOnce();
         if(loopRate.cycleTime() > loopRate.expectedCycleTime())
-            ROS_ERROR("It is taking too long!");
+            ROS_ERROR("LEG DETECTION: It is taking too long!");
         if(!loopRate.sleep())
-            ROS_ERROR("Not enough time left");
+            ROS_ERROR("LEG DETECTION: Not enough time left");
     }
     return 0;
 }

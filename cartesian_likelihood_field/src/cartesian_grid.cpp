@@ -569,7 +569,7 @@ void CartesianGrid::trackLocalMaximas()
 void CartesianGrid::trackMaxProbability()
 {
     int8_t counter_threshold = 5;
-    double dist_threshold = 2 * map.resolution;
+    double dist_threshold = 4 * map.resolution;
 
     if(main_local_maxima.empty() && last_highest_lm.index == 0){
 //        LocalMaxima_t look_behind;
