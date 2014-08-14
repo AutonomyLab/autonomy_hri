@@ -232,26 +232,20 @@ void CartesianGrid::updateGridProbability(std::vector<double>& pr,
                                           const std::vector<double>& false_lk,
                                           std::vector<double>& po)
 {
-    /* posterior = target localization probability */
-    double den = 1.0;
-    double tmp_po;
+    // POSTERIOR = TARGET LOCALIZATION PROBABILITY
+    double normalizer_factor = 1.0;
+//    double tmp_po;
+
     for(size_t i = 0; i < grid_size; i++){
 
-        den = (true_lk[i] * pr[i]) + (false_lk[i] * (1.0 - pr[i]));
-        tmp_po = (true_lk[i] * pr[i]) / den;
+        normalizer_factor = (true_lk[i] * pr[i]) + (false_lk[i] * (1.0 - pr[i]));
+        po[i] = (true_lk[i] * pr[i]) / normalizer_factor;
+        po[i] = (po[i] > cell_prob.human) ? po[i] * cell_prob.human : po[i];
+        po[i] = (po[i] < cell_prob.free) ? cell_prob.free : po[i];
 
-
-        if(tmp_po > cell_prob.human){
-            po[i] = tmp_po * cell_prob.human;
-        } else if (tmp_po < cell_prob.free) {
-            po[i] = cell_prob.free;
-        } else{
-            po[i] = tmp_po;
-        }
-
-        if((!map.cell_inFOV.at(i)) && (po[i]<cell_prob.unknown )){
-            po[i] = cell_prob.unknown;
-        }
+//        if((!map.cell_inFOV.at(i)) && (po[i]<cell_prob.unknown )){
+//            po[i] = cell_prob.unknown;
+//        }
     }
 }
 
