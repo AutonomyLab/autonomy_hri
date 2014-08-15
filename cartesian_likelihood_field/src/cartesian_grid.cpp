@@ -66,6 +66,10 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     last_highest_lm.index = 0;
     last_highest_lm.tracking = false;
     last_highest_lm.counter = 0;
+
+    past_angular_velocity = M_PI;
+    past_linear_velocity = 1.0;
+
     geometry_msgs::Point cell_crtsn_position;
     PolarPose cell_polar_position;
     size_t i,r,c;
@@ -106,14 +110,14 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
 //    det_prob = 0.9;
 //    false_pos_prob = 0.01;
 
-    posterior.resize(grid_size, cell_prob.free);
-    prior.resize(grid_size, cell_prob.free);
-    true_likelihood.resize(grid_size, cell_prob.free);
-    false_likelihood.resize(grid_size, cell_prob.free);
+    posterior.resize(grid_size, cell_prob.unknown);
+    prior.resize(grid_size, cell_prob.unknown);
+    true_likelihood.resize(grid_size, cell_prob.unknown);
+    false_likelihood.resize(grid_size, cell_prob.unknown);
 
-    predicted_posterior.resize(grid_size, cell_prob.free);
-    pred_true_likelihood.resize(grid_size, cell_prob.free);
-    pred_false_likelihood.resize(grid_size, cell_prob.free);
+    predicted_posterior.resize(grid_size, cell_prob.unknown);
+    predicted_true_likelihood.resize(grid_size, cell_prob.unknown);
+    predicted_false_likelihood.resize(grid_size, cell_prob.unknown);
 
     setOutFOVProbability(posterior, cell_prob.unknown);
     setOutFOVProbability(true_likelihood, cell_prob.unknown);
@@ -121,8 +125,8 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
 
     setOutFOVProbability(prior, cell_prob.unknown);
     setOutFOVProbability(predicted_posterior, cell_prob.unknown);
-    setOutFOVProbability(pred_true_likelihood, cell_prob.unknown);
-    setOutFOVProbability(pred_false_likelihood, cell_prob.unknown);
+    setOutFOVProbability(predicted_true_likelihood, cell_prob.unknown);
+    setOutFOVProbability(predicted_false_likelihood, cell_prob.unknown);
 
 }
 
@@ -207,9 +211,14 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
 //        lk_mis = 0.08;
 
         if(map.cell_inFOV.at(i)){
+//            target_detection_likelihood = 0.25;
+//            false_positive_likelihood = 0.08;
+//            if(pose.empty()) false_positive_likelihood = 0.8;
+
             target_detection_likelihood = 0.25;
             false_positive_likelihood = 0.08;
             if(pose.empty()) false_positive_likelihood = 0.8;
+
             else{
 
                 for(size_t p = 0; p < pose.size(); p++){
@@ -243,23 +252,48 @@ void CartesianGrid::updateGridProbability(std::vector<double>& pr,
         po[i] = (po[i] > cell_prob.human) ? po[i] * cell_prob.human : po[i];
         po[i] = (po[i] < cell_prob.free) ? cell_prob.free : po[i];
 
-//        if((!map.cell_inFOV.at(i)) && (po[i]<cell_prob.unknown )){
-//            po[i] = cell_prob.unknown;
-//        }
+        if((!map.cell_inFOV.at(i)) && (po[i]<cell_prob.unknown )){
+            po[i] = cell_prob.unknown;
+        }
     }
 }
 
 void CartesianGrid::bayesOccupancyFilter()
 {
-    if((angular_velocity > 0.01) || (linear_velocity > 0.01)){
-        predictLikelihood(polar_array.predicted, pred_true_likelihood, pred_false_likelihood);
-        updateGridProbability(prior, pred_true_likelihood, pred_false_likelihood, predicted_posterior);
+    ROS_INFO("angular_velocity: %.4f    linear_velocity: %.4f", angular_velocity, linear_velocity);
+    if((fabs(angular_velocity) > 1e-6) || (fabs(linear_velocity) > 1e-6)){
+        predictLikelihood(polar_array.predicted, predicted_true_likelihood, predicted_false_likelihood);
+        updateGridProbability(prior, predicted_true_likelihood, predicted_false_likelihood, predicted_posterior);
+        predictLikelihood(polar_array.current, true_likelihood, false_likelihood);
+        setOutFOVProbability(true_likelihood,cell_prob.unknown);
+        setOutFOVProbability(false_likelihood,cell_prob.unknown);
+        updateGridProbability(predicted_posterior, true_likelihood, false_likelihood, posterior);
+
+        ROS_ERROR("WANDERING");
+
     }else{
         predicted_posterior = prior;
+        predictLikelihood(polar_array.current, true_likelihood, false_likelihood);
+        setOutFOVProbability(true_likelihood,cell_prob.unknown);
+        setOutFOVProbability(false_likelihood,cell_prob.unknown);
+        updateGridProbability(predicted_posterior, true_likelihood, false_likelihood, posterior);
+
+        ROS_INFO("STILL");
+
     }
 
-    computeLikelihood(polar_array.current, true_likelihood, false_likelihood);
-    updateGridProbability(predicted_posterior, true_likelihood, false_likelihood, posterior);
+//    computeLikelihood(polar_array.current, true_likelihood, false_likelihood);
+
+
+//    predictLikelihood(polar_array.predicted, pred_true_likelihood, pred_false_likelihood);
+//    updateGridProbability(prior, pred_true_likelihood, pred_false_likelihood, predicted_posterior);
+
+//    predictLikelihood(polar_array.current, true_likelihood, false_likelihood);
+//    if((angular_velocity < 0.01) && (linear_velocity < 0.01)){
+//        setOutFOVProbability(true_likelihood,cell_prob.unknown);
+//        setOutFOVProbability(false_likelihood,cell_prob.unknown);
+//    }
+//    updateGridProbability(predicted_posterior, true_likelihood, false_likelihood, posterior);
 
     prior = posterior;
     polar_array.past = polar_array.current;
@@ -344,41 +378,43 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
     }
 }
 
+//void CartesianGrid::updateVelocity(const double robot_linear_velocity,
+//                                   const double robot_angular_velocity,
+//                                   double last_polar_range,
+//                                   double last_polar_angle)
 void CartesianGrid::updateVelocity(const double robot_linear_velocity,
-                                   const double robot_angular_velocity,
-                                   double last_polar_range,
-                                   double last_polar_angle)
+                                   const double robot_angular_velocity)
 {
-    angular_velocity = (robot_linear_velocity * sin(last_polar_angle) /
-                            last_polar_range) - robot_angular_velocity;
+//    angular_velocity = (robot_linear_velocity * sin(last_polar_angle) / last_polar_range) - robot_angular_velocity;
 
-    linear_velocity = -robot_linear_velocity * cos(last_polar_angle);
+//    linear_velocity = -robot_linear_velocity * cos(last_polar_angle);
+
+//    angular_velocity = (robot_linear_velocity * sin(past_angular_velocity) / past_linear_velocity) - robot_angular_velocity;
+
+//    linear_velocity = -robot_linear_velocity * cos(past_angular_velocity);
+
+//    past_angular_velocity = angular_velocity;
+//    past_linear_velocity = linear_velocity;
+
+    angular_velocity = -robot_angular_velocity;
+    linear_velocity = -robot_linear_velocity;
 }
 
-void CartesianGrid::predict(double robot_linear_velocity, double robot_angular_velocity)
+void CartesianGrid::predict(const double robot_linear_velocity, const double robot_angular_velocity)
 {
     polar_array.predicted.clear();
-    if(polar_array.past.empty()){
-        linear_velocity = 0.0;
-        angular_velocity = 0.0;
-        return;
-    }
-
     diff_time = ros::Time::now() - past_time;
 
     polar_array.predicted = polar_array.past;
+    linear_velocity = - robot_linear_velocity;
+    angular_velocity = - robot_angular_velocity;
 
     for(size_t p = 0 ; p < polar_array.past.size(); p++){
-
-        updateVelocity(robot_linear_velocity, robot_angular_velocity,
-                                 polar_array.past.at(p).range,
-                                 polar_array.past.at(p).angle);
-
         polar_array.predicted.at(p).range = linear_velocity * diff_time.toSec() + polar_array.past.at(p).range;
         polar_array.predicted.at(p).angle = angular_velocity * diff_time.toSec() + polar_array.past.at(p).angle;
-
     }
     past_time = ros::Time::now();
+
 }
 
 void CartesianGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,

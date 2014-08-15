@@ -312,7 +312,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
             leg_grid->getPose(leg_grid->crtsn_array.current);
             ROS_ASSERT(leg_grid->polar_array.current.size() == leg_msg_crtsn->poses.size());
         }
-
+        ROS_INFO("LEG");
         leg_grid->predict(robot_linear_velocity, robot_angular_velocity);
 
         /* FOR RVIZ */
@@ -336,6 +336,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
     //    ----------   TORSO DETECTION CALLBACK   ----------
     if(torso_detection_enable){
+        ROS_INFO("TORSO");
         torso_grid->getPose(torso_msg);
         torso_grid->predict(robot_linear_velocity, robot_angular_velocity);
         torso_grid->bayesOccupancyFilter();
@@ -379,6 +380,7 @@ void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &
 {
 //    ROS_INFO("Received SOUND data: %.4f", ros::Time::now().toSec());
     if(sound_detection_enable){
+        ROS_ERROR("SOUND");
         sound_grid->getPose(sound_msg);
         sound_grid->predict(robot_linear_velocity, robot_angular_velocity);
         sound_grid->bayesOccupancyFilter();

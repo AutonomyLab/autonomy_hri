@@ -100,8 +100,8 @@ private:
     std::vector<double> true_likelihood;
     std::vector<double> false_likelihood;
     std::vector<double> predicted_posterior;
-    std::vector<double> pred_true_likelihood;
-    std::vector<double> pred_false_likelihood;
+    std::vector<double> predicted_true_likelihood;
+    std::vector<double> predicted_false_likelihood;
     LocalMaxima_t last_highest_lm;
     ros::Time past_time;
     ros::Duration diff_time;
@@ -111,6 +111,8 @@ private:
     double target_detection_probability;
     double false_positive_probability;
     double max_probability;
+    double past_angular_velocity ;
+    double past_linear_velocity ;
 
     void predictLikelihood(const std::vector<PolarPose>& pose,
                                 std::vector<double> &true_lk,
@@ -124,8 +126,7 @@ private:
                                std::vector<double> &po);
     void setOutFOVProbability(std::vector<double>& data, const double val);
     void setInFOVProbability(std::vector<double>& data, const double val);
-    void updateVelocity(const double robot_linear_velocity, const double robot_angular_velocity,
-                        double last_polar_range, double last_polar_angle);
+    void updateVelocity(const double robot_linear_velocity, const double robot_angular_velocity);
     void getLocalMaximas();
     void trackLocalMaximas();
 
@@ -163,7 +164,7 @@ public:
     void getPose(const autonomy_human::raw_detectionsConstPtr torso_img);
     void getPose(const hark_msgs::HarkSourceConstPtr& sound_src);
 
-    void predict(double robot_linear_velocity, double robot_angular_velocity);
+    void predict(const double robot_linear_velocity, const double robot_angular_velocity);
     void polar2Crtsn(std::vector<PolarPose> &polar_array,
                      geometry_msgs::PoseArray &crtsn_array);
 
