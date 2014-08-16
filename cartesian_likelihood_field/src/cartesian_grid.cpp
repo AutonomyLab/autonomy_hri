@@ -22,6 +22,13 @@ double normalize(const double val,const double x_min, const double x_max)
     return ((val - x_min) / (x_max - x_min));
 }
 
+double maximum(double a, double b, double c)
+{
+    double max = (a >= b) ? a : b;
+    max = (max >= c) ? max : c;
+    return max;
+}
+
 
 CartesianGrid::CartesianGrid(uint32_t map_size,
                              double_t map_resolution,
@@ -67,9 +74,6 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     last_highest_lm.tracking = false;
     last_highest_lm.counter = 0;
 
-    past_angular_velocity = M_PI;
-    past_linear_velocity = 1.0;
-
     geometry_msgs::Point cell_crtsn_position;
     PolarPose cell_polar_position;
     size_t i,r,c;
@@ -82,8 +86,8 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     for(c = 0; c < map.width; c++){
         for(r = 0; r < map.height; r++){
 
-            cell_crtsn_position.x = ( x.min + ( map.resolution / 2.0 )) + r * map.resolution;
-            cell_crtsn_position.y = ( y.min + ( map.resolution / 2.0 )) + c * map.resolution;
+            cell_crtsn_position.x = x.min + map.resolution / 2.0 + r * map.resolution;
+            cell_crtsn_position.y = y.min + map.resolution / 2.0 + c * map.resolution;
             cell_crtsn_position.z = 0.0;
             map.cell_crtsn.push_back(cell_crtsn_position);
 
@@ -172,7 +176,6 @@ void CartesianGrid::predictLikelihood(const std::vector<PolarPose>& pose,
 
         if(pose.empty()) false_positive_likelihood = 0.8;
         else{
-
             for(size_t p = 0; p < pose.size(); p++){
 
                 Gr = pose.at(p).range < 0.01 ? 1.0 : normalDistribution(cell_range, pose.at(p).range, stdev.range);
@@ -207,13 +210,8 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
         target_detection_likelihood = cell_prob.unknown;
         false_positive_likelihood = cell_prob.unknown;
         cell_probability = 0.0;
-//        lk_det = 0.25;
-//        lk_mis = 0.08;
 
         if(map.cell_inFOV.at(i)){
-//            target_detection_likelihood = 0.25;
-//            false_positive_likelihood = 0.08;
-//            if(pose.empty()) false_positive_likelihood = 0.8;
 
             target_detection_likelihood = 0.25;
             false_positive_likelihood = 0.08;
@@ -242,8 +240,8 @@ void CartesianGrid::updateGridProbability(std::vector<double>& pr,
                                           std::vector<double>& po)
 {
     // POSTERIOR = TARGET LOCALIZATION PROBABILITY
+
     double normalizer_factor = 1.0;
-//    double tmp_po;
 
     for(size_t i = 0; i < grid_size; i++){
 
@@ -252,7 +250,7 @@ void CartesianGrid::updateGridProbability(std::vector<double>& pr,
         po[i] = (po[i] > cell_prob.human) ? po[i] * cell_prob.human : po[i];
         po[i] = (po[i] < cell_prob.free) ? cell_prob.free : po[i];
 
-        if((!map.cell_inFOV.at(i)) && (po[i]<cell_prob.unknown )){
+        if((!map.cell_inFOV.at(i)) && (po[i] < cell_prob.unknown )){
             po[i] = cell_prob.unknown;
         }
     }
@@ -260,19 +258,21 @@ void CartesianGrid::updateGridProbability(std::vector<double>& pr,
 
 void CartesianGrid::bayesOccupancyFilter()
 {
-    ROS_INFO("angular_velocity: %.4f    linear_velocity: %.4f", angular_velocity, linear_velocity);
     if((fabs(angular_velocity) > 1e-6) || (fabs(linear_velocity) > 1e-6)){
+
         predictLikelihood(polar_array.predicted, predicted_true_likelihood, predicted_false_likelihood);
         updateGridProbability(prior, predicted_true_likelihood, predicted_false_likelihood, predicted_posterior);
+
         predictLikelihood(polar_array.current, true_likelihood, false_likelihood);
         setOutFOVProbability(true_likelihood,cell_prob.unknown);
         setOutFOVProbability(false_likelihood,cell_prob.unknown);
         updateGridProbability(predicted_posterior, true_likelihood, false_likelihood, posterior);
 
-        ROS_ERROR("WANDERING");
+        ROS_ERROR("MOVING");
 
     }else{
         predicted_posterior = prior;
+
         predictLikelihood(polar_array.current, true_likelihood, false_likelihood);
         setOutFOVProbability(true_likelihood,cell_prob.unknown);
         setOutFOVProbability(false_likelihood,cell_prob.unknown);
@@ -320,12 +320,6 @@ void CartesianGrid::fuse(const std::vector<double> data_1,
             posterior.at(i) = (data_1.at(i) + data_2.at(i) + data_3.at(i))/3.0;
         }
     }
-    double x_min = *std::min_element(posterior.begin(), posterior.end());
-    double x_max = *std::max_element(posterior.begin(), posterior.end());
-
-//    for(size_t i = 0; i < posterior.size(); i++){
-//        normalize(posterior.at(i),x_min, x_max, cell_prob.free, cell_prob.human);
-//    }
 }
 
 
@@ -333,7 +327,6 @@ void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
 {
     polar_array.current.clear();
     PolarPose polar_pose_point;
-//    uint num_features = crtsn_array.poses.size();
     for(size_t i = 0; i < crtsn_array.poses.size(); i++){
         polar_pose_point.fromCart(crtsn_array.poses.at(i).position.x, crtsn_array.poses.at(i).position.y);
         polar_array.current.push_back(polar_pose_point);
@@ -347,9 +340,7 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
     torso_polar_pose.range = -1.0;
     torso_polar_pose.angle = 2 * M_PI;
     geometry_msgs::Point torso_position_in_image;
-    double image_width = 640.0;
-//    double estimated_range = 4.0;
-//    double estimated_height = 100.0;
+    double image_width = 640.0;;
     double camera_fov = 65.0; // degree
     //(2.4,280),(3,250),(4,210),(5,180)
     // 0.0000952381 x^2-0.0696716 x+14.4483
@@ -357,8 +348,7 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
         double h = torso_img->detections.at(i).height;
         torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
         torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
-//        torso_polar_pose.range = estimated_range * torso_img->detections.at(i).height / estimated_height;
-        torso_polar_pose.range = 0.0000952381*h*h-0.0696716*h+14.4483;
+        torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
         polar_array.current.push_back(torso_polar_pose);
     }
 }
@@ -378,24 +368,10 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
     }
 }
 
-//void CartesianGrid::updateVelocity(const double robot_linear_velocity,
-//                                   const double robot_angular_velocity,
-//                                   double last_polar_range,
-//                                   double last_polar_angle)
 void CartesianGrid::updateVelocity(const double robot_linear_velocity,
                                    const double robot_angular_velocity)
 {
-//    angular_velocity = (robot_linear_velocity * sin(last_polar_angle) / last_polar_range) - robot_angular_velocity;
-
-//    linear_velocity = -robot_linear_velocity * cos(last_polar_angle);
-
-//    angular_velocity = (robot_linear_velocity * sin(past_angular_velocity) / past_linear_velocity) - robot_angular_velocity;
-
-//    linear_velocity = -robot_linear_velocity * cos(past_angular_velocity);
-
-//    past_angular_velocity = angular_velocity;
-//    past_linear_velocity = linear_velocity;
-
+    // TODO: FIX THIS!
     angular_velocity = -robot_angular_velocity;
     linear_velocity = -robot_linear_velocity;
 }
@@ -415,6 +391,27 @@ void CartesianGrid::predict(const double robot_linear_velocity, const double rob
     }
     past_time = ros::Time::now();
 
+}
+
+size_t CartesianGrid::predictHighestProbability(size_t index)
+{
+    PolarPose pose1, pose2;
+    double x, y;
+
+    pose1.range = map.cell_polar.at(index).range;
+    pose1.angle = map.cell_polar.at(index).angle;
+
+    pose2.range = linear_velocity * diff_time.toSec() + pose1.range;
+    pose2.angle = angular_velocity * diff_time.toSec() + pose1.angle;
+    pose2.toCart(x,y);
+
+    // x = -map.height * map.resolution / 2 + map.resolution / 2.0 + row * map.resolution;
+
+    size_t row = size_t (abs(x/map.resolution + map.height * 0.5 - 0.5));
+    size_t col = size_t (abs(y/map.resolution + map.width * 0.5 - 0.5));
+
+    if(row >= map.height || col >= map.width) return index;
+    else return row + col * map.width;
 }
 
 void CartesianGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,
@@ -532,6 +529,7 @@ void CartesianGrid::trackLocalMaximas()
     double dist_threshold = 2 * map.resolution;
     double prob_threshold = 0.1;
 
+
     for(size_t i = 0; i < new_lm.size(); i++){
 
         for(size_t j = 0; j < old_lm.size(); j++){
@@ -598,7 +596,7 @@ void CartesianGrid::trackLocalMaximas()
 
 void CartesianGrid::trackMaxProbability()
 {
-    int8_t counter_threshold = 5;
+    int8_t counter_threshold = 5; // TODO : MAKE IT A PARAMETER
     double dist_threshold = 4 * map.resolution;
 
     if(main_local_maxima.empty() && last_highest_lm.index == 0){
@@ -617,28 +615,50 @@ void CartesianGrid::trackMaxProbability()
 
     for(size_t i = 0; i < main_local_maxima.size(); i++){
         size_t index = main_local_maxima.at(i).index;
+
         if(posterior.at(index) > posterior.at(max_index)){
             max_index = index;
         }
     }
 
-    if(cellsDistance(max_index, last_highest_lm.index) < dist_threshold){
+    double range1 = map.cell_polar.at(max_index).range;
+    double range2 = map.cell_polar.at(last_highest_lm.index).range;
+    double min_range = (range1 + range2) / 2.0;
+
+    double max_angular_velocity = 1.0; // TODO : MAKE IT A PARAMETER
+    double max_linear_velocity = 1.0; // TODO : MAKE IT A PARAMETER
+
+    double max_angular_distance = max_angular_velocity * diff_time.toSec() * min_range;
+    double max_linear_distance = max_linear_velocity * diff_time.toSec();
+    double tracking_distance = maximum(dist_threshold, max_linear_distance, max_angular_distance);
+
+    if(cellsDistance(max_index, last_highest_lm.index) < tracking_distance){
         last_highest_lm.index = max_index;
         last_highest_lm.counter++;
-    }else{
-        last_highest_lm.counter--;
     }
+    else last_highest_lm.counter--;
 
     if(last_highest_lm.counter > counter_threshold){
         last_highest_lm.tracking = true;
-        last_highest_lm.counter = counter_threshold +1;
-    } else last_highest_lm.tracking = false;
-
-    if(last_highest_lm.counter < 0){
-        last_highest_lm.index = max_index;
-        last_highest_lm.tracking = false;
         last_highest_lm.counter = counter_threshold;
+
+    } else if(last_highest_lm.counter < 0){
+        last_highest_lm.index = max_index;
+        last_highest_lm.counter = counter_threshold + 1;
+
+    } else {
+        size_t predicted_highest_lm = predictHighestProbability(last_highest_lm.index);
+        size_t temp_lm = predicted_highest_lm;
+        double min_distance = 1e+10;
+
+        for(size_t i = 0; i < main_local_maxima.size(); i++){
+            size_t in = main_local_maxima.at(i).index;
+            double temp_dist = cellsDistance(in, predicted_highest_lm);
+            temp_lm = (temp_dist < min_distance) ? in : temp_lm ;
+        }
+        last_highest_lm.index = temp_lm;
     }
+
 //    //Do not track!
 //    last_highest_lm.index = max_index;
 //    last_highest_lm.tracking = true;

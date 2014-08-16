@@ -294,7 +294,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     if(motion_model_enable){
         current_time_encoder = ros::Time::now();
         robot_linear_velocity = sqrt( pow(encoder_msg->twist.twist.linear.x,2) + pow(encoder_msg->twist.twist.linear.y,2) );
-        robot_angular_velocity = encoder_msg->twist.twist.angular.z/2;
+        robot_angular_velocity = encoder_msg->twist.twist.angular.z;
         diff_time = current_time_encoder.toSec() - last_time_encoder.toSec();
         last_time_encoder = current_time_encoder;
     }
@@ -312,7 +312,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
             leg_grid->getPose(leg_grid->crtsn_array.current);
             ROS_ASSERT(leg_grid->polar_array.current.size() == leg_msg_crtsn->poses.size());
         }
-        ROS_INFO("LEG");
+//        ROS_INFO("LEG");
         leg_grid->predict(robot_linear_velocity, robot_angular_velocity);
 
         /* FOR RVIZ */
@@ -328,7 +328,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
         leg_grid->bayesOccupancyFilter();
 
-        // Publish
+        //PUBLISH LEG OCCUPANCY GRID
         occupancyGrid(leg_grid, &leg_occupancy_grid);
         leg_occupancy_grid.header.stamp = ros::Time::now();
         leg_occupancy_grid_pub.publish(leg_occupancy_grid);
@@ -336,40 +336,31 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
     //    ----------   TORSO DETECTION CALLBACK   ----------
     if(torso_detection_enable){
-        ROS_INFO("TORSO");
+//        ROS_INFO("TORSO");
         torso_grid->getPose(torso_msg);
         torso_grid->predict(robot_linear_velocity, robot_angular_velocity);
         torso_grid->bayesOccupancyFilter();
 
-        //Publish
+        //PUBLISH TORSO OCCUPANCY GRID
         occupancyGrid(torso_grid, &torso_occupancy_grid);
         torso_occupancy_grid.header.stamp = ros::Time::now();
         torso_occupancy_grid_pub.publish(torso_occupancy_grid);
     }
 
-    //    ----------   SOUND LOCALISATIAN CALLBACK   ----------
- /*
-    if(sound_detection_enable){
-        sound_grid->getPose(sound_msg);
-        sound_grid->predict(robot_linear_velocity, robot_angular_velocity);
-        sound_grid->bayesOccupancyFilter();
-
-        //Publish
-        occupancyGrid(sound_grid, &sound_occupancy_grid);
-        sound_occupancy_grid.header.stamp = ros::Time::now();
-        sound_occupancy_grid_pub.publish(sound_occupancy_grid);
-    }
-*/
-
     human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, fuse_multiply);
+    human_grid->predict(robot_linear_velocity, robot_angular_velocity); // TODO: FIX THIS
+
+    //PUBLISH LOCAL MAXIMA
     human_grid->updateLocalMaximas();
-//    human_grid->trackMaxProbability();
     local_maxima_pub.publish(human_grid->local_maxima_poses);
+
+    //PUBLISH HIGHEST PROBABILITY OF INTEGRATED GRID
     maximum_probability = human_grid->highest_prob_point;
     maximum_probability.header.frame_id = "base_footprint";
     maximum_probability.header.stamp = ros::Time::now();
     max_local_maxima_pub.publish(maximum_probability);
 
+    //PUBLISH INTEGRATED OCCUPANCY GRID
     occupancyGrid(human_grid, &human_occupancy_grid);
     human_occupancy_grid.header.stamp = ros::Time::now();
     human_occupancy_grid_pub.publish(human_occupancy_grid);
@@ -378,14 +369,13 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
 void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
 {
-//    ROS_INFO("Received SOUND data: %.4f", ros::Time::now().toSec());
     if(sound_detection_enable){
-        ROS_ERROR("SOUND");
+//        ROS_ERROR("SOUND");
         sound_grid->getPose(sound_msg);
         sound_grid->predict(robot_linear_velocity, robot_angular_velocity);
         sound_grid->bayesOccupancyFilter();
 
-        //Publish
+        //PUBLISH SOUND OCCUPANCY GRID
         occupancyGrid(sound_grid, &sound_occupancy_grid);
         sound_occupancy_grid.header.stamp = ros::Time::now();
         sound_occupancy_grid_pub.publish(sound_occupancy_grid);

@@ -165,6 +165,8 @@ public:
     void getPose(const hark_msgs::HarkSourceConstPtr& sound_src);
 
     void predict(const double robot_linear_velocity, const double robot_angular_velocity);
+    size_t predictHighestProbability(size_t index);
+
     void polar2Crtsn(std::vector<PolarPose> &polar_array,
                      geometry_msgs::PoseArray &crtsn_array);
 
