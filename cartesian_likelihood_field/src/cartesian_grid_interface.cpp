@@ -16,88 +16,87 @@ CartesianGridInterface::CartesianGridInterface(ros::NodeHandle _n, tf::Transform
 
 void CartesianGridInterface::init()
 {
-    ros::param::param("~/LikelihoodGrid/grid_angle_min",fov.angle.min, -M_PI);
-    ros::param::param("~/LikelihoodGrid/grid_angle_max",fov.angle.max, M_PI);
+    ros::param::param("~/LikelihoodGrid/grid_angle_min",FOV.angle.min, -M_PI);
+    ros::param::param("~/LikelihoodGrid/grid_angle_max",FOV.angle.max, M_PI);
     ROS_INFO("/LikelihoodGrid/grid_angle min: %.2lf max: %.2lf",
-             fov.angle.min,
-             fov.angle.max);
+             FOV.angle.min,
+             FOV.angle.max);
 
-    ros::param::param("~/LikelihoodGrid/grid_range_min",fov.range.min, 0.0);
-    ros::param::param("~/LikelihoodGrid/grid_range_max",fov.range.max, 20.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_min",FOV.range.min, 0.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_max",FOV.range.max, 20.0);
     ROS_INFO("/LikelihoodGrid/grid_range min: %.2lf max: %.2lf",
-             fov.range.min,
-             fov.range.max);
+             FOV.range.min,
+             FOV.range.max);
 
-    ros::param::param("~/CartesianLikelihoodGrid/resolution",map_resolution, 0.5);
-    map_size = fov.range.max * 2 / map_resolution;
+    ros::param::param("~/CartesianLikelihoodGrid/resolution",MAP_RESOLUTION, 0.5);
+    MAP_SIZE = FOV.range.max * 2 / MAP_RESOLUTION;
 
     ROS_INFO("/CartesianLikelihoodGrid size: %d resolution: %.2lf",
-             map_size, map_resolution);
+             MAP_SIZE, MAP_RESOLUTION);
 
-    ros::param::param("~/LikelihoodGrid/update_rate",update_rate, 0.5);
-    ROS_INFO("/LikelihoodGrid/update_rate is set to %.2lf",update_rate);
+    ros::param::param("~/LikelihoodGrid/update_rate",UPDATE_RATE, 0.5);
+    ROS_INFO("/LikelihoodGrid/update_rate is set to %.2lf",UPDATE_RATE);
 
-    ros::param::param("~/LikelihoodGrid/human_cell_probability",cell_probability.human, 0.95);
-    ROS_INFO("/LikelihoodGrid/human_cell_probability is set to %.2f",cell_probability.human);
+    ros::param::param("~/LikelihoodGrid/human_cell_probability",CELL_PROBABILITY.human, 0.95);
+    ROS_INFO("/LikelihoodGrid/human_cell_probability is set to %.2f",CELL_PROBABILITY.human);
 
-    ros::param::param("~/LikelihoodGrid/free_cell_probability",cell_probability.free, 0.05);
-    ROS_INFO("/LikelihoodGrid/free_cell_probability is set to %.2f",cell_probability.free);
+    ros::param::param("~/LikelihoodGrid/free_cell_probability",CELL_PROBABILITY.free, 0.05);
+    ROS_INFO("/LikelihoodGrid/free_cell_probability is set to %.2f",CELL_PROBABILITY.free);
 
-    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",cell_probability.unknown, 0.5);
-    ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2f",cell_probability.unknown);
+    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",CELL_PROBABILITY.unknown, 0.5);
+    ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2f",CELL_PROBABILITY.unknown);
 
-    ros::param::param("~/LikelihoodGrid/target_detection_probability",target_detection_probability, 0.9);
-    ROS_INFO("/LikelihoodGrid/target_detection_probability is set to %.2f",target_detection_probability);
+    ros::param::param("~/LikelihoodGrid/target_detection_probability",TARGET_DETETION_PROBABILITY, 0.9);
+    ROS_INFO("/LikelihoodGrid/target_detection_probability is set to %.2f",TARGET_DETETION_PROBABILITY);
 
-    ros::param::param("~/LikelihoodGrid/false_positive_probability",false_positive_probability, 0.01);
-    ROS_INFO("/LikelihoodGrid/false_positive_probability is set to %.2f",false_positive_probability);
+    ros::param::param("~/LikelihoodGrid/false_positive_probability",FALSE_POSITIVE_PROBABILITY, 0.01);
+    ROS_INFO("/LikelihoodGrid/false_positive_probability is set to %.2f",FALSE_POSITIVE_PROBABILITY);
 
 
-    ros::param::param("~/LikelihoodGrid/sensitivity",sensitivity, 1);
-    ROS_INFO("/LikelihoodGrid/sensitivity is set to %u",sensitivity);
+    ros::param::param("~/LikelihoodGrid/sensitivity",SENSITIVITY, 1);
+    ROS_INFO("/LikelihoodGrid/sensitivity is set to %u",SENSITIVITY);
 
-    ros::param::param("~/loop_rate",loop_rate, 10);
-    ROS_INFO("/loop_rate is set to %d",loop_rate);
+    ros::param::param("~/loop_rate",LOOP_RATE, 10);
+    ROS_INFO("/loop_rate is set to %d",LOOP_RATE);
 
-    ros::param::param("~/motion_model_enable",motion_model_enable, true);
-    ROS_INFO("/motion_model_enable to %d",motion_model_enable);
+    ros::param::param("~/motion_model_enable",MOTION_MODEL_ENABLE, true);
+    ROS_INFO("/motion_model_enable to %d",MOTION_MODEL_ENABLE);
 
-    ros::param::param("~/leg_detection_enable",leg_detection_enable, true);
-    ROS_INFO("/leg_detection_enable to %d",leg_detection_enable);
+    ros::param::param("~/leg_detection_enable",LEG_DETECTION_ENABLE, true);
+    ROS_INFO("/leg_detection_enable to %d",LEG_DETECTION_ENABLE);
 
-    ros::param::param("~/torso_detection_enable",torso_detection_enable, true);
-    ROS_INFO("/torso_detection_enable to %d",torso_detection_enable);
+    ros::param::param("~/torso_detection_enable",TORSO_DETECTION_ENABLE, true);
+    ROS_INFO("/torso_detection_enable to %d",TORSO_DETECTION_ENABLE);
 
-    ros::param::param("~/sound_detection_enable",sound_detection_enable, true);
-    ROS_INFO("/sound_detection_enable to %d",sound_detection_enable);
+    ros::param::param("~/sound_detection_enable",SOUND_DETECTION_ENABLE, true);
+    ROS_INFO("/sound_detection_enable to %d",SOUND_DETECTION_ENABLE);
 
-    ros::param::param("~/fuse_multiply",fuse_multiply, false);
-    ROS_INFO("/fuse_multiply to %d",fuse_multiply);
+    ros::param::param("~/fuse_multiply",FUSE_MULTIPLY, false);
+    ROS_INFO("/fuse_multiply to %d",FUSE_MULTIPLY);
 
-    number_of_sensors = (leg_detection_enable) + (torso_detection_enable)
-            + (sound_detection_enable);
+    number_of_sensors = (LEG_DETECTION_ENABLE) + (TORSO_DETECTION_ENABLE)
+            + (SOUND_DETECTION_ENABLE);
 
     ROS_INFO("number_of_sensors is set to %u",number_of_sensors);
 
     accept_counter = 0;
     reject_counter = 0;
 
-    last_time_encoder = ros::Time::now();
+    encoder_last_time = ros::Time::now();
+    if(LEG_DETECTION_ENABLE){
+        SensorFOV_t LEG_DETECTOR_FOV = FOV;
+        LEG_DETECTOR_FOV.range.max = (FOV.range.max < 10.0 ? FOV.range.max : 10.0);
+        LEG_DETECTOR_FOV.range.min = FOV.range.min;
+        LEG_DETECTOR_FOV.angle.min = toRadian(-120.0);//-2.35619449615;
+        LEG_DETECTOR_FOV.angle.max = toRadian(120.0);//2.35619449615;
 
-    if(leg_detection_enable){
-        SensorFOV_t legs_fov = fov;
-        //legs_fov.range.max = 20.0;
-        legs_fov.range.max = (fov.range.max < 10.0 ? fov.range.max : 10.0);
-        legs_fov.range.min = fov.range.min;
-        legs_fov.angle.min = toRadian(-120.0);//-2.35619449615;
-        legs_fov.angle.max = toRadian(120.0);//2.35619449615;
-        initLegs(legs_fov);
+        initLegGrid(LEG_DETECTOR_FOV);
+
         ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid->stdev.range, 0.1);
         ROS_INFO("/LikelihoodGrid/leg_range_stdev is set to %.2f",leg_grid->stdev.range);
-
         ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/leg_angle_stdev is set to %.2f",leg_grid->stdev.angle);
-//        legs_grid_pub = n.advertise<sensor_msgs::PointCloud>("leg_likelihood_grid",10);
+
         leg_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
         predicted_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
         last_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("last_legs",10);
@@ -105,50 +104,43 @@ void CartesianGridInterface::init()
         leg_counter = 0;
     }
 
-    if(torso_detection_enable){
-        SensorFOV_t camera_fov = fov;
-        camera_fov.range.min = 2.0;
-        camera_fov.range.max = 8.0;
-        camera_fov.angle.min = toRadian(-65.0/2);
-        camera_fov.angle.max = toRadian(65.0/2);
-        initTorso(camera_fov);
+    if(TORSO_DETECTION_ENABLE){
+        SensorFOV_t TORSO_DETECTOR_FOV = FOV;
+        TORSO_DETECTOR_FOV.range.min = 2.0;
+        TORSO_DETECTOR_FOV.range.max = 8.0;
+        TORSO_DETECTOR_FOV.angle.min = toRadian(-65.0/2);
+        TORSO_DETECTOR_FOV.angle.max = toRadian(65.0/2);
+
+        initTorsoGrid(TORSO_DETECTOR_FOV);
 
         ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid->stdev.range, 0.5);
         ROS_INFO("/LikelihoodGrid/torso_range_stdev is set to %.2f",torso_grid->stdev.range);
-
         ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/torso_angle_stdev is set to %.2f",torso_grid->stdev.angle);
-//        torso_grid_pub = n.advertise<sensor_msgs::PointCloud>("torso_likelihood_grid",10);
         torso_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("torso_occupancy_grid",10);
         torso_counter = 0;
     }
 
-    if(sound_detection_enable){
-        SensorFOV_t mic_fov = fov;
-        mic_fov.range.min = 1.00;
-        mic_fov.range.max = 15.00;
-        mic_fov.range.max = (fov.range.max < 10.0 ? fov.range.max : 10.0);
+    if(SOUND_DETECTION_ENABLE){
+        SensorFOV_t SOUND_DETECTOR_FOV = FOV;
+        SOUND_DETECTOR_FOV.range.min = 1.00;
+        SOUND_DETECTOR_FOV.range.max = (FOV.range.max < 10.0 ? FOV.range.max : 10.0);
+        SOUND_DETECTOR_FOV.angle.min = toRadian(-90.0);
+        SOUND_DETECTOR_FOV.angle.max = toRadian(90.0);
 
-        mic_fov.angle.min = toRadian(-90.0);
-        mic_fov.angle.max = toRadian(90.0);
-        initSound(mic_fov);
+        initSoundGrid(SOUND_DETECTOR_FOV);
 
         ros::param::param("~/LikelihoodGrid/sound_range_stdev",sound_grid->stdev.range, 0.5);
         ROS_INFO("/LikelihoodGrid/sound_range_stdev is set to %.2f",sound_grid->stdev.range);
-
         ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/sound_angle_stdev is set to %.2f",sound_grid->stdev.angle);
-//        sound_grid_pub = n.advertise<sensor_msgs::PointCloud>("sound_likelihood_grid",10);
         sound_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
         sound_counter = 0;
     }
-    initHuman();
-//    human_grid_pub = n.advertise<sensor_msgs::PointCloud>("human_likelihood_grid",10);
+    initHumanGrid(FOV);
     human_occupancy_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("human_occupancy_grid",10);
     local_maxima_pub = n.advertise<geometry_msgs::PoseArray>("local_maxima",10);
     max_local_maxima_pub = n.advertise<geometry_msgs::PointStamped>("maximum_probability",10);
-
-
     try
     {
         tf_listener = new tf::TransformListener();
@@ -228,13 +220,13 @@ bool CartesianGridInterface::transformToBase(const geometry_msgs::PoseArrayConst
 }
 
 
-void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
+void CartesianGridInterface::initLegGrid(SensorFOV_t _FOV)
 {
     try
     {
-        leg_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability,
-                                      target_detection_probability,
-                                      false_positive_probability);
+        leg_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, CELL_PROBABILITY,
+                                      TARGET_DETETION_PROBABILITY,
+                                      FALSE_POSITIVE_PROBABILITY);
     }
     catch (std::bad_alloc& ba)
     {
@@ -242,13 +234,13 @@ void CartesianGridInterface::initLegs(SensorFOV_t sensor_fov)
     }
 }
 
-void CartesianGridInterface::initTorso(SensorFOV_t sensor_fov)
+void CartesianGridInterface::initTorsoGrid(SensorFOV_t _FOV)
 {
     try
     {
-        torso_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability,
-                                       target_detection_probability,
-                                       false_positive_probability);
+        torso_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, CELL_PROBABILITY,
+                                       TARGET_DETETION_PROBABILITY,
+                                       FALSE_POSITIVE_PROBABILITY);
     }
     catch (std::bad_alloc& ba)
     {
@@ -257,12 +249,12 @@ void CartesianGridInterface::initTorso(SensorFOV_t sensor_fov)
 }
 
 
-void CartesianGridInterface::initSound(SensorFOV_t sensor_fov)
+void CartesianGridInterface::initSoundGrid(SensorFOV_t _FOV)
 {
     try
     {
-        sound_grid = new CartesianGrid(map_size, map_resolution, sensor_fov, cell_probability, target_detection_probability,
-                                       false_positive_probability);
+        sound_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, CELL_PROBABILITY, TARGET_DETETION_PROBABILITY,
+                                       FALSE_POSITIVE_PROBABILITY);
     }
     catch (std::bad_alloc& ba)
     {
@@ -271,13 +263,13 @@ void CartesianGridInterface::initSound(SensorFOV_t sensor_fov)
 }
 
 
-void CartesianGridInterface::initHuman()
+void CartesianGridInterface::initHumanGrid(SensorFOV_t _FOV)
 {
     try
     {
-        human_grid = new CartesianGrid(map_size, map_resolution, fov, cell_probability,
-                                       target_detection_probability,
-                                       false_positive_probability);
+        human_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, CELL_PROBABILITY,
+                                       TARGET_DETETION_PROBABILITY,
+                                       FALSE_POSITIVE_PROBABILITY);
     }
     catch (std::bad_alloc& ba)
     {
@@ -291,16 +283,15 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
                                           const autonomy_human::raw_detectionsConstPtr torso_msg)
 {
 //    ----------   ENCODER CALLBACK   ----------
-    if(motion_model_enable){
-        current_time_encoder = ros::Time::now();
-        robot_linear_velocity = sqrt( pow(encoder_msg->twist.twist.linear.x,2) + pow(encoder_msg->twist.twist.linear.y,2) );
-        robot_angular_velocity = encoder_msg->twist.twist.angular.z;
-        diff_time = current_time_encoder.toSec() - last_time_encoder.toSec();
-        last_time_encoder = current_time_encoder;
+    if(MOTION_MODEL_ENABLE){
+        robot_velocity.linear = sqrt( pow(encoder_msg->twist.twist.linear.x,2) + pow(encoder_msg->twist.twist.linear.y,2) );
+        robot_velocity.angular = encoder_msg->twist.twist.angular.z;
+        encoder_diff_time = ros::Time::now() - encoder_last_time;
+        encoder_last_time = ros::Time::now();
     }
 
 //    ----------   LEG DETECTION CALLBACK   ----------
-    if(leg_detection_enable){
+    if(LEG_DETECTION_ENABLE){
 
         leg_grid->crtsn_array.current.poses.clear();
 
@@ -313,7 +304,8 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
             ROS_ASSERT(leg_grid->polar_array.current.size() == leg_msg_crtsn->poses.size());
         }
 //        ROS_INFO("LEG");
-        leg_grid->predict(robot_linear_velocity, robot_angular_velocity);
+        leg_grid->diff_time = encoder_diff_time;
+        leg_grid->predict(robot_velocity);
 
         /* FOR RVIZ */
         leg_grid->crtsn_array.current.header.frame_id = "base_footprint";
@@ -335,10 +327,11 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     }
 
     //    ----------   TORSO DETECTION CALLBACK   ----------
-    if(torso_detection_enable){
+    if(TORSO_DETECTION_ENABLE){
 //        ROS_INFO("TORSO");
         torso_grid->getPose(torso_msg);
-        torso_grid->predict(robot_linear_velocity, robot_angular_velocity);
+        torso_grid->diff_time = encoder_diff_time;
+        torso_grid->predict(robot_velocity);
         torso_grid->bayesOccupancyFilter();
 
         //PUBLISH TORSO OCCUPANCY GRID
@@ -347,8 +340,8 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         torso_occupancy_grid_pub.publish(torso_occupancy_grid);
     }
 
-    human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, fuse_multiply);
-    human_grid->predict(robot_linear_velocity, robot_angular_velocity); // TODO: FIX THIS
+    human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, FUSE_MULTIPLY);
+    human_grid->predict(robot_velocity); // TODO: FIX THIS
 
     //PUBLISH LOCAL MAXIMA
     human_grid->updateLocalMaximas();
@@ -369,10 +362,12 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 
 void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
 {
-    if(sound_detection_enable){
+    if(SOUND_DETECTION_ENABLE){
 //        ROS_ERROR("SOUND");
         sound_grid->getPose(sound_msg);
-        sound_grid->predict(robot_linear_velocity, robot_angular_velocity);
+        sound_grid->diff_time = ros::Time::now() - sound_grid->last_time;
+        sound_grid->last_time = ros::Time::now();
+        sound_grid->predict(robot_velocity);
         sound_grid->bayesOccupancyFilter();
 
         //PUBLISH SOUND OCCUPANCY GRID
@@ -384,8 +379,6 @@ void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &
 
 void CartesianGridInterface::pointCloudGrid(CartesianGrid* grid, sensor_msgs::PointCloud* pointcloud_grid)
 {
-
-
     if(!pointcloud_grid->header.frame_id.size()){
         pointcloud_grid->header.frame_id = "base_footprint";
     }else{
@@ -398,8 +391,8 @@ void CartesianGridInterface::pointCloudGrid(CartesianGrid* grid, sensor_msgs::Po
 
     for(size_t i = 0; i < grid->grid_size; i++){
 
-        points.x = grid->map.cell_crtsn[i].x;
-        points.y = grid->map.cell_crtsn[i].y;
+        points.x = grid->map.cell[i].cartesian.x;
+        points.y = grid->map.cell[i].cartesian.y;
         points.z = grid->posterior[i];
         probability_channel.values.push_back(grid->posterior[i]);
         threshold_channel.values.push_back(prior_threshold);
@@ -440,9 +433,9 @@ void CartesianGridInterface::spin()
 CartesianGridInterface::~CartesianGridInterface()
 {
     ROS_INFO("Deconstructing the constructed LikelihoodGridInterface.");
-    if(leg_detection_enable) delete leg_grid;
-    if(torso_detection_enable) delete torso_grid;
-    if(sound_detection_enable) delete sound_grid;
+    if(LEG_DETECTION_ENABLE) delete leg_grid;
+    if(TORSO_DETECTION_ENABLE) delete torso_grid;
+    if(SOUND_DETECTION_ENABLE) delete sound_grid;
     delete human_grid;
     delete tf_listener;
 }

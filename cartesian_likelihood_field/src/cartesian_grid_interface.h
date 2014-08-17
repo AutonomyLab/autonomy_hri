@@ -34,7 +34,7 @@ private:
     CartesianGrid* leg_grid;
     ros::Time last_leg_time;
     ros::Duration leg_diff_time;
-    bool leg_detection_enable;
+    bool LEG_DETECTION_ENABLE;
     unsigned int leg_counter;
     sensor_msgs::PointCloud leg_pointcloud_grid;
     nav_msgs::OccupancyGrid leg_occupancy_grid;
@@ -50,7 +50,7 @@ private:
     CartesianGrid* torso_grid;
     ros::Time last_torso_time;
     ros::Duration torso_diff_time;
-    bool torso_detection_enable;
+    bool TORSO_DETECTION_ENABLE;
     unsigned int torso_counter;
     sensor_msgs::PointCloud torso_pointcloud_grid;
     nav_msgs::OccupancyGrid torso_occupancy_grid;
@@ -64,7 +64,7 @@ private:
     CartesianGrid* sound_grid;
     ros::Time last_sound_time;
     ros::Duration sound_diff_time;
-    bool sound_detection_enable;
+    bool SOUND_DETECTION_ENABLE;
     unsigned int sound_counter;
     sensor_msgs::PointCloud sound_pointcloud_grid;
     nav_msgs::OccupancyGrid sound_occupancy_grid;
@@ -79,33 +79,33 @@ private:
     unsigned int reject_counter;
     sensor_msgs::PointCloud human_pointcloud_grid;
     nav_msgs::OccupancyGrid human_occupancy_grid;
-    bool fuse_multiply;
+    bool FUSE_MULTIPLY;
     geometry_msgs::PoseArray local_maxima;
     geometry_msgs::PointStamped maximum_probability;
 
 
     //encoder
-    ros::Time last_time_encoder;
-    ros::Time current_time_encoder;
+    ros::Time encoder_last_time;
+    ros::Duration encoder_diff_time;
     geometry_msgs::Pose diff_pose_crtsn;
     PolarPose polar_diff_pose;
-    CellProbability_t cell_probability;
-    SensorFOV_t fov;
-    bool motion_model_enable;
+    CellProbability_t CELL_PROBABILITY;
+    SensorFOV_t FOV;
+    Velocity_t robot_velocity;
+    bool MOTION_MODEL_ENABLE;
 
     double prior_threshold;
-    double update_rate;
-    double target_detection_probability;
-    double false_positive_probability;
-    double robot_angular_velocity;
-    double diff_time;
-    double robot_linear_velocity;
-    double map_resolution;
+    double UPDATE_RATE;
+    double TARGET_DETETION_PROBABILITY;
+    double FALSE_POSITIVE_PROBABILITY;
+//    double robot_angular_velocity;
+//    double robot_linear_velocity;
+    double MAP_RESOLUTION;
 
-    int loop_rate;
+    int LOOP_RATE;
     int number_of_sensors;
-    int sensitivity;
-    int map_size;
+    int SENSITIVITY;
+    int MAP_SIZE;
 
     void init();
     void initWorldGrids();
@@ -123,10 +123,10 @@ private:
     void occupancyGrid(CartesianGrid* grid,
                        nav_msgs::OccupancyGrid *occupancy_grid);
 
-    void initLegs(SensorFOV_t sensor_fov);              //NEEDED FOR EVERY HUMAN FEATURE
-    void initTorso(SensorFOV_t sensor_fov);
-    void initSound(SensorFOV_t sensor_fov);
-    void initHuman();
+    void initLegGrid(SensorFOV_t _fov);              //NEEDED FOR EVERY HUMAN FEATURE
+    void initTorsoGrid(SensorFOV_t _fov);
+    void initSoundGrid(SensorFOV_t _fov);
+    void initHumanGrid(SensorFOV_t _fov);
 
 public:
     CartesianGridInterface();
@@ -138,13 +138,6 @@ public:
 
     void soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg);
 
-//    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
-//                      const nav_msgs::OdometryConstPtr& encoder_msg,
-//                      const autonomy_human::raw_detectionsConstPtr torso_msg,
-//                      const hark_msgs::HarkSourceConstPtr &sound_msg);
-
-//    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
-//                      const nav_msgs::OdometryConstPtr& encoder_msg);
     void spin();
     ~CartesianGridInterface();                             // TO BE MODIFIED FOR EVERY HUMAN FEATURE
 };
