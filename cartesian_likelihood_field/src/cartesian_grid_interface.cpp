@@ -340,6 +340,7 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
         torso_occupancy_grid_pub.publish(torso_occupancy_grid);
     }
 
+    human_grid->diff_time = encoder_diff_time;
     human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, FUSE_MULTIPLY);
     human_grid->predict(robot_velocity); // TODO: FIX THIS
 

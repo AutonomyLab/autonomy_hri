@@ -486,7 +486,8 @@ void CartesianGrid::trackLocalMaximas()
 
 void CartesianGrid::trackMaxProbability()
 {
-    int8_t counter_threshold = 10; // TODO : MAKE IT A PARAMETER
+//    int8_t counter_threshold = 10; // TODO : MAKE IT A PARAMETER
+    int8_t counter_threshold = int(1/diff_time.toSec());
     double dist_threshold = 4 * map.resolution;
 
     if(main_local_maxima.empty() && last_highest_lm.index == 0){
@@ -530,27 +531,34 @@ void CartesianGrid::trackMaxProbability()
     if(last_highest_lm.counter > counter_threshold){
         last_highest_lm.tracking = true;
         last_highest_lm.counter = counter_threshold;
-
+        ROS_INFO("state 1       %d", last_highest_lm.counter);
+        goto stop;
     } else if(last_highest_lm.counter < 0){
         last_highest_lm.index = max_index;
         last_highest_lm.counter = counter_threshold + 1;
-
+        ROS_INFO("state 2       %d", last_highest_lm.counter);
+        goto stop;
     } else {
         size_t predicted_highest_lm = predictHighestProbability(last_highest_lm.index);
-        size_t temp_lm = predicted_highest_lm;
-        double min_distance = 1e+10;
+        size_t temp_lm = max_index;
+        double min_distance = 2 * map.resolution;
 
         for(size_t i = 0; i < main_local_maxima.size(); i++){
             size_t in = main_local_maxima.at(i).index;
             double temp_dist = cellsDistance(in, predicted_highest_lm);
             temp_lm = (temp_dist < min_distance) ? in : temp_lm ;
         }
-        last_highest_lm.index = temp_lm;
+        last_highest_lm.index = (fabs(velocity.linear) > 1e-4 || fabs(velocity.angular) > 1e-4)
+                ? temp_lm : last_highest_lm.index;
+        ROS_INFO("state 3       %d", last_highest_lm.counter);
+        goto stop;
     }
 
 //    //DO NOT TRACK HIGHEST PROBABILITY POINT
 //    last_highest_lm.index = max_index;
 //    last_highest_lm.tracking = true;
+    stop:
+    ROS_INFO("diff_time:    %.4f    loop rate:  %d", diff_time.toSec(), int(1/diff_time.toSec()));
 
     if(last_highest_lm.tracking){
         highest_prob_point.point.x = map.cell.at(last_highest_lm.index).cartesian.x;
