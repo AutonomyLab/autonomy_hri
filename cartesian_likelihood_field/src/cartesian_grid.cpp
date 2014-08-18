@@ -142,22 +142,12 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                             std::vector<double> &_true_likelihood,
                             std::vector<double> &_false_likelihood)
 {
-//    double detection_likelihood;
-//    double missed_detection_likelihood;
-
-//    double cell_prob;
-//    double range;
-//    double angle;
-
-//    double Gr = 1.0;
-//    double Ga = 1.0;
-
     for(size_t i = 0; i < grid_size; i++){
         double range = map.cell.at(i).polar.range;
         double angle = map.cell.at(i).polar.angle;
         double detection_likelihood = cell_probability.unknown;
-//        double miss_detection_likelihood = cell_probability.unknown;
-        double miss_detection_likelihood = 1.0 - detection_likelihood;
+        double miss_detection_likelihood = cell_probability.unknown;
+//        double miss_detection_likelihood = 1.0 - detection_likelihood;
 
         double cell_prob = 0.0;
 
@@ -167,8 +157,6 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
         if(pose.empty()) miss_detection_likelihood = 0.8; // ?????
 
         else{
-//        if(!pose.empty())
-//        {
             for(size_t p = 0; p < pose.size(); p++){
                 double Gr = (pose.at(p).range < 0.01) ? 1.0 : normalDistribution(range, pose.at(p).range, stdev.range);
                 double Ga = normalDistribution(angle, pose.at(p).angle, toRadian(stdev.angle));
@@ -498,7 +486,7 @@ void CartesianGrid::trackLocalMaximas()
 
 void CartesianGrid::trackMaxProbability()
 {
-    int8_t counter_threshold = 5; // TODO : MAKE IT A PARAMETER
+    int8_t counter_threshold = 10; // TODO : MAKE IT A PARAMETER
     double dist_threshold = 4 * map.resolution;
 
     if(main_local_maxima.empty() && last_highest_lm.index == 0){
