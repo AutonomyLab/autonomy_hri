@@ -24,19 +24,27 @@ int main(int argc, char** argv)
 
     message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 1);
     message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 1);
-    message_filters::Subscriber<autonomy_human::raw_detections> torso_sub(n, "torso", 1);
+//    message_filters::Subscriber<autonomy_human::raw_detections> torso_sub(n, "torso", 1);
 
 //    ALL TOPICS EXCEPT SOUND-------------
+//    typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
+//            nav_msgs::Odometry,
+//            autonomy_human::raw_detections> MySyncPolicy;
     typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
-            nav_msgs::Odometry,
-            autonomy_human::raw_detections> MySyncPolicy;
+            nav_msgs::Odometry> MySyncPolicy;
 
-    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub, torso_sub);
+//    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub, torso_sub);
+//    sync.registerCallback(boost::bind(&CartesianGridInterface::syncCallBack,
+//                                      &likelihood_grid_interface, _1, _2, _3));
+    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub);
     sync.registerCallback(boost::bind(&CartesianGridInterface::syncCallBack,
-                                      &likelihood_grid_interface, _1, _2, _3));
+                                      &likelihood_grid_interface, _1, _2));
     ros::Subscriber sound_sub = n.subscribe("HarkSource",10,
                                            &CartesianGridInterface::soundCallBack,
                                            &likelihood_grid_interface);
+    ros::Subscriber torso_sub = n.subscribe("torso", 10,
+                                            &CartesianGridInterface::torsoCallBack,
+                                            &likelihood_grid_interface);
 //    ALL TOPICS EXCEPT SOUND------------
 
 

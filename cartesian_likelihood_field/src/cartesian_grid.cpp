@@ -247,8 +247,7 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
 {
     polar_array.current.clear();
     PolarPose torso_polar_pose;
-    torso_polar_pose.range = -1.0;
-    torso_polar_pose.angle = 2 * M_PI;
+
     geometry_msgs::Point torso_position_in_image;
     double image_width = 640.0;;
     double camera_fov = 65.0; // degree
@@ -256,9 +255,13 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
     // 0.0000952381 x^2-0.0696716 x+14.4483
 
     for(size_t i = 0; i < torso_img->detections.size(); i++){
-        double h = torso_img->detections.at(i).height;
+        torso_polar_pose.range = -1.0;
+        torso_polar_pose.angle = 2 * M_PI;
+
         torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
         torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
+
+        double h = torso_img->detections.at(i).height;
         torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
         polar_array.current.push_back(torso_polar_pose);
     }
@@ -268,9 +271,11 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
 {
     polar_array.current.clear();
     PolarPose sound_src_polar;
-    sound_src_polar.range = -1.0;
-    sound_src_polar.angle = 2 * M_PI;
+
     for(size_t i = 0; i < sound_src->src.size(); i++){
+        sound_src_polar.range = -1.0;
+        sound_src_polar.angle = 2 * M_PI;
+
         if(fabs(sound_src->src[i].y) > 0.0){
             sound_src_polar.angle = toRadian(sound_src->src[i].azimuth);
 //            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
@@ -487,8 +492,8 @@ void CartesianGrid::trackLocalMaximas()
 void CartesianGrid::trackMaxProbability()
 {
 //    int8_t counter_threshold = 10; // TODO : MAKE IT A PARAMETER
-    int8_t counter_threshold = int(1/diff_time.toSec());
-    double dist_threshold = 4 * map.resolution;
+    int8_t counter_threshold = 2 * int(1/diff_time.toSec());
+    double dist_threshold = 2 * map.resolution;
 
     if(main_local_maxima.empty() && last_highest_lm.index == 0){
 
@@ -558,7 +563,7 @@ void CartesianGrid::trackMaxProbability()
 //    last_highest_lm.index = max_index;
 //    last_highest_lm.tracking = true;
     stop:
-    ROS_INFO("diff_time:    %.4f    loop rate:  %d", diff_time.toSec(), int(1/diff_time.toSec()));
+//    ROS_INFO("diff_time:    %.4f    loop rate:  %d", diff_time.toSec(), int(1/diff_time.toSec()));
 
     if(last_highest_lm.tracking){
         highest_prob_point.point.x = map.cell.at(last_highest_lm.index).cartesian.x;

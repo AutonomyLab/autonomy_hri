@@ -113,7 +113,7 @@ void CartesianGridInterface::init()
 
         initTorsoGrid(TORSO_DETECTOR_FOV);
 
-        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid->stdev.range, 0.5);
+        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid->stdev.range, 1.0);
         ROS_INFO("/LikelihoodGrid/torso_range_stdev is set to %.2f",torso_grid->stdev.range);
         ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/torso_angle_stdev is set to %.2f",torso_grid->stdev.angle);
@@ -278,9 +278,11 @@ void CartesianGridInterface::initHumanGrid(SensorFOV_t _FOV)
 }
 
 
+//void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
+//                                          const nav_msgs::OdometryConstPtr& encoder_msg,
+//                                          const autonomy_human::raw_detectionsConstPtr torso_msg)
 void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
-                                          const nav_msgs::OdometryConstPtr& encoder_msg,
-                                          const autonomy_human::raw_detectionsConstPtr torso_msg)
+                                          const nav_msgs::OdometryConstPtr& encoder_msg)
 {
 //    ----------   ENCODER CALLBACK   ----------
     if(MOTION_MODEL_ENABLE){
@@ -327,18 +329,18 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     }
 
     //    ----------   TORSO DETECTION CALLBACK   ----------
-    if(TORSO_DETECTION_ENABLE){
-//        ROS_INFO("TORSO");
-        torso_grid->getPose(torso_msg);
-        torso_grid->diff_time = encoder_diff_time;
-        torso_grid->predict(robot_velocity);
-        torso_grid->bayesOccupancyFilter();
+//    if(TORSO_DETECTION_ENABLE){
+////        ROS_INFO("TORSO");
+//        torso_grid->getPose(torso_msg);
+//        torso_grid->diff_time = encoder_diff_time;
+//        torso_grid->predict(robot_velocity);
+//        torso_grid->bayesOccupancyFilter();
 
-        //PUBLISH TORSO OCCUPANCY GRID
-        occupancyGrid(torso_grid, &torso_occupancy_grid);
-        torso_occupancy_grid.header.stamp = ros::Time::now();
-        torso_occupancy_grid_pub.publish(torso_occupancy_grid);
-    }
+//        //PUBLISH TORSO OCCUPANCY GRID
+//        occupancyGrid(torso_grid, &torso_occupancy_grid);
+//        torso_occupancy_grid.header.stamp = ros::Time::now();
+//        torso_occupancy_grid_pub.publish(torso_occupancy_grid);
+//    }
 
     human_grid->diff_time = encoder_diff_time;
     human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior, FUSE_MULTIPLY);
@@ -358,6 +360,22 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     occupancyGrid(human_grid, &human_occupancy_grid);
     human_occupancy_grid.header.stamp = ros::Time::now();
     human_occupancy_grid_pub.publish(human_occupancy_grid);
+}
+
+void CartesianGridInterface::torsoCallBack(const autonomy_human::raw_detectionsConstPtr &torso_msg)
+{
+    if(TORSO_DETECTION_ENABLE){
+//        ROS_INFO("TORSO");
+        torso_grid->getPose(torso_msg);
+        torso_grid->diff_time = encoder_diff_time;
+        torso_grid->predict(robot_velocity);
+        torso_grid->bayesOccupancyFilter();
+
+        //PUBLISH TORSO OCCUPANCY GRID
+        occupancyGrid(torso_grid, &torso_occupancy_grid);
+        torso_occupancy_grid.header.stamp = ros::Time::now();
+        torso_occupancy_grid_pub.publish(torso_occupancy_grid);
+    }
 }
 
 
