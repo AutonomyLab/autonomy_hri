@@ -45,6 +45,9 @@ int main(int argc, char** argv)
     ros::Subscriber torso_sub = n.subscribe("torso", 10,
                                             &CartesianGridInterface::torsoCallBack,
                                             &likelihood_grid_interface);
+    ros::Subscriber periodic_sub = n.subscribe("periodic_gestures/raw_detections", 10,
+                                            &CartesianGridInterface::periodicCallBack,
+                                            &likelihood_grid_interface);
 //    ALL TOPICS EXCEPT SOUND------------
 
 

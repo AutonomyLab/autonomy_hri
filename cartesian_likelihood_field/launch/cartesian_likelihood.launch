@@ -3,6 +3,7 @@
 <arg name="leg_detection" value="true" />
 <arg name="torso_detection" value="true" />
 <arg name="sound_detection" value="true" />
+<arg name="gesture_detection" value="true" />
 
 
 <node pkg="cartesian_likelihood_field" type="cartesian_likelihood_field" name="cartesian_likelihood_field" output="screen">
@@ -25,11 +26,15 @@
         <param name="LikelihoodGrid/torso_angle_stdev" value="2.0"/>
         <param name="LikelihoodGrid/sound_range_stdev" value="1.0"/>
         <param name="LikelihoodGrid/sound_angle_stdev" value="2.0"/>
+        <param name="LikelihoodGrid/periodic_range_stdev" value="1.0"/>
+        <param name="LikelihoodGrid/periodic_angle_stdev" value="2.0"/>
         <param name="loop_rate" value="10"/>
         <param name="motion_model_enable" value="$(arg use_encoder)"/>
         <param name="leg_detection_enable" value="$(arg leg_detection)"/>
         <param name="torso_detection_enable" value="$(arg torso_detection)"/>
         <param name="sound_detection_enable" value="$(arg sound_detection)"/>
+        <param name="periodic_gesture_detection_enable" value="$(arg gesture_detection)"/>
+
         <param name="fuse_multiply" value="false"/>
 	    <remap from="/torso" to="person_detection/people" />
     </node>

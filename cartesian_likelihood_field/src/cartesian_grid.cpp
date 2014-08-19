@@ -223,7 +223,6 @@ void CartesianGrid::fuse(const std::vector<double> data_1,
         setOutFOVProbability(posterior, 1.0);
         for(size_t i = 0; i < grid_size; i++){
             posterior.at(i) = (data_1.at(i) * data_2.at(i) * data_3.at(i));}
-
     } else {
         setInFOVProbability(posterior, 0.0);
         setOutFOVProbability(posterior, 0.0);
@@ -536,12 +535,10 @@ void CartesianGrid::trackMaxProbability()
     if(last_highest_lm.counter > counter_threshold){
         last_highest_lm.tracking = true;
         last_highest_lm.counter = counter_threshold;
-        ROS_INFO("state 1       %d", last_highest_lm.counter);
         goto stop;
     } else if(last_highest_lm.counter < 0){
         last_highest_lm.index = max_index;
         last_highest_lm.counter = counter_threshold + 1;
-        ROS_INFO("state 2       %d", last_highest_lm.counter);
         goto stop;
     } else {
         size_t predicted_highest_lm = predictHighestProbability(last_highest_lm.index);
@@ -555,7 +552,6 @@ void CartesianGrid::trackMaxProbability()
         }
         last_highest_lm.index = (fabs(velocity.linear) > 1e-4 || fabs(velocity.angular) > 1e-4)
                 ? temp_lm : last_highest_lm.index;
-        ROS_INFO("state 3       %d", last_highest_lm.counter);
         goto stop;
     }
 
