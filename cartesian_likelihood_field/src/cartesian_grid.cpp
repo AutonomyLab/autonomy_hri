@@ -288,26 +288,59 @@ void CartesianGrid::predict(const Velocity_t _robot_velocity)
     polar_array.predicted.clear();
     polar_array.predicted = polar_array.past;
 
+    geometry_msgs::Point pose1, pose2;
+    PolarPose polar1, polar2;
+
     velocity.linear = -_robot_velocity.linear;
     velocity.angular = -_robot_velocity.angular;
+    velocity.lin.x = -_robot_velocity.lin.x;
+    velocity.lin.y = -_robot_velocity.lin.y;
+
 
     for(size_t p = 0 ; p < polar_array.past.size(); p++){
-        polar_array.predicted.at(p).range = velocity.linear * diff_time.toSec() + polar_array.past.at(p).range;
-        polar_array.predicted.at(p).angle = velocity.angular * diff_time.toSec() + polar_array.past.at(p).angle;
+        polar1 = polar_array.past.at(p);
+        polar1.toCart(pose1.x, pose1.y);
+
+        pose2.x = velocity.lin.x * diff_time.toSec() + pose1.x;
+        pose2.y = velocity.lin.y * diff_time.toSec() + pose1.y;
+
+        polar2.fromCart(pose2.x, pose2.y);
+        polar_array.predicted.at(p) = polar2;
+
+
+//        polar_array.predicted.at(p).range = velocity.linear * diff_time.toSec() + polar_array.past.at(p).range;
+//        polar_array.predicted.at(p).angle = velocity.angular * diff_time.toSec() + polar_array.past.at(p).angle;
     }
 }
 
 size_t CartesianGrid::predictHighestProbability(size_t index)
 {
-    PolarPose pose1, pose2;
+
+    geometry_msgs::Point pose1, pose2;
+    PolarPose polar1, polar2;
     double x, y;
 
-    pose1.range = map.cell.at(index).polar.range;
-    pose1.angle = map.cell.at(index).polar.angle;
 
-    pose2.range = velocity.linear * diff_time.toSec() + pose1.range;
-    pose2.angle = velocity.angular * diff_time.toSec() + pose1.angle;
-    pose2.toCart(x,y);
+    polar1.range = map.cell.at(index).polar.range;
+    polar1.angle = map.cell.at(index).polar.angle;
+    polar1.toCart(pose1.x, pose1.y);
+
+    x = velocity.lin.x * diff_time.toSec() + pose1.x;
+    y = velocity.lin.y * diff_time.toSec() + pose1.y;
+
+//    polar2.fromCart(pose2.x, pose2.y);
+//    polar_array.predicted.at(p) = polar2;
+
+
+
+//    PolarPose pose1, pose2;
+
+//    pose1.range = map.cell.at(index).polar.range;
+//    pose1.angle = map.cell.at(index).polar.angle;
+
+//    pose2.range = velocity.linear * diff_time.toSec() + pose1.range;
+//    pose2.angle = velocity.angular * diff_time.toSec() + pose1.angle;
+//    pose2.toCart(x,y);
 
     // x = -map.height * map.resolution / 2 + map.resolution / 2.0 + row * map.resolution;
 
@@ -490,11 +523,11 @@ void CartesianGrid::trackLocalMaximas()
 
 void CartesianGrid::trackMaxProbability()
 {
-    uint8_t loop_rate = 5;
-    int8_t counter_threshold = 5 * loop_rate;
+    uint8_t loop_rate = 10;
+    int8_t counter_threshold = 1 * loop_rate;
 //    double dist_threshold = 4 * map.resolution;
     double dist_threshold = 1.00;
-    double probability_threshold = 2 / 3 * (cell_probability.unknown - cell_probability.free);
+    double probability_threshold = 2 * cell_probability.human * (cell_probability.unknown - cell_probability.free) / 3;
 
     if(main_local_maxima.empty() && last_highest_lm.index == 0){
 
@@ -530,9 +563,6 @@ void CartesianGrid::trackMaxProbability()
     double max_angular_distance = robot_max_velocity.angular * diff_time.toSec() * min_range;
     double max_linear_distance = robot_max_velocity.linear * diff_time.toSec();
     double tracking_distance = maximum(dist_threshold, max_linear_distance, max_angular_distance);
-    ROS_INFO("tracking_distance:    %.2f", tracking_distance);
-    ROS_INFO("max_angular_distance:    %.2f", max_angular_distance);
-    ROS_INFO("max_linear_distance:    %.2f", max_linear_distance);
 
     if(cellsDistance(max_index, last_highest_lm.index) < tracking_distance){
         last_highest_lm.index = max_index;
@@ -558,17 +588,15 @@ void CartesianGrid::trackMaxProbability()
         goto stop;
     } else {
         size_t predicted_highest_lm = predictHighestProbability(last_highest_lm.index);
-//        size_t temp_lm = max_index;
         size_t temp_lm = last_highest_lm.index;
-        double min_distance = 2 * map.resolution;
 
         for(size_t i = 0; i < main_local_maxima.size(); i++){
-            size_t in = main_local_maxima.at(i).index;
-            double temp_dist = cellsDistance(in, predicted_highest_lm);
-//            temp_lm = (temp_dist < min_distance) ? in : temp_lm ;
-            temp_lm = (temp_dist < tracking_distance) ? in : temp_lm ;
 
+            size_t lm_index = main_local_maxima.at(i).index;
+            double temp_dist = cellsDistance(lm_index, predicted_highest_lm);
+            temp_lm = (temp_dist < tracking_distance) ? lm_index : temp_lm ;
         }
+
         last_highest_lm.index = (fabs(velocity.linear) > 1e-4 || fabs(velocity.angular) > 1e-4)
                 ? temp_lm : last_highest_lm.index;
         ROS_INFO("3- in between  %d", last_highest_lm.counter);

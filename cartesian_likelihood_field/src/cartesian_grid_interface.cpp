@@ -314,6 +314,8 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
 //    ----------   ENCODER CALLBACK   ----------
     if(MOTION_MODEL_ENABLE){
         robot_velocity.linear = sqrt( pow(encoder_msg->twist.twist.linear.x,2) + pow(encoder_msg->twist.twist.linear.y,2) );
+        robot_velocity.lin.x = encoder_msg->twist.twist.linear.x;
+        robot_velocity.lin.y = encoder_msg->twist.twist.linear.y;
         robot_velocity.angular = encoder_msg->twist.twist.angular.z;
         encoder_diff_time = ros::Time::now() - encoder_last_time;
         encoder_last_time = ros::Time::now();

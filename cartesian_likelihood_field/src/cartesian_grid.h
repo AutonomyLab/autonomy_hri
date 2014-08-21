@@ -51,6 +51,7 @@ struct Cell_t{
 };
 
 struct Velocity_t{
+    geometry_msgs::Point lin;
     double linear;
     double angular;
 };
