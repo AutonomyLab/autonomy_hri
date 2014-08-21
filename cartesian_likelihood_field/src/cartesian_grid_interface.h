@@ -81,6 +81,7 @@ private:
 
     //encoder
     ros::Time encoder_last_time;
+    ros::Time last_time;
     ros::Duration encoder_diff_time;
     geometry_msgs::Pose diff_pose_crtsn;
     PolarPose polar_diff_pose;

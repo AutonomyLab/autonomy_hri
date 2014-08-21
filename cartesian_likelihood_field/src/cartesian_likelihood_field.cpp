@@ -53,16 +53,13 @@ int main(int argc, char** argv)
 
 
     while (ros::ok()) {
-//        likelihood_grid_interface.spin();
+        likelihood_grid_interface.spin();
+        ros::spinOnce();
 
         if(looprate.cycleTime() > looprate.expectedCycleTime())
             ROS_ERROR("It is taking too long! %f", looprate.cycleTime().toSec());
-
-        ros::spinOnce();
-
         if(!looprate.sleep())
             ROS_INFO("Not enough time left");
-
     }
     return 0;
 }
