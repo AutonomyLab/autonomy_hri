@@ -490,9 +490,10 @@ void CartesianGrid::trackLocalMaximas()
 
 void CartesianGrid::trackMaxProbability()
 {
-//    int8_t counter_threshold = 10; // TODO : MAKE IT A PARAMETER
-    int8_t counter_threshold = 2 * int(1/diff_time.toSec());
+    int8_t counter_threshold = 10; // TODO : MAKE IT A PARAMETER
+//    int8_t counter_threshold = 2 * int(1/diff_time.toSec());
     double dist_threshold = 2 * map.resolution;
+    ROS_INFO("counter threshold:    %d", counter_threshold);
 
     if(main_local_maxima.empty() && last_highest_lm.index == 0){
 
@@ -534,15 +535,19 @@ void CartesianGrid::trackMaxProbability()
 
     if(last_highest_lm.counter > counter_threshold){
         last_highest_lm.tracking = true;
-        last_highest_lm.counter = counter_threshold;
+        last_highest_lm.counter = counter_threshold + 1;
+        ROS_INFO("1- keep tracking  %d", last_highest_lm.counter);
         goto stop;
     } else if(last_highest_lm.counter < 0){
         last_highest_lm.index = max_index;
         last_highest_lm.counter = counter_threshold + 1;
+        ROS_ERROR("2- change highest point  %d", last_highest_lm.counter);
+
         goto stop;
     } else {
         size_t predicted_highest_lm = predictHighestProbability(last_highest_lm.index);
-        size_t temp_lm = max_index;
+//        size_t temp_lm = max_index;
+        size_t temp_lm = last_highest_lm.index;
         double min_distance = 2 * map.resolution;
 
         for(size_t i = 0; i < main_local_maxima.size(); i++){
@@ -552,6 +557,7 @@ void CartesianGrid::trackMaxProbability()
         }
         last_highest_lm.index = (fabs(velocity.linear) > 1e-4 || fabs(velocity.angular) > 1e-4)
                 ? temp_lm : last_highest_lm.index;
+        ROS_INFO("3- in between  %d", last_highest_lm.counter);
         goto stop;
     }
 

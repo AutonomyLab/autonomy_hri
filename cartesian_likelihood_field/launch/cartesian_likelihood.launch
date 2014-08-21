@@ -3,7 +3,7 @@
 <arg name="leg_detection" value="true" />
 <arg name="torso_detection" value="true" />
 <arg name="sound_detection" value="true" />
-<arg name="gesture_detection" value="true" />
+<arg name="gesture_detection" value="false" />
 
 
 <node pkg="cartesian_likelihood_field" type="cartesian_likelihood_field" name="cartesian_likelihood_field" output="screen">

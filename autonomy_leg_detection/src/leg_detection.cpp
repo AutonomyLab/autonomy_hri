@@ -154,27 +154,44 @@ bool FindLegPatterns(){
         bool inside_rise = false;
         unsigned int right_segment_size = abs(segment_size(right));
         float range_derivative [right_segment_size-1];
+        bool slope_sign [right_segment_size-1];
+        bool line_sign [right_segment_size - 2]; // TODO: CHANGE THE NAME
 
         if(right_segment_size > 4){
             for(size_t j = 0; j < right_segment_size-1; j++){
                 range_derivative[j] = (laserFeature.ranges.at(right.begin + j + 1) - laserFeature.ranges.at(right.begin + j));
+                slope_sign[j] = (laserFeature.ranges.at(right.begin + j + 1) > laserFeature.ranges.at(right.begin + j)) ? true : false;
             }
 
-            if(range_derivative[0] < 0.0) first_fall = true;
-            if(range_derivative[right_segment_size-2] > 0.0 ) last_rise = true;
+//            if(range_derivative[0] < 0.0) first_fall = true;
+//            if(range_derivative[right_segment_size-2] > 0.0 ) last_rise = true;
+            if(slope_sign[0] == false) first_fall = true;
+            if(slope_sign[right_segment_size-2] == true ) last_rise = true;
 
-            for(size_t k = 1; k < right_segment_size-2; k++){
-                if(range_derivative[k] < 0.0) inside_fall = true;
-                if(range_derivative[k] > 0.0) inside_rise = true;
+//            for(size_t k = 1; k < right_segment_size-2; k++){
+//                if(range_derivative[k] < 0.0){inside_fall = true;}
+//                if(range_derivative[k] > 0.0){inside_rise = true;}
+//            }
+
+            uint test_counter = 0;
+
+            for(size_t k = 0; k < right_segment_size-2; k++){
+                line_sign[k] = (slope_sign[k] == slope_sign[k+1]) ? true : false;
+                if (line_sign[k] == false) test_counter++;
             }
-
-            if(first_fall && last_rise && inside_fall && inside_rise &&
-                    distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter*2){
+//            if(first_fall && last_rise && inside_fall && inside_rise &&
+//                    distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter &&
+//                    test_counter %2 == 1 && test_counter > 1 ){
+                if(first_fall && last_rise && test_counter %2 == 1 && test_counter > 1 &&
+                        distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter){
                 tmp_leg_pose.position.x = laserFeature.point_xy.at(right_legmid).x/M2MM_RATIO;
                 tmp_leg_pose.position.y = laserFeature.point_xy.at(right_legmid).y/M2MM_RATIO;
                 tmp_leg_pose.position.z = 0.0;
                 global_legs.poses.push_back(tmp_leg_pose);
                 find_leg_patterns = true;
+//                ROS_ERROR("1     x: %.2f     y:%.2f", tmp_leg_pose.position.x, tmp_leg_pose.position.y);
+//                ROS_ERROR("counter:  %d", test_counter);
+
             }
         }
         //END OF ADDITION
@@ -196,6 +213,8 @@ bool FindLegPatterns(){
                         laserFeature.point_xy.at(left.begin).y, laserFeature.point_xy.at(left.end).y,
                         left.begin, left.end);
             find_leg_patterns = true;
+//            ROS_INFO("2     x: %.2f     y:%.2f",laserFeature.point_xy.at(right_legmid).x/M2MM_RATIO, laserFeature.point_xy.at(right_legmid).y/M2MM_RATIO);
+//            ROS_INFO("2     x: %.2f     y:%.2f",laserFeature.point_xy.at(left_legmid).x/M2MM_RATIO, laserFeature.point_xy.at(left_legmid).y/M2MM_RATIO);
 
         } else
             if(i < laserFeature.segments.size()-2){
@@ -221,6 +240,8 @@ bool FindLegPatterns(){
                                 laserFeature.point_xy.at(left.begin).y, laserFeature.point_xy.at(left.end).y,
                                 left.begin, left.end);
                     find_leg_patterns = true;
+//                    ROS_INFO("3     x: %.2f     y:%.2f",laserFeature.point_xy.at(right_legmid).x/M2MM_RATIO, laserFeature.point_xy.at(right_legmid).y/M2MM_RATIO);
+//                    ROS_INFO("3     x: %.2f     y:%.2f",laserFeature.point_xy.at(left_legmid).x/M2MM_RATIO, laserFeature.point_xy.at(left_legmid).y/M2MM_RATIO);
 
                 }
             }
@@ -233,7 +254,7 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
 {
     if (msg.ranges.empty())
         return;
-
+//    ROS_INFO("--------------------");
     float r, b, db;
     laserFeature.fdata.clear();
     laserFeature.ranges.clear();
@@ -274,10 +295,11 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
         bool check2legs = 1;
         check2legs = laserFeature.FitArc(laserFeature.segments.at(i).begin, laserFeature.segments.at(i).end);
         bool asghar = laserFeature.FindLeg(laserFeature.segments.at(i).begin, laserFeature.segments.at(i).end, check2legs);
-
+//        ROS_INFO("find leg:    %d", asghar);
     }
     global_legs.poses.clear();
-    FindLegPatterns();
+    bool test = FindLegPatterns();
+//    ROS_INFO("find leg patterns:    %d", test);
     for(size_t i = 0; i < global_legs.poses.size(); i++){
         legs.poses.push_back(global_legs.poses.at(i));
     }
@@ -355,6 +377,7 @@ void laser_cb(const sensor_msgs::LaserScan & msg)
     //CHECK IF THERE IS A PAIR OF LEGS IN TEMPLATE LEGS
     if(!tmp_legs.poses.empty()){
         xy pose1, pose2;
+//        ROS_INFO("tmp_legs.poses.size() %lu",tmp_legs.poses.size());
         for(size_t i = 0; i < tmp_legs.poses.size()-1; i++){
 
             tmp_leg_pose = tmp_legs.poses.at(i);
