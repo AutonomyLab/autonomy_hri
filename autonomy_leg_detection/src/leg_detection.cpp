@@ -187,8 +187,8 @@ bool FindLegPatterns(){
                 tmp_leg_pose.position.x = laserFeature.point_xy.at(right_legmid).x/M2MM_RATIO;
                 tmp_leg_pose.position.y = laserFeature.point_xy.at(right_legmid).y/M2MM_RATIO;
                 tmp_leg_pose.position.z = 0.0;
-                global_legs.poses.push_back(tmp_leg_pose);
-                find_leg_patterns = true;
+               // global_legs.poses.push_back(tmp_leg_pose);
+                //find_leg_patterns = true;
 //                ROS_ERROR("1     x: %.2f     y:%.2f", tmp_leg_pose.position.x, tmp_leg_pose.position.y);
 //                ROS_ERROR("counter:  %d", test_counter);
 

@@ -1,8 +1,8 @@
 <launch>
     <node pkg="autonomy_leg_detection" type="leg_detection" name="leg_detection" output="screen">
         <param name="show_viz" value="false"/>
-        <param name="laserFeature/arc_min_aperture" value="0.628"/>
-        <param name="laserFeature/arc_max_aperture" value="3.14"/>
+        <param name="laserFeature/arc_min_aperture" value="1.57"/>
+        <param name="laserFeature/arc_max_aperture" value="2.35"/>
         <param name="laserFeature/arc_std_max" value="0.2"/>
         <param name="laserFeature/segmentation_threshold" value="250.0"/>
         <param name="laserFeature/line_min_distance" value="170.0"/>

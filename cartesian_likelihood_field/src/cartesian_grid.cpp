@@ -527,11 +527,13 @@ void CartesianGrid::trackLocalMaximas()
 
 void CartesianGrid::trackMaxProbability()
 {
+    ROS_INFO("------------");
+
     uint8_t loop_rate = 10;
-    int8_t counter_threshold = 2 * loop_rate;
+    int8_t counter_threshold = 1 * loop_rate;
 //    double dist_threshold = 4 * map.resolution;
     double dist_threshold = 1.00;
-    double probability_threshold = 2 * cell_probability.human * (cell_probability.unknown - cell_probability.free) / 3;
+    double probability_threshold = (cell_probability.unknown - cell_probability.free) / 3;
 
     if(main_local_maxima.empty() && last_highest_lm.index == 0){
 
@@ -547,7 +549,7 @@ void CartesianGrid::trackMaxProbability()
 
     for(size_t i = 0; i < main_local_maxima.size(); i++){
         size_t index = main_local_maxima.at(i).index;
-
+        ROS_INFO("%lu   %.4f",i,posterior.at(index));
         if(posterior.at(index) > posterior.at(max_index)){
             max_index = index;
         }
@@ -571,10 +573,14 @@ void CartesianGrid::trackMaxProbability()
     if(cellsDistance(max_index, last_highest_lm.index) < tracking_distance){
         last_highest_lm.index = max_index;
         last_highest_lm.counter++;
+        ROS_INFO("1");
     }
     else {
+        ROS_INFO("2");
         if((posterior.at(max_index) - posterior.at(last_highest_lm.index)) < probability_threshold){
             last_highest_lm.counter++;
+            ROS_INFO("3");
+
         } else
             last_highest_lm.counter--;
     }
@@ -592,7 +598,7 @@ void CartesianGrid::trackMaxProbability()
         goto stop;
     } else {
         size_t predicted_highest_lm = predictHighestProbability(last_highest_lm.index);
-        size_t temp_lm = predicted_highest_lm;
+        size_t temp_lm = last_highest_lm.index;
 
         for(size_t i = 0; i < main_local_maxima.size(); i++){
 
