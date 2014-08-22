@@ -528,7 +528,7 @@ void CartesianGrid::trackLocalMaximas()
 void CartesianGrid::trackMaxProbability()
 {
     uint8_t loop_rate = 10;
-    int8_t counter_threshold = 5 * loop_rate;
+    int8_t counter_threshold = 2 * loop_rate;
 //    double dist_threshold = 4 * map.resolution;
     double dist_threshold = 1.00;
     double probability_threshold = 2 * cell_probability.human * (cell_probability.unknown - cell_probability.free) / 3;
