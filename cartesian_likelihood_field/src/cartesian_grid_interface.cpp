@@ -138,7 +138,7 @@ void CartesianGridInterface::init()
 
     if(SOUND_DETECTION_ENABLE){
         SensorFOV_t SOUND_DETECTOR_FOV = FOV;
-        SOUND_DETECTOR_FOV.range.min = 0.25;
+        SOUND_DETECTOR_FOV.range.min = 1.0;
         SOUND_DETECTOR_FOV.range.max = (FOV.range.max < 10.0 ? FOV.range.max : 10.0);
         SOUND_DETECTOR_FOV.angle.min = toRadian(-90.0);
         SOUND_DETECTOR_FOV.angle.max = toRadian(90.0);

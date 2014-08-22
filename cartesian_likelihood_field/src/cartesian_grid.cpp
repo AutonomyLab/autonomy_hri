@@ -309,7 +309,7 @@ void CartesianGrid::predict(const Velocity_t _robot_velocity)
 
 
 //        polar_array.predicted.at(p).range = velocity.linear * diff_time.toSec() + polar_array.past.at(p).range;
-//        polar_array.predicted.at(p).angle = velocity.angular * diff_time.toSec() + polar_array.past.at(p).angle;
+        polar_array.predicted.at(p).angle = velocity.angular * diff_time.toSec() + polar_array.past.at(p).angle;
     }
 }
 
@@ -323,10 +323,13 @@ size_t CartesianGrid::predictHighestProbability(size_t index)
 
     polar1.range = map.cell.at(index).polar.range;
     polar1.angle = map.cell.at(index).polar.angle;
+    polar1.angle = velocity.angular * diff_time.toSec() + polar1.angle;
     polar1.toCart(pose1.x, pose1.y);
 
     x = velocity.lin.x * diff_time.toSec() + pose1.x;
     y = velocity.lin.y * diff_time.toSec() + pose1.y;
+
+    ROS_INFO("diff time:    %.4f", diff_time.toSec());
 
 //    polar2.fromCart(pose2.x, pose2.y);
 //    polar_array.predicted.at(p) = polar2;
@@ -433,7 +436,8 @@ void CartesianGrid::getLocalMaximas()
 //                    }
 //                }
 
-                new_local_maxima.push_back(tmp_new);
+                if(posterior.at(tmp_new.index) > cell_probability.unknown)
+                    new_local_maxima.push_back(tmp_new);
                 filter_grid.at(k) = 1;
                 for(size_t n = 0; n < neighbors.size(); n++){
                     filter_grid.at(neighbors.at(n)) = 0;
@@ -524,7 +528,7 @@ void CartesianGrid::trackLocalMaximas()
 void CartesianGrid::trackMaxProbability()
 {
     uint8_t loop_rate = 10;
-    int8_t counter_threshold = 1 * loop_rate;
+    int8_t counter_threshold = 5 * loop_rate;
 //    double dist_threshold = 4 * map.resolution;
     double dist_threshold = 1.00;
     double probability_threshold = 2 * cell_probability.human * (cell_probability.unknown - cell_probability.free) / 3;
@@ -588,7 +592,7 @@ void CartesianGrid::trackMaxProbability()
         goto stop;
     } else {
         size_t predicted_highest_lm = predictHighestProbability(last_highest_lm.index);
-        size_t temp_lm = last_highest_lm.index;
+        size_t temp_lm = predicted_highest_lm;
 
         for(size_t i = 0; i < main_local_maxima.size(); i++){
 
@@ -607,7 +611,7 @@ void CartesianGrid::trackMaxProbability()
 //    last_highest_lm.index = max_index;
 //    last_highest_lm.tracking = true;
     stop:
-//    ROS_INFO("diff_time:    %.4f    loop rate:  %d", diff_time.toSec(), int(1/diff_time.toSec()));
+    ROS_INFO("max probability   %.4f", posterior.at(last_highest_lm.index));
 
     if(last_highest_lm.tracking){
         highest_prob_point.point.x = map.cell.at(last_highest_lm.index).cartesian.x;
