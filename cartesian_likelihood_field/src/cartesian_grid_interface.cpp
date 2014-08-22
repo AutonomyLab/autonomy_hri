@@ -129,7 +129,7 @@ void CartesianGridInterface::init()
 
         initTorsoGrid(TORSO_DETECTOR_FOV);
 
-        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid->stdev.range, 1.0);
+        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid->stdev.range, 6.0);
         ROS_INFO("/LikelihoodGrid/torso_range_stdev is set to %.2f",torso_grid->stdev.range);
         ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/torso_angle_stdev is set to %.2f",torso_grid->stdev.angle);

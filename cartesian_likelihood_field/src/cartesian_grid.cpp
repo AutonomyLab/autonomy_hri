@@ -573,13 +573,13 @@ void CartesianGrid::trackMaxProbability()
     if(cellsDistance(max_index, last_highest_lm.index) < tracking_distance){
         last_highest_lm.index = max_index;
         last_highest_lm.counter++;
-        ROS_INFO("1");
+//        ROS_INFO("1");
     }
     else {
-        ROS_INFO("2");
+//        ROS_INFO("2");
         if((posterior.at(max_index) - posterior.at(last_highest_lm.index)) < probability_threshold){
             last_highest_lm.counter++;
-            ROS_INFO("3");
+//            ROS_INFO("3");
 
         } else
             last_highest_lm.counter--;
