@@ -129,7 +129,7 @@ void CartesianGridInterface::init()
 
         initTorsoGrid(TORSO_DETECTOR_FOV);
 
-        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid->stdev.range, 6.0);
+        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid->stdev.range, 0.2);
         ROS_INFO("/LikelihoodGrid/torso_range_stdev is set to %.2f",torso_grid->stdev.range);
         ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/torso_angle_stdev is set to %.2f",torso_grid->stdev.angle);
@@ -139,7 +139,7 @@ void CartesianGridInterface::init()
     if(SOUND_DETECTION_ENABLE){
         SensorFOV_t SOUND_DETECTOR_FOV = FOV;
         SOUND_DETECTOR_FOV.range.min = 1.0;
-        SOUND_DETECTOR_FOV.range.max = (FOV.range.max < 10.0 ? FOV.range.max : 10.0);
+        SOUND_DETECTOR_FOV.range.max = (FOV.range.max < 10.0) ? FOV.range.max : 10.0;
         SOUND_DETECTOR_FOV.angle.min = toRadian(-90.0);
         SOUND_DETECTOR_FOV.angle.max = toRadian(90.0);
 
@@ -147,7 +147,7 @@ void CartesianGridInterface::init()
 
         ros::param::param("~/LikelihoodGrid/sound_range_stdev",sound_grid->stdev.range, 0.5);
         ROS_INFO("/LikelihoodGrid/sound_range_stdev is set to %.2f",sound_grid->stdev.range);
-        ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid->stdev.angle, 1.0);
+        ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid->stdev.angle, 5.0);
         ROS_INFO("/LikelihoodGrid/sound_angle_stdev is set to %.2f",sound_grid->stdev.angle);
         sound_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
     }
@@ -155,7 +155,7 @@ void CartesianGridInterface::init()
     initHumanGrid(FOV);
     human_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("human_occupancy_grid",10);
     local_maxima_pub = n.advertise<geometry_msgs::PoseArray>("local_maxima",10);
-    max_prob_pub = n.advertise<geometry_msgs::PointStamped>("maximum_probability",10);
+    max_prob_pub = n.advertise<geometry_msgs::PointStamped>("maximum_probability_temp",10);
     try
     {
         tf_listener = new tf::TransformListener();
@@ -473,7 +473,7 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
 
 void CartesianGridInterface::spin()
 {
-
+ROS_INFO("*********");
 
     leg_grid->diff_time = ros::Time::now() - last_time;
     leg_grid->predict(robot_velocity);
@@ -488,7 +488,14 @@ void CartesianGridInterface::spin()
     leg_grid->polar2Crtsn(leg_grid->polar_array.past, leg_grid->crtsn_array.past);
     last_leg_base_pub.publish(leg_grid->crtsn_array.past);
     /* ******* */
-    leg_grid->bayesOccupancyFilter();
+
+    uint leg_counter = 1;
+    if(leg_grid->polar_array.current.size() > 0) leg_counter = 5;
+    for(uint i = 0; i < leg_counter; i++){
+        leg_grid->bayesOccupancyFilter();
+        ROS_INFO("leg update");
+    }
+
 
     //PUBLISH LEG OCCUPANCY GRID
     occupancyGrid(leg_grid, &leg_occupancy_grid);
@@ -497,16 +504,31 @@ void CartesianGridInterface::spin()
 
     torso_grid->diff_time = ros::Time::now() - last_time;;
     torso_grid->predict(robot_velocity);
-    torso_grid->bayesOccupancyFilter();
+
+    uint torso_counter = 1;
+    if(torso_grid->polar_array.current.size() > 0) torso_counter = 10;
+    for(uint i = 0; i < torso_counter; i++){
+        torso_grid->bayesOccupancyFilter();
+        ROS_INFO("torso update");
+    }
 
     //PUBLISH TORSO OCCUPANCY GRID
     occupancyGrid(torso_grid, &torso_occupancy_grid);
     torso_occupancy_grid.header.stamp = ros::Time::now();
     torso_grid_pub.publish(torso_occupancy_grid);
 
+
+    //---------------------------------------------
+
     sound_grid->diff_time = ros::Time::now() - last_time;;
     sound_grid->predict(robot_velocity);
-    sound_grid->bayesOccupancyFilter();
+
+    uint sound_counter = 1;
+    if(sound_grid->polar_array.current.size() > 0) sound_counter = 20;
+    for(uint i = 0; i < sound_counter; i++){
+        sound_grid->bayesOccupancyFilter();
+        ROS_INFO("sound update");
+    }
 
     //PUBLISH SOUND OCCUPANCY GRID
     occupancyGrid(sound_grid, &sound_occupancy_grid);

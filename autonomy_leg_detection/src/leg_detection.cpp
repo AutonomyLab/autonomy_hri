@@ -182,15 +182,26 @@ bool FindLegPatterns(){
 //            if(first_fall && last_rise && inside_fall && inside_rise &&
 //                    distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter &&
 //                    test_counter %2 == 1 && test_counter > 1 ){
+            double two_leg_dist = distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end));
+            double leg_right_dist = distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right_legmid));
+            double leg_reft_dist = distance(laserFeature.point_xy.at(right_legmid),laserFeature.point_xy.at(right.end));
                 if(first_fall && last_rise && test_counter %2 == 1 && test_counter > 1 &&
-                        distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter){
+                        two_leg_dist < (int)laserFeature.max_leg_diameter * 2 &&
+                        two_leg_dist > (int)laserFeature.min_leg_diameter * 2 &&
+                        leg_right_dist < (int)laserFeature.max_leg_diameter &&
+                         leg_reft_dist < (int)laserFeature.max_leg_diameter &&
+                         leg_right_dist > (int)laserFeature.min_leg_diameter &&
+                         leg_reft_dist > (int)laserFeature.min_leg_diameter){
                 tmp_leg_pose.position.x = laserFeature.point_xy.at(right_legmid).x/M2MM_RATIO;
                 tmp_leg_pose.position.y = laserFeature.point_xy.at(right_legmid).y/M2MM_RATIO;
                 tmp_leg_pose.position.z = 0.0;
-               // global_legs.poses.push_back(tmp_leg_pose);
-                //find_leg_patterns = true;
-//                ROS_ERROR("1     x: %.2f     y:%.2f", tmp_leg_pose.position.x, tmp_leg_pose.position.y);
-//                ROS_ERROR("counter:  %d", test_counter);
+                global_legs.poses.push_back(tmp_leg_pose);
+                find_leg_patterns = true;
+                // ROS_ERROR("1     x: %.2f     y:%.2f", tmp_leg_pose.position.x, tmp_leg_pose.position.y);
+                // ROS_ERROR("counter:  %d", test_counter);
+                // ROS_ERROR("2 legs:  %.2f", two_leg_dist);
+                // ROS_ERROR("leg:  %.2f       %.2f", leg_reft_dist, leg_right_dist);
+                // ROS_INFO("begin: %d   middle: %d    end: %d", right.begin, right_legmid, right.end);
 
             }
         }
@@ -199,7 +210,9 @@ bool FindLegPatterns(){
         if((abs(segment_size(right) - segment_size(left)) < 5) &&
                (segments_distance(right, left) < 2 * laserFeature.max_leg_diameter)&&
                 distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter &&
-                distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) < (int)laserFeature.max_leg_diameter)
+                distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) < (int)laserFeature.max_leg_diameter &&
+                distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) > (int)laserFeature.min_leg_diameter &&
+                distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) > (int)laserFeature.min_leg_diameter)
         {
             //ADDPROBABLELEGS
             laserFeature.AddProbableLeg(
@@ -225,7 +238,9 @@ bool FindLegPatterns(){
                 if((abs(segment_size(right) - segment_size(left)) < 5) &&
                        (segments_distance(right, left) < 2 * laserFeature.max_leg_diameter)&&
                         distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) < (int)laserFeature.max_leg_diameter &&
-                        distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) < (int)laserFeature.max_leg_diameter)
+                        distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) < (int)laserFeature.max_leg_diameter &&
+                distance(laserFeature.point_xy.at(right.begin),laserFeature.point_xy.at(right.end)) > (int)laserFeature.min_leg_diameter &&
+                distance(laserFeature.point_xy.at(left.begin),laserFeature.point_xy.at(left.end)) > (int)laserFeature.min_leg_diameter)
                 {
 
                     //ADDPROBABLELEGS

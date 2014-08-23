@@ -142,17 +142,16 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                             std::vector<double> &_true_likelihood,
                             std::vector<double> &_false_likelihood)
 {
+//    double range_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, stdev.range);
+//    double angle_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, toRadian(stdev.angle));
+
     for(size_t i = 0; i < grid_size; i++){
         double range = map.cell.at(i).polar.range;
         double angle = map.cell.at(i).polar.angle;
         double detection_likelihood = cell_probability.unknown;
         double miss_detection_likelihood = cell_probability.unknown;
-//        double miss_detection_likelihood = 1.0 - detection_likelihood;
 
         double cell_prob = 0.0;
-
-//        detection_likelihood = cell_probability.unknown;
-//        miss_detection_likelihood = cell_probability.unknown;
 
         if(pose.empty()) miss_detection_likelihood = cell_probability.human; // ?????
 
@@ -278,6 +277,7 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
         if(fabs(sound_src->src[i].y) > 0.0){
             sound_src_polar.angle = toRadian(sound_src->src[i].azimuth);
 //            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
+            sound_src_polar.range = sensor_fov.range.max/2.0;
             polar_array.current.push_back(sound_src_polar);
         }
     }
@@ -328,8 +328,6 @@ size_t CartesianGrid::predictHighestProbability(size_t index)
 
     x = velocity.lin.x * diff_time.toSec() + pose1.x;
     y = velocity.lin.y * diff_time.toSec() + pose1.y;
-
-    ROS_INFO("diff time:    %.4f", diff_time.toSec());
 
 //    polar2.fromCart(pose2.x, pose2.y);
 //    polar_array.predicted.at(p) = polar2;
@@ -527,7 +525,7 @@ void CartesianGrid::trackLocalMaximas()
 
 void CartesianGrid::trackMaxProbability()
 {
-    ROS_INFO("------------");
+//    ROS_INFO("------------");
 
     uint8_t loop_rate = 10;
     int8_t counter_threshold = 1 * loop_rate;
@@ -549,7 +547,7 @@ void CartesianGrid::trackMaxProbability()
 
     for(size_t i = 0; i < main_local_maxima.size(); i++){
         size_t index = main_local_maxima.at(i).index;
-        ROS_INFO("%lu   %.4f",i,posterior.at(index));
+//        ROS_INFO("%lu   %.4f",i,posterior.at(index));
         if(posterior.at(index) > posterior.at(max_index)){
             max_index = index;
         }
@@ -588,12 +586,12 @@ void CartesianGrid::trackMaxProbability()
     if(last_highest_lm.counter > counter_threshold){
         last_highest_lm.tracking = true;
         last_highest_lm.counter = counter_threshold + 1;
-        ROS_INFO("1- keep tracking  %d", last_highest_lm.counter);
+//        ROS_INFO("1- keep tracking  %d", last_highest_lm.counter);
         goto stop;
     } else if(last_highest_lm.counter < 0){
         last_highest_lm.index = max_index;
         last_highest_lm.counter = counter_threshold + 1;
-        ROS_ERROR("2- change highest point  %d", last_highest_lm.counter);
+//        ROS_ERROR("2- change highest point  %d", last_highest_lm.counter);
 
         goto stop;
     } else {
@@ -609,7 +607,7 @@ void CartesianGrid::trackMaxProbability()
 
         last_highest_lm.index = (fabs(velocity.linear) > 1e-4 || fabs(velocity.angular) > 1e-4)
                 ? temp_lm : last_highest_lm.index;
-        ROS_INFO("3- in between  %d", last_highest_lm.counter);
+//        ROS_INFO("3- in between  %d", last_highest_lm.counter);
         goto stop;
     }
 
@@ -617,7 +615,7 @@ void CartesianGrid::trackMaxProbability()
 //    last_highest_lm.index = max_index;
 //    last_highest_lm.tracking = true;
     stop:
-    ROS_INFO("max probability   %.4f", posterior.at(last_highest_lm.index));
+//    ROS_INFO("max probability   %.4f", posterior.at(last_highest_lm.index));
 
     if(last_highest_lm.tracking){
         highest_prob_point.point.x = map.cell.at(last_highest_lm.index).cartesian.x;
