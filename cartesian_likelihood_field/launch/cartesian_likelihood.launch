@@ -16,7 +16,7 @@
         <param name="LikelihoodGrid/update_rate" value="0.25"/>
         <param name="LikelihoodGrid/human_cell_probability" value="0.95"/>
         <param name="LikelihoodGrid/free_cell_probability" value="0.05"/>
-        <param name="LikelihoodGrid/unknown_cell_probability" value="0.2"/>
+        <param name="LikelihoodGrid/unknown_cell_probability" value="0.1"/>
         <param name="LikelihoodGrid/target_detection_probability" value="0.9"/>
         <param name="LikelihoodGrid/false_positive_probability" value="0.05"/>
         <param name="LikelihoodGrid/sensitivity" value="1"/>

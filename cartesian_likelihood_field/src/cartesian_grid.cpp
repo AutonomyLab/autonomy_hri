@@ -274,10 +274,10 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
         sound_src_polar.range = -1.0;
         sound_src_polar.angle = 2 * M_PI;
 
-        if(fabs(sound_src->src[i].y) > 0.0){
+        if(fabs(sound_src->src[i].y) > 1e-9){
             sound_src_polar.angle = toRadian(sound_src->src[i].azimuth);
 //            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
-            sound_src_polar.range = sensor_fov.range.max/2.0;
+//            sound_src_polar.range = sensor_fov.range.max/2.0;
             polar_array.current.push_back(sound_src_polar);
         }
     }
