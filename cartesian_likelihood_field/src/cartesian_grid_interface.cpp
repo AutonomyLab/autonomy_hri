@@ -414,10 +414,10 @@ void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &
     if(SOUND_DETECTION_ENABLE){
 //        ROS_ERROR("SOUND");
         sound_grid->getPose(sound_msg);
-//        sound_grid->diff_time = ros::Time::now() - sound_grid->last_time;
-//        sound_grid->last_time = ros::Time::now();
-//        sound_grid->predict(robot_velocity);
-//        sound_grid->bayesOccupancyFilter();
+        sound_grid->diff_time = ros::Time::now() - sound_grid->last_time;
+        sound_grid->last_time = ros::Time::now();
+        sound_grid->predict(robot_velocity);
+        sound_grid->bayesOccupancyFilter();
 
 //        //PUBLISH SOUND OCCUPANCY GRID
 //        occupancyGrid(sound_grid, &sound_occupancy_grid);

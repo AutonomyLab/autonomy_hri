@@ -23,9 +23,9 @@
         <param name="LikelihoodGrid/leg_range_stdev" value="0.1"/>
         <param name="LikelihoodGrid/leg_angle_stded" value="5.0"/>
         <param name="LikelihoodGrid/torso_range_stded" value="2.0"/>
-        <param name="LikelihoodGrid/torso_angle_stdev" value="5.0"/>
+        <param name="LikelihoodGrid/torso_angle_stdev" value="10.0"/>
         <param name="LikelihoodGrid/sound_range_stdev" value="3.0"/>
-        <param name="LikelihoodGrid/sound_angle_stdev" value="5.0"/>
+        <param name="LikelihoodGrid/sound_angle_stdev" value="10.0"/>
         <param name="LikelihoodGrid/periodic_range_stdev" value="1.0"/>
         <param name="LikelihoodGrid/periodic_angle_stdev" value="20.0"/>
         <param name="loop_rate" value="10"/>
