@@ -138,7 +138,7 @@ void CartesianGridInterface::init()
 
     if(SOUND_DETECTION_ENABLE){
         SensorFOV_t SOUND_DETECTOR_FOV = FOV;
-        SOUND_DETECTOR_FOV.range.min = 1.0;
+        SOUND_DETECTOR_FOV.range.min = 0.5;
         SOUND_DETECTOR_FOV.range.max = (FOV.range.max < 10.0) ? FOV.range.max : 10.0;
         SOUND_DETECTOR_FOV.angle.min = toRadian(-90.0);
         SOUND_DETECTOR_FOV.angle.max = toRadian(90.0);
@@ -493,7 +493,7 @@ ROS_INFO("*********");
     if(leg_grid->polar_array.current.size() > 0) leg_counter = 5;
     for(uint i = 0; i < leg_counter; i++){
         leg_grid->bayesOccupancyFilter();
-        ROS_INFO("leg update");
+//        ROS_INFO("leg update");
     }
 
 
@@ -509,7 +509,7 @@ ROS_INFO("*********");
     if(torso_grid->polar_array.current.size() > 0) torso_counter = 10;
     for(uint i = 0; i < torso_counter; i++){
         torso_grid->bayesOccupancyFilter();
-        ROS_INFO("torso update");
+//        ROS_INFO("torso update");
     }
 
     //PUBLISH TORSO OCCUPANCY GRID
@@ -527,13 +527,16 @@ ROS_INFO("*********");
     if(sound_grid->polar_array.current.size() > 0) sound_counter = 20;
     for(uint i = 0; i < sound_counter; i++){
         sound_grid->bayesOccupancyFilter();
-        ROS_INFO("sound update");
+//        ROS_INFO("sound update");
     }
 
     //PUBLISH SOUND OCCUPANCY GRID
     occupancyGrid(sound_grid, &sound_occupancy_grid);
     sound_occupancy_grid.header.stamp = ros::Time::now();
     sound_grid_pub.publish(sound_occupancy_grid);
+
+    //---------------------------------------------
+
 
     human_grid->diff_time = ros::Time::now() - last_time;;
     human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior,

@@ -49,7 +49,7 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     TARGET_DETECTION_PROBABILITY = _target_detection_probability;
     FALSE_DETECTION_PROBABILITY = _false_positive_probability;
 
-    grid_size = map.height * map.width; // DEFAULT 1600
+    grid_size = map.height * map.width; // DEFAULT 6400
     sensor_fov = _sensor_fov;
 
     x.max = map.height * map.resolution / 2;
@@ -152,17 +152,17 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
         double miss_detection_likelihood = cell_probability.unknown;
 
         double cell_prob = 0.0;
+        if(map.cell_inFOV.at(i)){
+            if(pose.empty()) miss_detection_likelihood = cell_probability.human; // ?????
 
-        if(pose.empty()) miss_detection_likelihood = cell_probability.human; // ?????
-
-        else{
-            for(size_t p = 0; p < pose.size(); p++){
-                double Gr = (pose.at(p).range < 0.01) ? 1.0 : normalDistribution(range, pose.at(p).range, stdev.range);
-                double Ga = normalDistribution(angle, pose.at(p).angle, toRadian(stdev.angle));
-                cell_prob += Gr * Ga;
+            else{
+                for(size_t p = 0; p < pose.size(); p++){
+                    double Gr = (pose.at(p).range < 0.01) ? 1.0 : normalDistribution(range, pose.at(p).range, stdev.range);
+                    double Ga = normalDistribution(angle, pose.at(p).angle, toRadian(stdev.angle));
+                    cell_prob += Gr * Ga;
+                }
+                detection_likelihood = (((cell_prob)/(pose.size()) < cell_probability.free) ? cell_probability.free : (cell_prob)/(pose.size()));
             }
-            detection_likelihood = (((cell_prob)/(pose.size()) < cell_probability.free) ? cell_probability.free : (cell_prob)/(pose.size()));
-//            miss_detection_likelihood = 0.1; /// ????
         }
 
         _true_likelihood[i] = (detection_likelihood * TARGET_DETECTION_PROBABILITY) + (miss_detection_likelihood * (1.0 - TARGET_DETECTION_PROBABILITY));
@@ -188,9 +188,8 @@ void CartesianGrid::updateGridProbability(std::vector<double>& _prior,
         _posterior[i] = (_posterior[i] < cell_probability.free) ? cell_probability.free : _posterior[i];
 
         //PROBABILITY IN unknown AREA CANNOT BE LESS THAN unknown PROBABILITY
-        if((!map.cell_inFOV.at(i)) && (_posterior[i] < cell_probability.unknown )){
-            _posterior[i] = cell_probability.unknown;
-        }
+        if((!map.cell_inFOV.at(i)) && (_posterior[i] < cell_probability.unknown ))
+        {_posterior[i] = cell_probability.unknown;}
     }
 }
 
@@ -225,8 +224,8 @@ void CartesianGrid::fuse(const std::vector<double> data_1,
     } else {
         setInFOVProbability(posterior, 0.0);
         setOutFOVProbability(posterior, 0.0);
-        for(size_t i = 0; i < grid_size; i++){
-            posterior.at(i) = (data_1.at(i) + data_2.at(i) + data_3.at(i))/3.0;}
+        for(size_t i = 0; i < grid_size; i++)
+            {posterior.at(i) = (data_1.at(i) + data_2.at(i) + data_3.at(i))/3.0;}
     }
 }
 
@@ -237,6 +236,7 @@ void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
     PolarPose polar_pose_point;
     for(size_t i = 0; i < crtsn_array.poses.size(); i++){
         polar_pose_point.fromCart(crtsn_array.poses.at(i).position.x, crtsn_array.poses.at(i).position.y);
+//        ROS_INFO("%lu   leg angle     %.2f",i, polar_pose_point.angle);
         polar_array.current.push_back(polar_pose_point);
     }
 }
@@ -258,9 +258,8 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
 
         torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
         torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
-
         double h = torso_img->detections.at(i).height;
-        torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
+//        torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
         polar_array.current.push_back(torso_polar_pose);
     }
 }
@@ -278,6 +277,7 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
             sound_src_polar.angle = toRadian(sound_src->src[i].azimuth);
 //            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
 //            sound_src_polar.range = sensor_fov.range.max/2.0;
+//            ROS_INFO("%lu   sound angle   %.2f",i, sound_src_polar.angle);
             polar_array.current.push_back(sound_src_polar);
         }
     }
@@ -531,39 +531,43 @@ void CartesianGrid::trackMaxProbability()
     int8_t counter_threshold = 1 * loop_rate;
 //    double dist_threshold = 4 * map.resolution;
     double dist_threshold = 1.00;
-    double probability_threshold = (cell_probability.unknown - cell_probability.free) / 3;
+    double probability_threshold = (cell_probability.unknown - cell_probability.free) / 3.0;
 
-    if(main_local_maxima.empty() && last_highest_lm.index == 0){
+//    if(main_local_maxima.empty() && last_highest_lm.index == 0){
 
-        highest_prob_point.point.x = map.cell.at(last_highest_lm.index).cartesian.x;
-        highest_prob_point.point.y = map.cell.at(last_highest_lm.index).cartesian.y;
-        highest_prob_point.point.z = 0.0;
-        highest_prob_point.header.frame_id = "base_footprint";
-        highest_prob_point.header.stamp = ros::Time::now();
-        return;
-    }
+//        highest_prob_point.point.x = map.cell.at(last_highest_lm.index).cartesian.x;
+//        highest_prob_point.point.y = map.cell.at(last_highest_lm.index).cartesian.y;
+//        highest_prob_point.point.z = 0.0;
+//        highest_prob_point.header.frame_id = "base_footprint";
+//        highest_prob_point.header.stamp = ros::Time::now();
+//        return;
+//    }
+
+    //FIND THE CELL WITH MAXIMUM PROBABILITY
 
     size_t max_index = 0;
-
     for(size_t i = 0; i < main_local_maxima.size(); i++){
         size_t index = main_local_maxima.at(i).index;
-//        ROS_INFO("%lu   %.4f",i,posterior.at(index));
-        if(posterior.at(index) > posterior.at(max_index)){
-            max_index = index;
-        }
+        max_index = (posterior.at(index) > posterior.at(max_index)) ? index : max_index;
+//        if(posterior.at(index) > posterior.at(max_index)){
+//            max_index = index;
+//        }
+        ROS_INFO("%lu   %.4f",i,posterior.at(index));
     }
 
-    if(!main_local_maxima.empty() && last_highest_lm.index == 0){
-        last_highest_lm.index = max_index;
+//    if(!main_local_maxima.empty() && last_highest_lm.index == 0) last_highest_lm.index = max_index;
+
+    if(last_highest_lm.index == 0) {
+        last_highest_lm.index = (main_local_maxima.empty()) ? last_highest_lm.index : max_index;
     }
+
+
     double range1 = map.cell.at(max_index).polar.range;
     double range2 = map.cell.at(last_highest_lm.index).polar.range;
     double min_range = (range1 + range2) / 2.0;
-
     Velocity_t robot_max_velocity;
-    robot_max_velocity.linear = 1.0;
+    robot_max_velocity.linear = 1.0; //TODO: MAKE THESE PARAMETERS
     robot_max_velocity.angular = 1.0;
-
     double max_angular_distance = robot_max_velocity.angular * diff_time.toSec() * min_range;
     double max_linear_distance = robot_max_velocity.linear * diff_time.toSec();
     double tracking_distance = maximum(dist_threshold, max_linear_distance, max_angular_distance);
@@ -614,14 +618,13 @@ void CartesianGrid::trackMaxProbability()
 //    //DO NOT TRACK HIGHEST PROBABILITY POINT
 //    last_highest_lm.index = max_index;
 //    last_highest_lm.tracking = true;
-    stop:
-//    ROS_INFO("max probability   %.4f", posterior.at(last_highest_lm.index));
 
-    if(last_highest_lm.tracking){
-        highest_prob_point.point.x = map.cell.at(last_highest_lm.index).cartesian.x;
-        highest_prob_point.point.y = map.cell.at(last_highest_lm.index).cartesian.y;
-        highest_prob_point.point.z = 0.0;
-    }
+    stop:
+
+    highest_prob_point.point.x = map.cell.at(last_highest_lm.index).cartesian.x;
+    highest_prob_point.point.y = map.cell.at(last_highest_lm.index).cartesian.y;
+    highest_prob_point.point.z = 0.0;
+    ROS_ERROR("highest probability:  %.4f", posterior.at(last_highest_lm.index));
     highest_prob_point.header.frame_id = "base_footprint";
     highest_prob_point.header.stamp = ros::Time::now();
 }
