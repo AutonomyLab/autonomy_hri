@@ -414,10 +414,10 @@ void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &
     if(SOUND_DETECTION_ENABLE){
 //        ROS_ERROR("SOUND");
         sound_grid->getPose(sound_msg);
-        sound_grid->diff_time = ros::Time::now() - sound_grid->last_time;
-        sound_grid->last_time = ros::Time::now();
-        sound_grid->predict(robot_velocity);
-        sound_grid->bayesOccupancyFilter();
+//        sound_grid->diff_time = ros::Time::now() - sound_grid->last_time;
+//        sound_grid->last_time = ros::Time::now();
+//        sound_grid->predict(robot_velocity);
+//        sound_grid->bayesOccupancyFilter();
 
 //        //PUBLISH SOUND OCCUPANCY GRID
 //        occupancyGrid(sound_grid, &sound_occupancy_grid);
@@ -489,18 +489,19 @@ ROS_INFO("*********");
     last_leg_base_pub.publish(leg_grid->crtsn_array.past);
     /* ******* */
 
-    uint leg_counter = 1;
-    if(leg_grid->polar_array.current.size() > 0) leg_counter = 5;
-    for(uint i = 0; i < leg_counter; i++){
-        leg_grid->bayesOccupancyFilter();
-//        ROS_INFO("leg update");
-    }
+//    uint leg_counter = 1;
+//    if(leg_grid->polar_array.current.size() > 0) leg_counter = 5;
+//    for(uint i = 0; i < leg_counter; i++){
+//        leg_grid->bayesOccupancyFilter();
+//    }
+    leg_grid->bayesOccupancyFilter();
 
 
     //PUBLISH LEG OCCUPANCY GRID
     occupancyGrid(leg_grid, &leg_occupancy_grid);
     leg_occupancy_grid.header.stamp = ros::Time::now();
     legs_grid_pub.publish(leg_occupancy_grid);
+    //---------------------------------------------
 
     torso_grid->diff_time = ros::Time::now() - last_time;;
     torso_grid->predict(robot_velocity);
@@ -509,25 +510,24 @@ ROS_INFO("*********");
     if(torso_grid->polar_array.current.size() > 0) torso_counter = 10;
     for(uint i = 0; i < torso_counter; i++){
         torso_grid->bayesOccupancyFilter();
-//        ROS_INFO("torso update");
     }
 
     //PUBLISH TORSO OCCUPANCY GRID
     occupancyGrid(torso_grid, &torso_occupancy_grid);
     torso_occupancy_grid.header.stamp = ros::Time::now();
     torso_grid_pub.publish(torso_occupancy_grid);
-
-
     //---------------------------------------------
 
     sound_grid->diff_time = ros::Time::now() - last_time;;
     sound_grid->predict(robot_velocity);
 
+    if(sound_grid->polar_array.predicted.size() > 0)
+        ROS_INFO("predicted: %.4f", sound_grid->polar_array.predicted.at(0).angle * 180/M_PI);
+
     uint sound_counter = 1;
     if(sound_grid->polar_array.current.size() > 0) sound_counter = 20;
     for(uint i = 0; i < sound_counter; i++){
         sound_grid->bayesOccupancyFilter();
-//        ROS_INFO("sound update");
     }
 
     //PUBLISH SOUND OCCUPANCY GRID
