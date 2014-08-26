@@ -268,6 +268,7 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
     polar_array.current.clear();
     PolarPose sound_src_polar;
 
+    ROS_INFO("");
     for(size_t i = 0; i < sound_src->src.size(); i++){
         sound_src_polar.range = -1.0;
         sound_src_polar.angle = 2 * M_PI;

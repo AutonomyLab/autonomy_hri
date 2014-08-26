@@ -13,19 +13,42 @@
         <param name="LikelihoodGrid/grid_angle_max" value="3.14"/>
         <param name="LikelihoodGrid/grid_range_min" value="0.0"/>
         <param name="LikelihoodGrid/grid_range_max" value="10.0"/>
+
         <param name="LikelihoodGrid/update_rate" value="0.25"/>
+
         <param name="LikelihoodGrid/human_cell_probability" value="0.99"/>
         <param name="LikelihoodGrid/free_cell_probability" value="0.01"/>
         <param name="LikelihoodGrid/unknown_cell_probability" value="0.25"/>
+
         <param name="LikelihoodGrid/target_detection_probability" value="0.9"/>
         <param name="LikelihoodGrid/false_positive_probability" value="0.05"/>
         <param name="LikelihoodGrid/sensitivity" value="1"/>
+
         <param name="LikelihoodGrid/leg_range_stdev" value="0.1"/>
+        <param name="LikelihoodGrid/leg_range_min" value="0.5"/>
+        <param name="LikelihoodGrid/leg_range_max" value="10.0"/>
+
         <param name="LikelihoodGrid/leg_angle_stded" value="5.0"/>
+        <param name="LikelihoodGrid/leg_angle_min" value="-2.0943951"/>
+        <param name="LikelihoodGrid/leg_angle_max" value="2.0943951"/>
+
         <param name="LikelihoodGrid/torso_range_stded" value="2.0"/>
+        <param name="LikelihoodGrid/torso_range_min" value="2.0"/>
+        <param name="LikelihoodGrid/torso_range_max" value="8.0"/>
+
         <param name="LikelihoodGrid/torso_angle_stdev" value="10.0"/>
+        <param name="LikelihoodGrid/torso_angle_min" value="-0.610865238"/>
+        <param name="LikelihoodGrid/torso_angle_max" value="0.610865238"/>
+
+
         <param name="LikelihoodGrid/sound_range_stdev" value="3.0"/>
+        <param name="LikelihoodGrid/sound_range_min" value="1.0"/>
+        <param name="LikelihoodGrid/sound_range_max" value="10.0"/>
+
         <param name="LikelihoodGrid/sound_angle_stdev" value="10.0"/>
+        <param name="LikelihoodGrid/sound_angle_min" value="-1.57079633"/>
+        <param name="LikelihoodGrid/sound_angle_max" value="1.57079633"/>
+
         <param name="LikelihoodGrid/periodic_range_stdev" value="1.0"/>
         <param name="LikelihoodGrid/periodic_angle_stdev" value="20.0"/>
         <param name="loop_rate" value="10"/>

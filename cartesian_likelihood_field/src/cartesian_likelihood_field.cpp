@@ -22,8 +22,8 @@ int main(int argc, char** argv)
 
    CartesianGridInterface likelihood_grid_interface(n,tf_listener);
 
-    message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 1);
-    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 1);
+    message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 10);
+    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);
 //    message_filters::Subscriber<autonomy_human::raw_detections> torso_sub(n, "torso", 1);
 
 //    ALL TOPICS EXCEPT SOUND-------------

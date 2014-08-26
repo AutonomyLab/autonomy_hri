@@ -102,17 +102,30 @@ void CartesianGridInterface::init()
 
     if(LEG_DETECTION_ENABLE){
         SensorFOV_t LEG_DETECTOR_FOV = FOV;
-        LEG_DETECTOR_FOV.range.max = (FOV.range.max < 10.0 ? FOV.range.max : 10.0);
-        LEG_DETECTOR_FOV.range.min = FOV.range.min;
-        LEG_DETECTOR_FOV.angle.min = toRadian(-120.0);//-2.35619449615;
-        LEG_DETECTOR_FOV.angle.max = toRadian(120.0);//2.35619449615;
+
+
+        ros::param::param("~/LikelihoodGrid/leg_range_min",LEG_DETECTOR_FOV.range.min, 1.0);
+        ROS_INFO("/LikelihoodGrid/leg_range_min is set to %.2f",LEG_DETECTOR_FOV.range.min);
+        ros::param::param("~/LikelihoodGrid/leg_range_max",LEG_DETECTOR_FOV.range.max, 10.0);
+        ROS_INFO("/LikelihoodGrid/leg_range_max is set to %.2f",LEG_DETECTOR_FOV.range.max);
+
+
+        ros::param::param("~/LikelihoodGrid/leg_angle_min",LEG_DETECTOR_FOV.angle.min, toRadian(-120.0));
+        ROS_INFO("/LikelihoodGrid/leg_angle_min is set to %.2f",LEG_DETECTOR_FOV.angle.min);
+        ros::param::param("~/LikelihoodGrid/leg_angle_max",LEG_DETECTOR_FOV.angle.max, toRadian(120.0));
+        ROS_INFO("/LikelihoodGrid/leg_angle_max is set to %.2f",LEG_DETECTOR_FOV.angle.max);
+
+//        LEG_DETECTOR_FOV.range.max = (FOV.range.max < 10.0 ? FOV.range.max : 10.0);
+//        LEG_DETECTOR_FOV.range.min = FOV.range.min;
+//        LEG_DETECTOR_FOV.angle.min = toRadian(-120.0);//-2.35619449615;
+//        LEG_DETECTOR_FOV.angle.max = toRadian(120.0);//2.35619449615;
 
         initLegGrid(LEG_DETECTOR_FOV);
-
         ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid->stdev.range, 0.1);
         ROS_INFO("/LikelihoodGrid/leg_range_stdev is set to %.2f",leg_grid->stdev.range);
         ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid->stdev.angle, 1.0);
         ROS_INFO("/LikelihoodGrid/leg_angle_stdev is set to %.2f",leg_grid->stdev.angle);
+
 
         legs_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
         predicted_leg_base_pub = n.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
@@ -122,10 +135,20 @@ void CartesianGridInterface::init()
 
     if(TORSO_DETECTION_ENABLE){
         SensorFOV_t TORSO_DETECTOR_FOV = FOV;
-        TORSO_DETECTOR_FOV.range.min = 1.0;
-        TORSO_DETECTOR_FOV.range.max = 9.0;
-        TORSO_DETECTOR_FOV.angle.min = toRadian(-75.0/2);
-        TORSO_DETECTOR_FOV.angle.max = toRadian(75.0/2);
+//        TORSO_DETECTOR_FOV.range.min = 1.0;
+//        TORSO_DETECTOR_FOV.range.max = 9.0;
+//        TORSO_DETECTOR_FOV.angle.min = toRadian(-75.0/2);
+//        TORSO_DETECTOR_FOV.angle.max = toRadian(75.0/2);
+
+        ros::param::param("~/LikelihoodGrid/torso_range_min",TORSO_DETECTOR_FOV.range.min, 2.0);
+        ROS_INFO("/LikelihoodGrid/torso_range_min is set to %.2f",TORSO_DETECTOR_FOV.range.min);
+        ros::param::param("~/LikelihoodGrid/torso_range_max",TORSO_DETECTOR_FOV.range.max, 8.0);
+        ROS_INFO("/LikelihoodGrid/torso_range_max is set to %.2f",TORSO_DETECTOR_FOV.range.max);
+
+        ros::param::param("~/LikelihoodGrid/torso_angle_min",TORSO_DETECTOR_FOV.angle.min, toRadian(-70.0/2));
+        ROS_INFO("/LikelihoodGrid/torso_angle_min is set to %.2f",TORSO_DETECTOR_FOV.angle.min);
+        ros::param::param("~/LikelihoodGrid/torso_angle_max",TORSO_DETECTOR_FOV.angle.max, toRadian(70.0/2));
+        ROS_INFO("/LikelihoodGrid/torso_angle_max is set to %.2f",TORSO_DETECTOR_FOV.angle.max);
 
         initTorsoGrid(TORSO_DETECTOR_FOV);
 
@@ -138,10 +161,20 @@ void CartesianGridInterface::init()
 
     if(SOUND_DETECTION_ENABLE){
         SensorFOV_t SOUND_DETECTOR_FOV = FOV;
-        SOUND_DETECTOR_FOV.range.min = 0.5;
+        SOUND_DETECTOR_FOV.range.min = 1.0;
         SOUND_DETECTOR_FOV.range.max = (FOV.range.max < 10.0) ? FOV.range.max : 10.0;
         SOUND_DETECTOR_FOV.angle.min = toRadian(-90.0);
         SOUND_DETECTOR_FOV.angle.max = toRadian(90.0);
+
+        ros::param::param("~/LikelihoodGrid/sound_range_min",SOUND_DETECTOR_FOV.range.min, 1.0);
+        ROS_INFO("/LikelihoodGrid/sound_range_min is set to %.2f",SOUND_DETECTOR_FOV.range.min);
+        ros::param::param("~/LikelihoodGrid/sound_range_max",SOUND_DETECTOR_FOV.range.max, 10.0);
+        ROS_INFO("/LikelihoodGrid/sound_range_max is set to %.2f",SOUND_DETECTOR_FOV.range.max);
+
+        ros::param::param("~/LikelihoodGrid/sound_angle_min",SOUND_DETECTOR_FOV.angle.min, toRadian(-90.0));
+        ROS_INFO("/LikelihoodGrid/sound_angle_min is set to %.2f",SOUND_DETECTOR_FOV.angle.min);
+        ros::param::param("~/LikelihoodGrid/sound_angle_max",SOUND_DETECTOR_FOV.angle.max, toRadian(90.0));
+        ROS_INFO("/LikelihoodGrid/sound_angle_max is set to %.2f",SOUND_DETECTOR_FOV.angle.max);
 
         initSoundGrid(SOUND_DETECTOR_FOV);
 
@@ -149,7 +182,7 @@ void CartesianGridInterface::init()
         ROS_INFO("/LikelihoodGrid/sound_range_stdev is set to %.2f",sound_grid->stdev.range);
         ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid->stdev.angle, 5.0);
         ROS_INFO("/LikelihoodGrid/sound_angle_stdev is set to %.2f",sound_grid->stdev.angle);
-        sound_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
+        sound_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);        
     }
 
     initHumanGrid(FOV);
