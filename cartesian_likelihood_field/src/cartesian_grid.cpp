@@ -38,7 +38,7 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
 {
     ROS_INFO("Constructing an instace of cartesian Grid.");
     ROS_ASSERT(map_size % 2 == 0);
-
+    lk = ros::Time::now();
     map.height = map_size; // DEFAULT 80
     map.width = map_size; // DEFAULT 80
     map.resolution = map_resolution; // DEFAULT 0.25
@@ -126,6 +126,10 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     setOutFOVProbability(predicted_false_likelihood, cell_probability.unknown);
 }
 
+bool CartesianGrid::sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j){
+return (posterior[i.index] < posterior[j.index]);
+}
+
 void CartesianGrid::setOutFOVProbability(std::vector<double> &data, const double val){
     for(size_t i = 0; i < grid_size; i++){
         if(!map.cell_inFOV.at(i)) { data[i] = val; }
@@ -161,7 +165,7 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                     double Ga = normalDistribution(angle, pose.at(p).angle, toRadian(stdev.angle));
                     cell_prob += Gr * Ga;
                 }
-                detection_likelihood = (((cell_prob)/(pose.size()) < cell_probability.free) ? cell_probability.free : (cell_prob)/(pose.size()));
+                detection_likelihood = (((cell_prob)/(pose.size()) < cell_probability.unknown) ? cell_probability.unknown : (cell_prob)/(pose.size()));
             }
         }
 
@@ -265,18 +269,26 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
 
 void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
 {
-    polar_array.current.clear();
+    ros::Duration d = ros::Time::now() - lk;
+    lk = ros::Time::now();
+    double angle2;
+    if(d.toSec() > 1.0 / 10)
+        polar_array.current.clear();
     PolarPose sound_src_polar;
 
-    ROS_INFO("");
     for(size_t i = 0; i < sound_src->src.size(); i++){
         sound_src_polar.range = -1.0;
         sound_src_polar.angle = 2 * M_PI;
 
         if(fabs(sound_src->src.at(i).y) > 1e-9 && sound_src->src.at(i).power > 27.0){
-            sound_src_polar.angle = toRadian(sound_src->src.at(i).azimuth);
 //            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
 //            sound_src_polar.range = sensor_fov.range.max/2.0;
+
+            sound_src_polar.angle = toRadian(sound_src->src.at(i).azimuth);
+            polar_array.current.push_back(sound_src_polar);
+            if(sound_src->src.at(i).azimuth >= 0.0)  angle2 = 180.0 - sound_src->src.at(i).azimuth;
+            else angle2 = -180.0 - sound_src->src.at(i).azimuth;
+            sound_src_polar.angle = toRadian(angle2);
             polar_array.current.push_back(sound_src_polar);
         }
     }
@@ -393,11 +405,12 @@ void CartesianGrid::getLocalMaximas()
     for(size_t k = 0; k < grid_size; k++){
         non_local_maxima:
         tmp_new.index = k;
+        tmp_new.probability = posterior.at(k);
         lm = false;
         uint8_t col = k / map.height;
         uint8_t row = k % map.height;
 
-        if ((posterior.at(k) <= posterior.at(0)) ||(filter_grid.at(k) == 0)) filter_grid.at(k) = 0;
+        if ((tmp_new.probability <= posterior.at(0)) ||(filter_grid.at(k) == 0)) filter_grid.at(k) = 0;
 
         else {
             filter_grid.at(k) = 0;
@@ -412,7 +425,7 @@ void CartesianGrid::getLocalMaximas()
                     x = (search_row * row_shift) + (search_col * col_shift) ;
                     if(x < 0 || x == k || x >= grid_size) continue;  // make sure the index is valid
 
-                    if(posterior.at(k) >= posterior.at(x)){ // if the cell(k) has higher prob. than its neighbor(x)
+                    if(tmp_new.probability >= posterior.at(x)){ // if the cell(k) has higher prob. than its neighbor(x)
                         lm = true;
                         neighbors.push_back(x);
                     } else goto non_local_maxima;
@@ -432,7 +445,7 @@ void CartesianGrid::getLocalMaximas()
 //                    }
 //                }
 
-                if(posterior.at(tmp_new.index) > cell_probability.unknown)
+                if(tmp_new.probability > cell_probability.unknown)
                     new_local_maxima.push_back(tmp_new);
                 filter_grid.at(k) = 1;
                 for(size_t n = 0; n < neighbors.size(); n++){
@@ -487,9 +500,9 @@ void CartesianGrid::trackLocalMaximas()
     old_local_maxima.clear();
 
     for(size_t a = 0; a < matched_local_maxima.size(); a++){
-        size_t index = matched_local_maxima.at(a).index;
+//        size_t index = matched_local_maxima.at(a).index;
 
-        if(posterior.at(index) < posterior.at(0)) matched_local_maxima.at(a).counter = -counter_threshold-1;
+        if(matched_local_maxima.at(a).probability < posterior.at(0)) matched_local_maxima.at(a).counter = -counter_threshold-1;
 
         if(matched_local_maxima.at(a).counter > counter_threshold){
             matched_local_maxima.at(a).counter = counter_threshold +1;
@@ -507,6 +520,7 @@ void CartesianGrid::trackLocalMaximas()
     // Don't Track!
     main_local_maxima.clear();
     main_local_maxima = new_local_maxima;
+    std::sort (main_local_maxima.begin(), main_local_maxima.end());
 
     local_maxima_poses.poses.clear();
     geometry_msgs::Pose tmp_pose;
@@ -516,6 +530,7 @@ void CartesianGrid::trackLocalMaximas()
         tmp_pose.position.y = map.cell.at(index).cartesian.y;
         tmp_pose.position.z = 0.0;
         local_maxima_poses.poses.push_back(tmp_pose);
+//        ROS_INFO("lm %lu    x:%.2f  y:%.2f   p:%.4f", j, tmp_pose.position.x, tmp_pose.position.y, main_local_maxima.at(j).probability);
     }
     local_maxima_poses.header.frame_id = "base_footprint";
     local_maxima_poses.header.stamp = ros::Time::now();
@@ -532,10 +547,15 @@ void CartesianGrid::trackMaxProbability()
     //FIND THE CELL WITH MAXIMUM PROBABILITY
 
     size_t max_index = 0;
-    for(size_t i = 0; i < main_local_maxima.size(); i++){
-        size_t index = main_local_maxima.at(i).index;
-        max_index = (posterior.at(index) > posterior.at(max_index)) ? index : max_index;
+
+    if(!main_local_maxima.empty()){
+        std::sort (main_local_maxima.begin(), main_local_maxima.end());
+        max_index = main_local_maxima.at(main_local_maxima.size()-1).index;
     }
+//    for(size_t i = 0; i < main_local_maxima.size(); i++){
+//        size_t index = main_local_maxima.at(i).index;
+//        max_index = (posterior.at(index) > posterior.at(max_index)) ? index : max_index;
+//    }
 
     if(last_highest_lm.index == 0)
         last_highest_lm.index = (main_local_maxima.empty()) ? last_highest_lm.index : max_index;

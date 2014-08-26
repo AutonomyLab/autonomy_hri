@@ -56,6 +56,7 @@ private:
     bool SOUND_DETECTION_ENABLE;
     nav_msgs::OccupancyGrid sound_occupancy_grid;
 
+
     // Periodic Gesture
     ros::Publisher periodic_grid_pub;
     ros::Publisher max_periodic_prob_pub;
@@ -123,6 +124,7 @@ private:
     void initHumanGrid(SensorFOV_t _fov);
 
 public:
+    ros::Time lk;
     CartesianGridInterface();
     CartesianGridInterface(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
 

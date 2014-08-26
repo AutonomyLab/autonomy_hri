@@ -16,6 +16,7 @@ CartesianGridInterface::CartesianGridInterface(ros::NodeHandle _n, tf::Transform
 
 void CartesianGridInterface::init()
 {
+    lk  = ros::Time::now();
     ros::param::param("~/LikelihoodGrid/grid_angle_min",FOV.angle.min, -M_PI);
     ros::param::param("~/LikelihoodGrid/grid_angle_max",FOV.angle.max, M_PI);
     ROS_INFO("/LikelihoodGrid/grid_angle min: %.2lf max: %.2lf",
@@ -188,7 +189,7 @@ void CartesianGridInterface::init()
     initHumanGrid(FOV);
     human_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("human_occupancy_grid",10);
     local_maxima_pub = n.advertise<geometry_msgs::PoseArray>("local_maxima",10);
-    max_prob_pub = n.advertise<geometry_msgs::PointStamped>("maximum_probability",10);
+    max_prob_pub = n.advertise<geometry_msgs::PointStamped>("maximum_probability_temp",10);
     try
     {
         tf_listener = new tf::TransformListener();
@@ -445,8 +446,16 @@ void CartesianGridInterface::torsoCallBack(const autonomy_human::raw_detectionsC
 void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
 {
     if(SOUND_DETECTION_ENABLE){
-//        ROS_ERROR("SOUND");
+//        hark_msgs::HarkSourceConstPtr &sound_queue_msg;
+        ros::Duration d = ros::Time::now() - lk;
+//        if(d.toSec() < 1.0 / LOOP_RATE)
+//            sound_queue_msg->src.push_back(sound_msg->src);
+//        sound_grid->getPose(sound_queue_msg);
         sound_grid->getPose(sound_msg);
+
+//        ros::Duration d = ros::Time::now() - lk;
+//        ROS_INFO("sound msg diff time:  %.10f", d.toSec());
+        lk = ros::Time::now();
 //        sound_grid->diff_time = ros::Time::now() - sound_grid->last_time;
 //        sound_grid->last_time = ros::Time::now();
 //        sound_grid->predict(robot_velocity);
@@ -506,7 +515,6 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
 
 void CartesianGridInterface::spin()
 {
-ROS_INFO("*********");
 
     leg_grid->diff_time = ros::Time::now() - last_time;
     leg_grid->predict(robot_velocity);
@@ -522,11 +530,6 @@ ROS_INFO("*********");
     last_leg_base_pub.publish(leg_grid->crtsn_array.past);
     /* ******* */
 
-//    uint leg_counter = 1;
-//    if(leg_grid->polar_array.current.size() > 0) leg_counter = 5;
-//    for(uint i = 0; i < leg_counter; i++){
-//        leg_grid->bayesOccupancyFilter();
-//    }
     leg_grid->bayesOccupancyFilter();
 
 
@@ -538,12 +541,7 @@ ROS_INFO("*********");
 
     torso_grid->diff_time = ros::Time::now() - last_time;;
     torso_grid->predict(robot_velocity);
-
-    uint torso_counter = 1;
-    if(torso_grid->polar_array.current.size() > 0) torso_counter = 10;
-    for(uint i = 0; i < torso_counter; i++){
-        torso_grid->bayesOccupancyFilter();
-    }
+    torso_grid->bayesOccupancyFilter();
 
     //PUBLISH TORSO OCCUPANCY GRID
     occupancyGrid(torso_grid, &torso_occupancy_grid);
@@ -553,15 +551,7 @@ ROS_INFO("*********");
 
     sound_grid->diff_time = ros::Time::now() - last_time;;
     sound_grid->predict(robot_velocity);
-
-    if(sound_grid->polar_array.predicted.size() > 0)
-        ROS_INFO("predicted: %.4f", sound_grid->polar_array.predicted.at(0).angle * 180/M_PI);
-
-    uint sound_counter = 1;
-    if(sound_grid->polar_array.current.size() > 0) sound_counter = 20;
-    for(uint i = 0; i < sound_counter; i++){
-        sound_grid->bayesOccupancyFilter();
-    }
+    sound_grid->bayesOccupancyFilter();
 
     //PUBLISH SOUND OCCUPANCY GRID
     occupancyGrid(sound_grid, &sound_occupancy_grid);

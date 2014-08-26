@@ -43,6 +43,11 @@ struct LocalMaxima_t{
     size_t index;
     bool tracking;
     int8_t counter;
+    double probability;
+    bool operator < (const LocalMaxima_t& lm) const
+    {
+        return (probability < lm.probability);
+    }
 };
 
 struct Cell_t{
@@ -79,6 +84,8 @@ private:
     FOV_t x;
     FOV_t y;
 
+    ros::Time lk;
+
     size_t maxProbCellIndex();
     double cellsDistance(size_t c1, size_t c2);
     std::vector<LocalMaxima_t> old_local_maxima;
@@ -111,6 +118,7 @@ private:
     void setInFOVProbability(std::vector<double>& data, const double val);
     void getLocalMaximas();
     void trackLocalMaximas();
+    bool sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j);
 
 public:
     MapMetaData_t map;
