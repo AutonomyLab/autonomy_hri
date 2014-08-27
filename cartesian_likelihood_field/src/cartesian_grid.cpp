@@ -165,7 +165,7 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
                     double Ga = normalDistribution(angle, pose.at(p).angle, toRadian(stdev.angle));
                     cell_prob += Gr * Ga;
                 }
-                detection_likelihood = (((cell_prob)/(pose.size()) < cell_probability.unknown) ? cell_probability.unknown : (cell_prob)/(pose.size()));
+                detection_likelihood = (((cell_prob)/(pose.size()) < cell_probability.free) ? cell_probability.free : (cell_prob)/(pose.size()));
             }
         }
 
@@ -280,7 +280,7 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
         sound_src_polar.range = -1.0;
         sound_src_polar.angle = 2 * M_PI;
 
-        if(fabs(sound_src->src.at(i).y) > 1e-9 && sound_src->src.at(i).power > 27.0){
+        if(fabs(sound_src->src.at(i).y) > 1e-9 && sound_src->src.at(i).power > 28.0){
 //            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
 //            sound_src_polar.range = sensor_fov.range.max/2.0;
 

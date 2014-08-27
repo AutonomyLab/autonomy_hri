@@ -189,7 +189,7 @@ void CartesianGridInterface::init()
     initHumanGrid(FOV);
     human_grid_pub = n.advertise<nav_msgs::OccupancyGrid>("human_occupancy_grid",10);
     local_maxima_pub = n.advertise<geometry_msgs::PoseArray>("local_maxima",10);
-    max_prob_pub = n.advertise<geometry_msgs::PointStamped>("maximum_probability_temp",10);
+    max_prob_pub = n.advertise<geometry_msgs::PointStamped>("maximum_probability",10);
     try
     {
         tf_listener = new tf::TransformListener();
