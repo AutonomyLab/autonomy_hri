@@ -20,6 +20,23 @@
         <param name="LikelihoodGrid/free_cell_probability" value="0.05"/>
         <param name="LikelihoodGrid/unknown_cell_probability" value="0.25"/>
 
+        <!--leg-->
+        <param name="LikelihoodGrid/leg_human_cell_probability" value="0.95"/>
+        <param name="LikelihoodGrid/leg_free_cell_probability" value="0.05"/>
+        <param name="LikelihoodGrid/leg_unknown_cell_probability" value="0.25"/>
+
+        <!--torso-->
+
+        <param name="LikelihoodGrid/torso_human_cell_probability" value="0.95"/>
+        <param name="LikelihoodGrid/torso_free_cell_probability" value="0.05"/>
+        <param name="LikelihoodGrid/torso_unknown_cell_probability" value="0.25"/>
+
+        <!--sound-->
+
+        <param name="LikelihoodGrid/human_cell_probability" value="0.95"/>
+        <param name="LikelihoodGrid/free_cell_probability" value="0.05"/>
+        <param name="LikelihoodGrid/unknown_cell_probability" value="0.25"/>
+
         <param name="LikelihoodGrid/target_detection_probability" value="0.9"/>
         <param name="LikelihoodGrid/false_positive_probability" value="0.05"/>
         <param name="LikelihoodGrid/sensitivity" value="1"/>

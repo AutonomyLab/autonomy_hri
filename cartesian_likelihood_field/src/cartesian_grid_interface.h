@@ -87,6 +87,10 @@ private:
     geometry_msgs::Pose diff_pose_crtsn;
     PolarPose polar_diff_pose;
     CellProbability_t CELL_PROBABILITY;
+    CellProbability_t LEG_CELL_PROBABILITY;
+    CellProbability_t TORSO_CELL_PROBABILITY;
+    CellProbability_t SOUND_CELL_PROBABILITY;
+
     SensorFOV_t FOV;
     Velocity_t robot_velocity;
     bool MOTION_MODEL_ENABLE;

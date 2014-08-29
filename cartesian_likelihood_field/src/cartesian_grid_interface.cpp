@@ -44,8 +44,43 @@ void CartesianGridInterface::init()
     ros::param::param("~/LikelihoodGrid/free_cell_probability",CELL_PROBABILITY.free, 0.05);
     ROS_INFO("/LikelihoodGrid/free_cell_probability is set to %.2f",CELL_PROBABILITY.free);
 
-    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",CELL_PROBABILITY.unknown, 0.5);
+    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",CELL_PROBABILITY.unknown, 0.25);
     ROS_INFO("/LikelihoodGrid/unknown_cell_probability is set to %.2f",CELL_PROBABILITY.unknown);
+
+    //-----------------------------------------------------------------------------------------------
+
+    ros::param::param("~/LikelihoodGrid/leg_human_cell_probability",LEG_CELL_PROBABILITY.human, 0.95);
+    ROS_INFO("/LikelihoodGrid/leg_human_cell_probability is set to %.2f",LEG_CELL_PROBABILITY.human);
+
+    ros::param::param("~/LikelihoodGrid/leg_free_cell_probability",LEG_CELL_PROBABILITY.free, 0.05);
+    ROS_INFO("/LikelihoodGrid/leg_free_cell_probability is set to %.2f",LEG_CELL_PROBABILITY.free);
+
+    ros::param::param("~/LikelihoodGrid/leg_unknown_cell_probability",LEG_CELL_PROBABILITY.unknown, 0.25);
+    ROS_INFO("/LikelihoodGrid/leg_unknown_cell_probability is set to %.2f",LEG_CELL_PROBABILITY.unknown);
+
+    //-----------------------------------------------------------------------------------------------
+
+    ros::param::param("~/LikelihoodGrid/torso_human_cell_probability",TORSO_CELL_PROBABILITY.human, 0.95);
+    ROS_INFO("/LikelihoodGrid/torso_human_cell_probability is set to %.2f",TORSO_CELL_PROBABILITY.human);
+
+    ros::param::param("~/LikelihoodGrid/torso_free_cell_probability",TORSO_CELL_PROBABILITY.free, 0.05);
+    ROS_INFO("/LikelihoodGrid/torso_free_cell_probability is set to %.2f",TORSO_CELL_PROBABILITY.free);
+
+    ros::param::param("~/LikelihoodGrid/torso_unknown_cell_probability",TORSO_CELL_PROBABILITY.unknown, 0.25);
+    ROS_INFO("/LikelihoodGrid/torso_unknown_cell_probability is set to %.2f",TORSO_CELL_PROBABILITY.unknown);
+    //-----------------------------------------------------------------------------------------------
+
+    ros::param::param("~/LikelihoodGrid/sound_human_cell_probability",SOUND_CELL_PROBABILITY.human, 0.95);
+    ROS_INFO("/LikelihoodGrid/sound_human_cell_probability is set to %.2f",SOUND_CELL_PROBABILITY.human);
+
+    ros::param::param("~/LikelihoodGrid/sound_free_cell_probability",SOUND_CELL_PROBABILITY.free, 0.05);
+    ROS_INFO("/LikelihoodGrid/sound_free_cell_probability is set to %.2f",SOUND_CELL_PROBABILITY.free);
+
+    ros::param::param("~/LikelihoodGrid/sound_unknown_cell_probability",SOUND_CELL_PROBABILITY.unknown, 0.25);
+    ROS_INFO("/LikelihoodGrid/sound_unknown_cell_probability is set to %.2f",SOUND_CELL_PROBABILITY.unknown);
+    //-----------------------------------------------------------------------------------------------
+
+
 
     ros::param::param("~/LikelihoodGrid/target_detection_probability",TARGET_DETETION_PROBABILITY, 0.9);
     ROS_INFO("/LikelihoodGrid/target_detection_probability is set to %.2f",TARGET_DETETION_PROBABILITY);
@@ -272,7 +307,7 @@ void CartesianGridInterface::initLegGrid(SensorFOV_t _FOV)
 {
     try
     {
-        leg_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, CELL_PROBABILITY,
+        leg_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, LEG_CELL_PROBABILITY,
                                       TARGET_DETETION_PROBABILITY,
                                       FALSE_POSITIVE_PROBABILITY);
     }
@@ -286,7 +321,7 @@ void CartesianGridInterface::initTorsoGrid(SensorFOV_t _FOV)
 {
     try
     {
-        torso_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, CELL_PROBABILITY,
+        torso_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, TORSO_CELL_PROBABILITY,
                                        TARGET_DETETION_PROBABILITY,
                                        FALSE_POSITIVE_PROBABILITY);
     }
@@ -301,7 +336,7 @@ void CartesianGridInterface::initSoundGrid(SensorFOV_t _FOV)
 {
     try
     {
-        sound_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, CELL_PROBABILITY, TARGET_DETETION_PROBABILITY,
+        sound_grid = new CartesianGrid(MAP_SIZE, _FOV, MAP_RESOLUTION, SOUND_CELL_PROBABILITY, TARGET_DETETION_PROBABILITY,
                                        FALSE_POSITIVE_PROBABILITY);
     }
     catch (std::bad_alloc& ba)
