@@ -81,31 +81,31 @@ struct Cycle_t{
 class CartesianGrid
 {
 private:
-    FOV_t x;
-    FOV_t y;
+    FOV_t x_;
+    FOV_t y_;
 
-    ros::Time lk;
+    ros::Time lk_;
 
     size_t maxProbCellIndex();
     double cellsDistance(size_t c1, size_t c2);
-    std::vector<LocalMaxima_t> old_local_maxima;
-    std::vector<LocalMaxima_t> new_local_maxima;
-    std::vector<LocalMaxima_t> matched_local_maxima;
-    std::vector<LocalMaxima_t> main_local_maxima;
+    std::vector<LocalMaxima_t> old_local_maxima_;
+    std::vector<LocalMaxima_t> new_local_maxima_;
+    std::vector<LocalMaxima_t> matched_local_maxima_;
+    std::vector<LocalMaxima_t> main_local_maxima_;
 
-    std::vector<double> true_likelihood;
-    std::vector<double> false_likelihood;
-    std::vector<double> predicted_posterior;
-    std::vector<double> predicted_true_likelihood;
-    std::vector<double> predicted_false_likelihood;
+    std::vector<double> true_likelihood_;
+    std::vector<double> false_likelihood_;
+    std::vector<double> predicted_posterior_;
+    std::vector<double> predicted_true_likelihood_;
+    std::vector<double> predicted_false_likelihood_;
 
-    LocalMaxima_t last_highest_lm;
-    Velocity_t velocity;
-    Velocity_t last_velocity;
+    LocalMaxima_t last_highest_lm_;
+    Velocity_t velocity_;
+    Velocity_t last_velocity_;
 
-    double TARGET_DETECTION_PROBABILITY;
-    double FALSE_DETECTION_PROBABILITY;
-    double max_probability;
+    double TARGET_DETECTION_PROBABILITY_;
+    double FALSE_DETECTION_PROBABILITY_;
+    double max_probability_;
 
     void computeLikelihood(const std::vector<PolarPose>& pose,
                                 std::vector<double> &_true_likelihood,

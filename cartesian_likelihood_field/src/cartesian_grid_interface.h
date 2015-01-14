@@ -20,93 +20,93 @@
 class CartesianGridInterface
 {
 private:
-    ros::NodeHandle n;
-    tf::TransformListener* tf_listener;
+    ros::NodeHandle n_;
+    tf::TransformListener* tf_listener_;
 
     // Leg
-    ros::Publisher predicted_leg_base_pub;
-    ros::Publisher last_leg_base_pub;
-    ros::Publisher current_leg_base_pub;
-    ros::Publisher legs_grid_pub;
-    CartesianGrid* leg_grid;
-    ros::Time last_leg_time;
-    ros::Duration leg_diff_time;
-    bool LEG_DETECTION_ENABLE;
-    nav_msgs::OccupancyGrid leg_occupancy_grid;
-    std::vector<PolarPose> current_leg_pose_array_base_polar;
-    std::vector<PolarPose> last_leg_pose_array_base_polar;
-    std::vector<PolarPose> predicted_leg_pose_array_base_polar;
+    ros::Publisher predicted_leg_base_pub_;
+    ros::Publisher last_leg_base_pub_;
+    ros::Publisher current_leg_base_pub_;
+    ros::Publisher legs_grid_pub_;
+    CartesianGrid* leg_grid_;
+    ros::Time last_leg_time_;
+    ros::Duration leg_diff_time_;
+    bool LEG_DETECTION_ENABLE_;
+    nav_msgs::OccupancyGrid leg_occupancy_grid_;
+    std::vector<PolarPose> current_leg_pose_array_base_polar_;
+    std::vector<PolarPose> last_leg_pose_array_base_polar_;
+    std::vector<PolarPose> predicted_leg_pose_array_base_polar_;
 
 
     // person
-    ros::Publisher torso_grid_pub;
-    std::string torso_frame_id;
-    CartesianGrid* torso_grid;
-    ros::Time last_torso_time;
-    ros::Duration torso_diff_time;
-    bool TORSO_DETECTION_ENABLE;
-    nav_msgs::OccupancyGrid torso_occupancy_grid;
+    ros::Publisher torso_grid_pub_;
+    std::string torso_frame_id_;
+    CartesianGrid* torso_grid_;
+    ros::Time last_torso_time_;
+    ros::Duration torso_diff_time_;
+    bool TORSO_DETECTION_ENABLE_;
+    nav_msgs::OccupancyGrid torso_occupancy_grid_;
 
     // Sound
-    ros::Publisher sound_grid_pub;
-    std::string sound_frame_id;
-    CartesianGrid* sound_grid;
-    ros::Time last_sound_time;
-    ros::Duration sound_diff_time;
-    bool SOUND_DETECTION_ENABLE;
-    nav_msgs::OccupancyGrid sound_occupancy_grid;
+    ros::Publisher sound_grid_pub_;
+    std::string sound_frame_id_;
+    CartesianGrid* sound_grid_;
+    ros::Time last_sound_time_;
+    ros::Duration sound_diff_time_;
+    bool SOUND_DETECTION_ENABLE_;
+    nav_msgs::OccupancyGrid sound_occupancy_grid_;
 
 
     // Periodic Gesture
-    ros::Publisher periodic_grid_pub;
-    ros::Publisher max_periodic_prob_pub;
-    std::string periodic_frame_id;
-    CartesianGrid* periodic_grid;
-    ros::Time last_periodic_time;
-    ros::Duration periodic_diff_time;
-    bool PERIODIC_GESTURE_DETECTION_ENABLE;
-    nav_msgs::OccupancyGrid periodic_occupancy_grid;
+    ros::Publisher periodic_grid_pub_;
+    ros::Publisher max_periodic_prob_pub_;
+    std::string periodic_frame_id_;
+    CartesianGrid* periodic_grid_;
+    ros::Time last_periodic_time_;
+    ros::Duration periodic_diff_time_;
+    bool PERIODIC_GESTURE_DETECTION_ENABLE_;
+    nav_msgs::OccupancyGrid periodic_occupancy_grid_;
 
     // Human
-    ros::Publisher human_grid_pub;
-    ros::Publisher local_maxima_pub;
-    ros::Publisher max_prob_pub;
-    std::string human_frame_id;
-    CartesianGrid* human_grid;
-    nav_msgs::OccupancyGrid human_occupancy_grid;
-    bool FUSE_MULTIPLY;
-    geometry_msgs::PoseArray local_maxima;
-    geometry_msgs::PointStamped maximum_probability;
-    geometry_msgs::PointStamped maximum_periodic_probability;
+    ros::Publisher human_grid_pub_;
+    ros::Publisher local_maxima_pub_;
+    ros::Publisher max_prob_pub_;
+    std::string human_frame_id_;
+    CartesianGrid* human_grid_;
+    nav_msgs::OccupancyGrid human_occupancy_grid_;
+    bool FUSE_MULTIPLY_;
+    geometry_msgs::PoseArray local_maxima_;
+    geometry_msgs::PointStamped maximum_probability_;
+    geometry_msgs::PointStamped maximum_periodic_probability_;
 
 
     //encoder
-    ros::Time encoder_last_time;
-    ros::Time last_time;
-    ros::Duration encoder_diff_time;
-    geometry_msgs::Pose diff_pose_crtsn;
-    PolarPose polar_diff_pose;
-    CellProbability_t CELL_PROBABILITY;
-    CellProbability_t LEG_CELL_PROBABILITY;
-    CellProbability_t TORSO_CELL_PROBABILITY;
-    CellProbability_t SOUND_CELL_PROBABILITY;
+    ros::Time encoder_last_time_;
+    ros::Time last_time_;
+    ros::Duration encoder_diff_time_;
+    geometry_msgs::Pose diff_pose_crtsn_;
+    PolarPose polar_diff_pose_;
+    CellProbability_t CELL_PROBABILITY_;
+    CellProbability_t LEG_CELL_PROBABILITY_;
+    CellProbability_t TORSO_CELL_PROBABILITY_;
+    CellProbability_t SOUND_CELL_PROBABILITY_;
 
-    SensorFOV_t FOV;
-    Velocity_t robot_velocity;
-    bool MOTION_MODEL_ENABLE;
+    SensorFOV_t FOV_;
+    Velocity_t robot_velocity_;
+    bool MOTION_MODEL_ENABLE_;
 
-    double prior_threshold;
-    double UPDATE_RATE;
-    double TARGET_DETETION_PROBABILITY;
-    double FALSE_POSITIVE_PROBABILITY;
+    double prior_threshold_;
+    double UPDATE_RATE_;
+    double TARGET_DETETION_PROBABILITY_;
+    double FALSE_POSITIVE_PROBABILITY_;
 //    double robot_angular_velocity;
 //    double robot_linear_velocity;
-    double MAP_RESOLUTION;
+    double MAP_RESOLUTION_;
 
-    int LOOP_RATE;
-    int number_of_sensors;
-    int SENSITIVITY;
-    int MAP_SIZE;
+    int LOOP_RATE_;
+    int number_of_sensors_;
+    int SENSITIVITY_;
+    int MAP_SIZE_;
 
     void init();
     bool transformToBase(geometry_msgs::PointStamped& source_point,
