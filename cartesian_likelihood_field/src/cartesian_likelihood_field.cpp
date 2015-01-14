@@ -20,39 +20,32 @@ int main(int argc, char** argv)
     ros::param::param("~/loop_rate",loop_rate, 20);
     ros::Rate looprate(loop_rate);
 
-   CartesianGridInterface likelihood_grid_interface(n,tf_listener);
+    CartesianGridInterface likelihood_grid_interface(n,tf_listener);
 
     message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 10);
     message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);
-//    message_filters::Subscriber<autonomy_human::raw_detections> torso_sub(n, "torso", 1);
 
-//    ALL TOPICS EXCEPT SOUND-------------
-//    typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
-//            nav_msgs::Odometry,
-//            autonomy_human::raw_detections> MySyncPolicy;
     typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
             nav_msgs::Odometry> MySyncPolicy;
 
-//    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub, torso_sub);
-//    sync.registerCallback(boost::bind(&CartesianGridInterface::syncCallBack,
-//                                      &likelihood_grid_interface, _1, _2, _3));
     Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub);
     sync.registerCallback(boost::bind(&CartesianGridInterface::syncCallBack,
                                       &likelihood_grid_interface, _1, _2));
+
     ros::Subscriber sound_sub = n.subscribe("HarkSource",10,
                                            &CartesianGridInterface::soundCallBack,
                                            &likelihood_grid_interface);
+
     ros::Subscriber torso_sub = n.subscribe("torso", 10,
                                             &CartesianGridInterface::torsoCallBack,
                                             &likelihood_grid_interface);
+
     ros::Subscriber periodic_sub = n.subscribe("periodic_gestures/raw_detections", 10,
                                             &CartesianGridInterface::periodicCallBack,
                                             &likelihood_grid_interface);
-//    ALL TOPICS EXCEPT SOUND------------
 
-
-
-    while (ros::ok()) {
+    while (ros::ok())
+    {
         likelihood_grid_interface.spin();
         ros::spinOnce();
 
