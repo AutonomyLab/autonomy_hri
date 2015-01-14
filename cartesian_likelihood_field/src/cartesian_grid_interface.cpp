@@ -123,7 +123,6 @@ void CartesianGridInterface::init()
         FOV.range.max = 30.0;
         SensorFOV_t PERIODIC_DETECTOR_FOV = FOV;
         PERIODIC_DETECTOR_FOV.range.min = 10.00;
-//        PERIODIC_DETECTOR_FOV.range.max = (FOV.range.max > 30.0 ? FOV.range.max : 30.0);
         PERIODIC_DETECTOR_FOV.angle.min = toRadian(-65.0/2);
         PERIODIC_DETECTOR_FOV.angle.max = toRadian(65.0/2);
 
@@ -151,11 +150,6 @@ void CartesianGridInterface::init()
         ros::param::param("~/LikelihoodGrid/leg_angle_max",LEG_DETECTOR_FOV.angle.max, toRadian(120.0));
         ROS_INFO("/LikelihoodGrid/leg_angle_max is set to %.2f",LEG_DETECTOR_FOV.angle.max);
 
-//        LEG_DETECTOR_FOV.range.max = (FOV.range.max < 10.0 ? FOV.range.max : 10.0);
-//        LEG_DETECTOR_FOV.range.min = FOV.range.min;
-//        LEG_DETECTOR_FOV.angle.min = toRadian(-120.0);//-2.35619449615;
-//        LEG_DETECTOR_FOV.angle.max = toRadian(120.0);//2.35619449615;
-
         initLegGrid(LEG_DETECTOR_FOV);
         ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid->stdev.range, 0.1);
         ROS_INFO("/LikelihoodGrid/leg_range_stdev is set to %.2f",leg_grid->stdev.range);
@@ -171,10 +165,6 @@ void CartesianGridInterface::init()
 
     if(TORSO_DETECTION_ENABLE){
         SensorFOV_t TORSO_DETECTOR_FOV = FOV;
-//        TORSO_DETECTOR_FOV.range.min = 1.0;
-//        TORSO_DETECTOR_FOV.range.max = 9.0;
-//        TORSO_DETECTOR_FOV.angle.min = toRadian(-75.0/2);
-//        TORSO_DETECTOR_FOV.angle.max = toRadian(75.0/2);
 
         ros::param::param("~/LikelihoodGrid/torso_range_min",TORSO_DETECTOR_FOV.range.min, 2.0);
         ROS_INFO("/LikelihoodGrid/torso_range_min is set to %.2f",TORSO_DETECTOR_FOV.range.min);
@@ -373,10 +363,6 @@ void CartesianGridInterface::initHumanGrid(SensorFOV_t _FOV)
     }
 }
 
-
-//void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
-//                                          const nav_msgs::OdometryConstPtr& encoder_msg,
-//                                          const autonomy_human::raw_detectionsConstPtr torso_msg)
 void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
                                           const nav_msgs::OdometryConstPtr& encoder_msg)
 {
@@ -403,130 +389,26 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
             leg_grid->getPose(leg_grid->crtsn_array.current);
             ROS_ASSERT(leg_grid->polar_array.current.size() == leg_msg_crtsn->poses.size());
         }
-//        ROS_ERROR("LEG");
-//        leg_grid->diff_time = encoder_diff_time;
-//        leg_grid->predict(robot_velocity);
-
-//        /* FOR RVIZ */
-//        leg_grid->crtsn_array.current.header.frame_id = "base_footprint";
-//        current_leg_base_pub.publish(leg_grid->crtsn_array.current);
-
-//        leg_grid->polar2Crtsn(leg_grid->polar_array.predicted, leg_grid->crtsn_array.predicted);
-//        predicted_leg_base_pub.publish(leg_grid->crtsn_array.predicted);
-
-//        leg_grid->polar2Crtsn(leg_grid->polar_array.past, leg_grid->crtsn_array.past);
-//        last_leg_base_pub.publish(leg_grid->crtsn_array.past);
-//        /* ******* */
-
-//        leg_grid->bayesOccupancyFilter();
-
-//        //PUBLISH LEG OCCUPANCY GRID
-//        occupancyGrid(leg_grid, &leg_occupancy_grid);
-//        leg_occupancy_grid.header.stamp = ros::Time::now();
-//        legs_grid_pub.publish(leg_occupancy_grid);
     }
-
-    //    ----------   TORSO DETECTION CALLBACK   ----------
-//    if(TORSO_DETECTION_ENABLE){
-////        ROS_INFO("TORSO");
-//        torso_grid->getPose(torso_msg);
-//        torso_grid->diff_time = encoder_diff_time;
-//        torso_grid->predict(robot_velocity);
-//        torso_grid->bayesOccupancyFilter();
-
-//        //PUBLISH TORSO OCCUPANCY GRID
-//        occupancyGrid(torso_grid, &torso_occupancy_grid);
-//        torso_occupancy_grid.header.stamp = ros::Time::now();
-//        torso_occupancy_grid_pub.publish(torso_occupancy_grid);
-//    }
-
-//    human_grid->diff_time = encoder_diff_time;
-//    human_grid->fuse(sound_grid->posterior, leg_grid->posterior, torso_grid->posterior,
-//                      FUSE_MULTIPLY);
-//    human_grid->predict(robot_velocity); // TODO: FIX THIS
-
-//    //PUBLISH LOCAL MAXIMA
-//    human_grid->updateLocalMaximas();
-//    local_maxima_pub.publish(human_grid->local_maxima_poses);
-
-//    //PUBLISH HIGHEST PROBABILITY OF INTEGRATED GRID
-//    maximum_probability = human_grid->highest_prob_point;
-//    maximum_probability.header.frame_id = "base_footprint";
-//    maximum_probability.header.stamp = ros::Time::now();
-//    max_prob_pub.publish(maximum_probability);
-
-//    //PUBLISH INTEGRATED OCCUPANCY GRID
-//    occupancyGrid(human_grid, &human_occupancy_grid);
-//    human_occupancy_grid.header.stamp = ros::Time::now();
-//    human_grid_pub.publish(human_occupancy_grid);
 }
 
 void CartesianGridInterface::torsoCallBack(const autonomy_human::raw_detectionsConstPtr &torso_msg)
 {
-    if(TORSO_DETECTION_ENABLE){
-//        ROS_ERROR("TORSO");
+    if(TORSO_DETECTION_ENABLE)
         torso_grid->getPose(torso_msg);
-//        torso_grid->diff_time = encoder_diff_time;
-//        torso_grid->predict(robot_velocity);
-//        torso_grid->bayesOccupancyFilter();
-
-//        //PUBLISH TORSO OCCUPANCY GRID
-//        occupancyGrid(torso_grid, &torso_occupancy_grid);
-//        torso_occupancy_grid.header.stamp = ros::Time::now();
-//        torso_grid_pub.publish(torso_occupancy_grid);
-    }
 }
 
 
 void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
 {
-    if(SOUND_DETECTION_ENABLE){
-//        hark_msgs::HarkSourceConstPtr &sound_queue_msg;
-        ros::Duration d = ros::Time::now() - lk;
-//        if(d.toSec() < 1.0 / LOOP_RATE)
-//            sound_queue_msg->src.push_back(sound_msg->src);
-//        sound_grid->getPose(sound_queue_msg);
+    if(SOUND_DETECTION_ENABLE)
         sound_grid->getPose(sound_msg);
-
-//        ros::Duration d = ros::Time::now() - lk;
-//        ROS_INFO("sound msg diff time:  %.10f", d.toSec());
-        lk = ros::Time::now();
-//        sound_grid->diff_time = ros::Time::now() - sound_grid->last_time;
-//        sound_grid->last_time = ros::Time::now();
-//        sound_grid->predict(robot_velocity);
-//        sound_grid->bayesOccupancyFilter();
-
-//        //PUBLISH SOUND OCCUPANCY GRID
-//        occupancyGrid(sound_grid, &sound_occupancy_grid);
-//        sound_occupancy_grid.header.stamp = ros::Time::now();
-//        sound_grid_pub.publish(sound_occupancy_grid);
-    }
 }
 
 void CartesianGridInterface::periodicCallBack(const autonomy_human::raw_detectionsConstPtr &periodic_msg)
 {
-    if(PERIODIC_GESTURE_DETECTION_ENABLE){
-//        ROS_ERROR("PERIODIC");
+    if(PERIODIC_GESTURE_DETECTION_ENABLE)
         periodic_grid->getPose(periodic_msg);
-        periodic_grid->diff_time = ros::Time::now() - periodic_grid->last_time;
-        periodic_grid->last_time = ros::Time::now();
-        periodic_grid->predict(robot_velocity);
-        periodic_grid->bayesOccupancyFilter();
-
-        //PUBLISH LOCAL MAXIMA
-        periodic_grid->updateLocalMaximas();
-
-        //PUBLISH HIGHEST PROBABILITY OF INTEGRATED GRID
-        maximum_periodic_probability = periodic_grid->highest_prob_point;
-        maximum_periodic_probability.header.frame_id = "base_footprint";
-        maximum_periodic_probability.header.stamp = ros::Time::now();
-        max_periodic_prob_pub.publish(maximum_periodic_probability);
-
-        //PUBLISH PERIODIC OCCUPANCY GRID
-        occupancyGrid(periodic_grid, &periodic_occupancy_grid);
-        periodic_occupancy_grid.header.stamp = ros::Time::now();
-        periodic_grid_pub.publish(periodic_occupancy_grid);
-    }
 }
 
 void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::OccupancyGrid *occupancy_grid)
