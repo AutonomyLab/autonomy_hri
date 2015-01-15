@@ -76,7 +76,10 @@
         <param name="periodic_gesture_detection_enable" value="$(arg gesture_detection)"/>
 
         <param name="fuse_multiply" value="false"/>
-	    <remap from="/torso" to="person_detection/people" />
+	    <!-- <remap from="/legs" to="" /> -->
+        <remap from="/torso" to="person_detection/people" />
+        <remap from="/sound" to="HarkSource" />
+        <remap from="/gesture" to="periodic_gestures/raw_detections" />
     </node>
 
 <group if="$(arg leg_detection)">
