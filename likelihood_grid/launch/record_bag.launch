@@ -1,0 +1,10 @@
+<launch>
+<arg name="bag_file" />
+    <node pkg="rosbag" type="record" name="record" output="screen" args="-O $(arg bag_file) /tf /encoder /lidar/scan /HarkSource /camera/front/rgb/image_color/compressed /odometry/filtered /navsat/enu /person_detection/people /imu/data /clock /maximum_probability /diagnostics /teleop/joy" />
+</launch>
+
+
+<!--
+roslaunch likelihood_grid record_bag.launch bag_file:=`pwd`/1.bag
+    -->
+

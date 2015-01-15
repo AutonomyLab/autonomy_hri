@@ -1,4 +1,0 @@
-<launch>
-    <include file="$(find autonomy_human)/launch/torso_detection.launch"/>
-    <include file="$(find likelihood_field)/launch/likelihood.launch"/>
-</launch>

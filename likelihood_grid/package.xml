@@ -1,12 +1,10 @@
 <?xml version="1.0"?>
 <package>
-  <name>likelihood_field</name>
+  <name>likelihood_grid</name>
   <version>0.0.0</version>
-  <description>The likelihood_field package</description>
+  <description>The likelihood_grid package</description>
   <maintainer email="spourmeh@sfu.ca">Shokoofeh Pourmehr</maintainer>
   <license>BSD</license>
-  <!-- <url type="website">http://wiki.ros.org/likelihood_field</url> -->
-
   <author  email="spourmeh@sfu.ca">Shokoofeh Pourmehr </author>
 
   <buildtool_depend>catkin</buildtool_depend>
@@ -22,6 +20,4 @@
   <run_depend>hark_msgs</run_depend>
   <run_depend>cv_bridge</run_depend>
   <run_depend>autonomy_human</run_depend>
-<export>
-  </export>
 </package>
