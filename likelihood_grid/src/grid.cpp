@@ -29,14 +29,14 @@ double maximum(double a, double b, double c)
     return max;
 }
 
-CartesianGrid::CartesianGrid(uint32_t map_size,
+Grid::Grid(uint32_t map_size,
                              SensorFOV_t _sensor_fov,
                              double_t map_resolution,
                              CellProbability_t _cell_probability,
                              double _target_detection_probability,
                              double _false_positive_probability)
 {
-    ROS_INFO("Constructing an instace of cartesian Grid.");
+    ROS_INFO("Constructing an instace of cartesian likelihood grid.");
     ROS_ASSERT(map_size % 2 == 0);
     lk_ = ros::Time::now();
     map.height = map_size; // DEFAULT 80
@@ -126,23 +126,23 @@ CartesianGrid::CartesianGrid(uint32_t map_size,
     setOutFOVProbability(predicted_false_likelihood_, cell_probability.unknown);
 }
 
-bool CartesianGrid::sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j){
+bool Grid::sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j){
 return (posterior[i.index] < posterior[j.index]);
 }
 
-void CartesianGrid::setOutFOVProbability(std::vector<double> &data, const double val){
+void Grid::setOutFOVProbability(std::vector<double> &data, const double val){
     for(size_t i = 0; i < grid_size; i++){
         if(!map.cell_inFOV.at(i)) { data[i] = val; }
     }
 }
 
-void CartesianGrid::setInFOVProbability(std::vector<double>& data, const double val){
+void Grid::setInFOVProbability(std::vector<double>& data, const double val){
     for(size_t i = 0; i < grid_size; i++){
         if(map.cell_inFOV.at(i)) { data[i] = val; }
     }
 }
 
-void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
+void Grid::computeLikelihood(const std::vector<PolarPose>& pose,
                             std::vector<double> &_true_likelihood,
                             std::vector<double> &_false_likelihood)
 {
@@ -175,7 +175,7 @@ void CartesianGrid::computeLikelihood(const std::vector<PolarPose>& pose,
 }
 
 
-void CartesianGrid::updateGridProbability(std::vector<double>& _prior,
+void Grid::updateGridProbability(std::vector<double>& _prior,
                                           const std::vector<double>& _true_likelihood,
                                           const std::vector<double>& _false_likelihood,
                                           std::vector<double>& _posterior)
@@ -197,7 +197,7 @@ void CartesianGrid::updateGridProbability(std::vector<double>& _prior,
     }
 }
 
-void CartesianGrid::bayesOccupancyFilter()
+void Grid::bayesOccupancyFilter()
 {
     // PREDICTION BY MOTION MODEL
     computeLikelihood(polar_array.predicted, predicted_true_likelihood_, predicted_false_likelihood_);
@@ -213,7 +213,7 @@ void CartesianGrid::bayesOccupancyFilter()
 }
 
 
-void CartesianGrid::fuse(const std::vector<double> data_1,
+void Grid::fuse(const std::vector<double> data_1,
                          const std::vector<double> data_2,
                          const std::vector<double> data_3,
                          bool multiply)
@@ -234,7 +234,7 @@ void CartesianGrid::fuse(const std::vector<double> data_1,
 }
 
 
-void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
+void Grid::getPose(geometry_msgs::PoseArray& crtsn_array)
 {
     polar_array.current.clear();
     PolarPose polar_pose_point;
@@ -244,7 +244,7 @@ void CartesianGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
     }
 }
 
-void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
+void Grid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
 {
     polar_array.current.clear();
     PolarPose torso_polar_pose;
@@ -267,7 +267,7 @@ void CartesianGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_i
     }
 }
 
-void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
+void Grid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
 {
     ros::Duration d = ros::Time::now() - lk_;
     lk_ = ros::Time::now();
@@ -294,7 +294,7 @@ void CartesianGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
     }
 }
 
-void CartesianGrid::predict(const Velocity_t _robot_velocity)
+void Grid::predict(const Velocity_t _robot_velocity)
 {
     polar_array.predicted.clear();
     polar_array.predicted = polar_array.past;
@@ -323,7 +323,7 @@ void CartesianGrid::predict(const Velocity_t _robot_velocity)
     }
 }
 
-size_t CartesianGrid::predictHighestProbability(size_t index)
+size_t Grid::predictHighestProbability(size_t index)
 {
 
     geometry_msgs::Point pose1, pose2;
@@ -362,7 +362,7 @@ size_t CartesianGrid::predictHighestProbability(size_t index)
     else return row + col * map.width;
 }
 
-void CartesianGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,
+void Grid::polar2Crtsn(std::vector<PolarPose>& polar_array,
                  geometry_msgs::PoseArray &crtsn_array)
 {
     geometry_msgs::Pose crtsn_pose;
@@ -378,7 +378,7 @@ void CartesianGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,
     }
 }
 
-size_t CartesianGrid::maxProbCellIndex()
+size_t Grid::maxProbCellIndex()
 {
     double max = posterior.at(0);
     size_t _cell_index = 0;
@@ -388,7 +388,7 @@ size_t CartesianGrid::maxProbCellIndex()
 }
 
 
-void CartesianGrid::getLocalMaximas()
+void Grid::getLocalMaximas()
 {
     new_local_maxima_.clear();
     LocalMaxima_t tmp_new;
@@ -457,7 +457,7 @@ void CartesianGrid::getLocalMaximas()
     }
 }
 
-void CartesianGrid::trackLocalMaximas()
+void Grid::trackLocalMaximas()
 {
     LocalMaxima_t tmp_match;
     matched_local_maxima_ = old_local_maxima_;
@@ -536,7 +536,7 @@ void CartesianGrid::trackLocalMaximas()
     local_maxima_poses.header.stamp = ros::Time::now();
 }
 
-void CartesianGrid::trackMaxProbability()
+void Grid::trackMaxProbability()
 {
     uint8_t loop_rate = 10;
     int8_t counter_threshold = 1 * loop_rate;
@@ -618,14 +618,14 @@ void CartesianGrid::trackMaxProbability()
     highest_prob_point.header.stamp = ros::Time::now();
 }
 
-void CartesianGrid::updateLocalMaximas()
+void Grid::updateLocalMaximas()
 {
     getLocalMaximas();
     trackLocalMaximas();
     trackMaxProbability();
 }
 
-double CartesianGrid::cellsDistance(size_t c1, size_t c2)
+double Grid::cellsDistance(size_t c1, size_t c2)
 {
     double diff_x = map.cell.at(c1).cartesian.x - map.cell.at(c2).cartesian.x;
     double diff_y = map.cell.at(c1).cartesian.y - map.cell.at(c2).cartesian.y;
@@ -633,7 +633,7 @@ double CartesianGrid::cellsDistance(size_t c1, size_t c2)
 }
 
 
-CartesianGrid::~CartesianGrid()
+Grid::~Grid()
 {}
 
 

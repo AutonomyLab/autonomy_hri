@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     ros::param::param("~/loop_rate",loop_rate, 20);
     ros::Rate looprate(loop_rate);
 
-    CartesianGridInterface likelihood_grid_interface(n,tf_listener);
+    LikelihoodGrid likelihood_grid_interface(n,tf_listener);
 
     message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 10);
     message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);
@@ -29,19 +29,19 @@ int main(int argc, char** argv)
             nav_msgs::Odometry> MySyncPolicy;
 
     Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub);
-    sync.registerCallback(boost::bind(&CartesianGridInterface::syncCallBack,
+    sync.registerCallback(boost::bind(&LikelihoodGrid::syncCallBack,
                                       &likelihood_grid_interface, _1, _2));
 
     ros::Subscriber sound_sub = n.subscribe("HarkSource",10,
-                                           &CartesianGridInterface::soundCallBack,
+                                           &LikelihoodGrid::soundCallBack,
                                            &likelihood_grid_interface);
 
     ros::Subscriber torso_sub = n.subscribe("torso", 10,
-                                            &CartesianGridInterface::torsoCallBack,
+                                            &LikelihoodGrid::torsoCallBack,
                                             &likelihood_grid_interface);
 
     ros::Subscriber periodic_sub = n.subscribe("periodic_gestures/raw_detections", 10,
-                                            &CartesianGridInterface::periodicCallBack,
+                                            &LikelihoodGrid::periodicCallBack,
                                             &likelihood_grid_interface);
 
     while (ros::ok())

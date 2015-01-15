@@ -1,12 +1,12 @@
 #include "likelihood_grid.h"
 
 
-CartesianGridInterface::CartesianGridInterface()
+LikelihoodGrid::LikelihoodGrid()
 {
     ROS_INFO("Constructing an instace of LikelihoodGridInterface.");
 }
 
-CartesianGridInterface::CartesianGridInterface(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
+LikelihoodGrid::LikelihoodGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
     n_(_n),
     tf_listener_(_tf_listener)
 {
@@ -14,7 +14,7 @@ CartesianGridInterface::CartesianGridInterface(ros::NodeHandle _n, tf::Transform
     init();
 }
 
-void CartesianGridInterface::init()
+void LikelihoodGrid::init()
 {
     ros::param::param("~/LikelihoodGrid/grid_angle_min",FOV_.angle.min, -M_PI);
     ros::param::param("~/LikelihoodGrid/grid_angle_max",FOV_.angle.max, M_PI);
@@ -22,7 +22,7 @@ void CartesianGridInterface::init()
     ros::param::param("~/LikelihoodGrid/grid_range_min",FOV_.range.min, 0.0);
     ros::param::param("~/LikelihoodGrid/grid_range_max",FOV_.range.max, 20.0);
 
-    ros::param::param("~/CartesianLikelihoodGrid/resolution",MAP_RESOLUTION_, 0.5);
+    ros::param::param("~/LikelihoodGrid/resolution",MAP_RESOLUTION_, 0.5);
     MAP_SIZE_ = FOV_.range.max * 2 / MAP_RESOLUTION_;
 
     ros::param::param("~/LikelihoodGrid/update_rate",UPDATE_RATE_, 0.5);
@@ -139,7 +139,7 @@ void CartesianGridInterface::init()
     }
 }
 
-bool CartesianGridInterface::transformToBase(geometry_msgs::PointStamped& source_point,
+bool LikelihoodGrid::transformToBase(geometry_msgs::PointStamped& source_point,
                                              geometry_msgs::PointStamped& target_point,
                                              bool debug)
 {
@@ -165,7 +165,7 @@ bool CartesianGridInterface::transformToBase(geometry_msgs::PointStamped& source
     return can_transform;
 }
 
-bool CartesianGridInterface::transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
+bool LikelihoodGrid::transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
                                              geometry_msgs::PoseArray& target,
                                              bool debug)
 {
@@ -207,11 +207,11 @@ bool CartesianGridInterface::transformToBase(const geometry_msgs::PoseArrayConst
 }
 
 
-void CartesianGridInterface::initLegGrid(SensorFOV_t _FOV)
+void LikelihoodGrid::initLegGrid(SensorFOV_t _FOV)
 {
     try
     {
-        leg_grid_ = new CartesianGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, LEG_CELL_PROBABILITY_,
+        leg_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, LEG_CELL_PROBABILITY_,
                                       TARGET_DETETION_PROBABILITY_,
                                       FALSE_POSITIVE_PROBABILITY_);
     }
@@ -221,11 +221,11 @@ void CartesianGridInterface::initLegGrid(SensorFOV_t _FOV)
     }
 }
 
-void CartesianGridInterface::initTorsoGrid(SensorFOV_t _FOV)
+void LikelihoodGrid::initTorsoGrid(SensorFOV_t _FOV)
 {
     try
     {
-        torso_grid_ = new CartesianGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, TORSO_CELL_PROBABILITY_,
+        torso_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, TORSO_CELL_PROBABILITY_,
                                        TARGET_DETETION_PROBABILITY_,
                                        FALSE_POSITIVE_PROBABILITY_);
     }
@@ -236,11 +236,11 @@ void CartesianGridInterface::initTorsoGrid(SensorFOV_t _FOV)
 }
 
 
-void CartesianGridInterface::initSoundGrid(SensorFOV_t _FOV)
+void LikelihoodGrid::initSoundGrid(SensorFOV_t _FOV)
 {
     try
     {
-        sound_grid_ = new CartesianGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, SOUND_CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
+        sound_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, SOUND_CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
                                        FALSE_POSITIVE_PROBABILITY_);
     }
     catch (std::bad_alloc& ba)
@@ -249,11 +249,11 @@ void CartesianGridInterface::initSoundGrid(SensorFOV_t _FOV)
     }
 }
 
-void CartesianGridInterface::initPeriodicGrid(SensorFOV_t _FOV)
+void LikelihoodGrid::initPeriodicGrid(SensorFOV_t _FOV)
 {
     try
     {
-        periodic_grid_ = new CartesianGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
+        periodic_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
                                        FALSE_POSITIVE_PROBABILITY_);
     }
     catch (std::bad_alloc& ba)
@@ -263,11 +263,11 @@ void CartesianGridInterface::initPeriodicGrid(SensorFOV_t _FOV)
 }
 
 
-void CartesianGridInterface::initHumanGrid(SensorFOV_t _FOV)
+void LikelihoodGrid::initHumanGrid(SensorFOV_t _FOV)
 {
     try
     {
-        human_grid_ = new CartesianGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_,
+        human_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_,
                                        TARGET_DETETION_PROBABILITY_,
                                        FALSE_POSITIVE_PROBABILITY_);
     }
@@ -277,7 +277,7 @@ void CartesianGridInterface::initHumanGrid(SensorFOV_t _FOV)
     }
 }
 
-void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
+void LikelihoodGrid::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
                                           const nav_msgs::OdometryConstPtr& encoder_msg)
 {
 //    ----------   ENCODER CALLBACK   ----------
@@ -306,26 +306,26 @@ void CartesianGridInterface::syncCallBack(const geometry_msgs::PoseArrayConstPtr
     }
 }
 
-void CartesianGridInterface::torsoCallBack(const autonomy_human::raw_detectionsConstPtr &torso_msg)
+void LikelihoodGrid::torsoCallBack(const autonomy_human::raw_detectionsConstPtr &torso_msg)
 {
     if(TORSO_DETECTION_ENABLE_)
         torso_grid_->getPose(torso_msg);
 }
 
 
-void CartesianGridInterface::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
+void LikelihoodGrid::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
 {
     if(SOUND_DETECTION_ENABLE_)
         sound_grid_->getPose(sound_msg);
 }
 
-void CartesianGridInterface::periodicCallBack(const autonomy_human::raw_detectionsConstPtr &periodic_msg)
+void LikelihoodGrid::periodicCallBack(const autonomy_human::raw_detectionsConstPtr &periodic_msg)
 {
     if(PERIODIC_GESTURE_DETECTION_ENABLE_)
         periodic_grid_->getPose(periodic_msg);
 }
 
-void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::OccupancyGrid *occupancy_grid)
+void LikelihoodGrid::occupancyGrid(Grid* grid, nav_msgs::OccupancyGrid *occupancy_grid)
 {
     if(!occupancy_grid->header.frame_id.size()){
         occupancy_grid->info.height = grid->map.height;
@@ -344,7 +344,7 @@ void CartesianGridInterface::occupancyGrid(CartesianGrid* grid, nav_msgs::Occupa
 }
 
 
-void CartesianGridInterface::spin()
+void LikelihoodGrid::spin()
 {
 
     leg_grid_->diff_time = ros::Time::now() - last_time_;
@@ -414,7 +414,7 @@ void CartesianGridInterface::spin()
     last_time_ = ros::Time::now();
 }
 
-CartesianGridInterface::~CartesianGridInterface()
+LikelihoodGrid::~LikelihoodGrid()
 {
     ROS_INFO("Deconstructing the constructed LikelihoodGridInterface.");
     if(LEG_DETECTION_ENABLE_) delete leg_grid_;

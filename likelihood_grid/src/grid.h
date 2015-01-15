@@ -1,5 +1,5 @@
-#ifndef CARTESIAN_GRID_H
-#define CARTESIAN_GRID_H
+#ifndef GRID_H
+#define GRID_H
 
 #include <vector>
 #include <cmath>
@@ -78,7 +78,7 @@ struct Cycle_t{
 };
 
 
-class CartesianGrid
+class Grid
 {
 private:
     FOV_t x_;
@@ -140,14 +140,14 @@ public:
     geometry_msgs::PointStamped highest_prob_point;
 
 
-    CartesianGrid(uint32_t map_size,
+    Grid(uint32_t map_size,
                   SensorFOV_t _sensor_fov,
                   double_t map_resolution,
                   CellProbability_t _cell_probability,
                   double _target_detection_probability,
                   double _false_positive_probability);
-    CartesianGrid();
-    ~CartesianGrid();
+    Grid();
+    ~Grid();
 
     void fuse(const std::vector<double> data_1, const std::vector<double> data_2,
               const std::vector<double> data_3, bool multiply);

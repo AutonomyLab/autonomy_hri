@@ -1,5 +1,5 @@
-#ifndef CARTESIAN_GRID_INTERFACE_H
-#define CARTESIAN_GRID_INTERFACE_H
+#ifndef LIKELIHOOD_GRID_H
+#define LIKELIHOOD_GRID_H
 #include <ros/ros.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Vector3.h>
@@ -17,7 +17,7 @@
 #include "grid.h"
 
 
-class CartesianGridInterface
+class LikelihoodGrid
 {
 private:
     ros::NodeHandle n_;
@@ -28,7 +28,7 @@ private:
     ros::Publisher last_leg_base_pub_;
     ros::Publisher current_leg_base_pub_;
     ros::Publisher legs_grid_pub_;
-    CartesianGrid* leg_grid_;
+    Grid* leg_grid_;
     ros::Time last_leg_time_;
     ros::Duration leg_diff_time_;
     bool LEG_DETECTION_ENABLE_;
@@ -41,7 +41,7 @@ private:
     // person
     ros::Publisher torso_grid_pub_;
     std::string torso_frame_id_;
-    CartesianGrid* torso_grid_;
+    Grid* torso_grid_;
     ros::Time last_torso_time_;
     ros::Duration torso_diff_time_;
     bool TORSO_DETECTION_ENABLE_;
@@ -50,7 +50,7 @@ private:
     // Sound
     ros::Publisher sound_grid_pub_;
     std::string sound_frame_id_;
-    CartesianGrid* sound_grid_;
+    Grid* sound_grid_;
     ros::Time last_sound_time_;
     ros::Duration sound_diff_time_;
     bool SOUND_DETECTION_ENABLE_;
@@ -61,7 +61,7 @@ private:
     ros::Publisher periodic_grid_pub_;
     ros::Publisher max_periodic_prob_pub_;
     std::string periodic_frame_id_;
-    CartesianGrid* periodic_grid_;
+    Grid* periodic_grid_;
     ros::Time last_periodic_time_;
     ros::Duration periodic_diff_time_;
     bool PERIODIC_GESTURE_DETECTION_ENABLE_;
@@ -72,7 +72,7 @@ private:
     ros::Publisher local_maxima_pub_;
     ros::Publisher max_prob_pub_;
     std::string human_frame_id_;
-    CartesianGrid* human_grid_;
+    Grid* human_grid_;
     nav_msgs::OccupancyGrid human_occupancy_grid_;
     bool FUSE_MULTIPLY_;
     geometry_msgs::PoseArray local_maxima_;
@@ -118,7 +118,7 @@ private:
     bool transformToOdom(geometry_msgs::PointStamped& source_point,
                          geometry_msgs::PointStamped target_point,
                          bool debug = false);
-    void occupancyGrid(CartesianGrid* grid,
+    void occupancyGrid(Grid* grid,
                        nav_msgs::OccupancyGrid *occupancy_grid);
 
     void initLegGrid(SensorFOV_t _fov);              //NEEDED FOR EVERY HUMAN FEATURE
@@ -129,8 +129,8 @@ private:
 
 public:
     ros::Time lk;
-    CartesianGridInterface();
-    CartesianGridInterface(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
+    LikelihoodGrid();
+    LikelihoodGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
 
     void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
                       const nav_msgs::OdometryConstPtr& encoder_msg);
@@ -139,7 +139,7 @@ public:
     void periodicCallBack(const autonomy_human::raw_detectionsConstPtr &periodic_msg);
 
     void spin();
-    ~CartesianGridInterface();                             // TO BE MODIFIED FOR EVERY HUMAN FEATURE
+    ~LikelihoodGrid();                             // TO BE MODIFIED FOR EVERY HUMAN FEATURE
 };
 
 
