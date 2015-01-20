@@ -27,7 +27,7 @@ include_directories(include
 )
 
 
-add_executable(likelihood_grid src/likelihood_grid_node.cpp src/likelihood_grid.cpp src/grid.cpp)
+add_executable(likelihood_grid src/likelihood_grid_node.cpp src/likelihood_grid.cpp src/grid.cpp src/leg_grid.cpp src/kalmanfilter.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(likelihood_grid

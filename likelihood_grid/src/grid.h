@@ -138,6 +138,7 @@ public:
 
     geometry_msgs::PoseArray local_maxima_poses;
     geometry_msgs::PointStamped highest_prob_point;
+    geometry_msgs::PoseArray cartesian_array;
 
 
     Grid(uint32_t map_size,
