@@ -12,7 +12,7 @@ find_package(Boost REQUIRED COMPONENTS
 system
 )
 
-set(ROS_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Debug)
 
 catkin_package(
   INCLUDE_DIRS include

@@ -135,11 +135,10 @@ public:
 
     Cycle_t<geometry_msgs::PoseArray> crtsn_array;
     Cycle_t<std::vector<PolarPose> > polar_array;
+    Cycle_t<std::vector<PolarPose> > cov_array;
 
     geometry_msgs::PoseArray local_maxima_poses;
     geometry_msgs::PointStamped highest_prob_point;
-    geometry_msgs::PoseArray cartesian_array;
-
 
     Grid(uint32_t map_size,
                   SensorFOV_t _sensor_fov,
@@ -150,8 +149,8 @@ public:
     Grid();
     ~Grid();
 
-    void fuse(const std::vector<double> data_1, const std::vector<double> data_2,
-              const std::vector<double> data_3, bool multiply);
+    void fuse(const std::vector<double> &data_1, const std::vector<double> &data_2,
+              const std::vector<double> &data_3, bool multiply);
     void bayesOccupancyFilter();
     void getPose(geometry_msgs::PoseArray &crtsn_array);
     void getPose(const autonomy_human::raw_detectionsConstPtr torso_img);

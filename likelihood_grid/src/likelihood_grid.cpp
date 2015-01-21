@@ -61,6 +61,7 @@ void LikelihoodGrid::init()
     }
 
     if(LEG_DETECTION_ENABLE_){
+
         SensorFOV_t LEG_DETECTOR_FOV = FOV_;
 
         ros::param::param("~/LikelihoodGrid/leg_range_min",LEG_DETECTOR_FOV.range.min, 1.0);
@@ -69,14 +70,14 @@ void LikelihoodGrid::init()
         ros::param::param("~/LikelihoodGrid/leg_angle_min",LEG_DETECTOR_FOV.angle.min, toRadian(-120.0));
         ros::param::param("~/LikelihoodGrid/leg_angle_max",LEG_DETECTOR_FOV.angle.max, toRadian(120.0));
 
-        ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid_->stdev.range, 0.1);
-        ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid_->stdev.angle, 1.0);
-
         ros::param::param("~/LikelihoodGrid/leg_human_cell_probability",LEG_CELL_PROBABILITY_.human, 0.95);
         ros::param::param("~/LikelihoodGrid/leg_free_cell_probability",LEG_CELL_PROBABILITY_.free, 0.05);
         ros::param::param("~/LikelihoodGrid/leg_unknown_cell_probability",LEG_CELL_PROBABILITY_.unknown, 0.25);
 
         initLegGrid(LEG_DETECTOR_FOV);
+
+        ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid_->stdev.range, 0.1);
+        ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid_->stdev.angle, 0.1);
 
         legs_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
         predicted_leg_base_pub_ = n_.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
@@ -93,14 +94,15 @@ void LikelihoodGrid::init()
         ros::param::param("~/LikelihoodGrid/torso_angle_min",TORSO_DETECTOR_FOV.angle.min, toRadian(-70.0/2));
         ros::param::param("~/LikelihoodGrid/torso_angle_max",TORSO_DETECTOR_FOV.angle.max, toRadian(70.0/2));
 
-        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid_->stdev.range, 0.2);
-        ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid_->stdev.angle, 1.0);
-
         ros::param::param("~/LikelihoodGrid/torso_human_cell_probability",TORSO_CELL_PROBABILITY_.human, 0.95);
         ros::param::param("~/LikelihoodGrid/torso_free_cell_probability",TORSO_CELL_PROBABILITY_.free, 0.05);
         ros::param::param("~/LikelihoodGrid/torso_unknown_cell_probability",TORSO_CELL_PROBABILITY_.unknown, 0.25);
 
         initTorsoGrid(TORSO_DETECTOR_FOV);
+
+        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid_->stdev.range, 0.2);
+        ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid_->stdev.angle, 1.0);
+
         torso_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("torso_occupancy_grid",10);
     }
 
@@ -117,10 +119,11 @@ void LikelihoodGrid::init()
         ros::param::param("~/LikelihoodGrid/sound_free_cell_probability",SOUND_CELL_PROBABILITY_.free, 0.05);
         ros::param::param("~/LikelihoodGrid/sound_unknown_cell_probability",SOUND_CELL_PROBABILITY_.unknown, 0.25);
 
+        initSoundGrid(SOUND_DETECTOR_FOV);
+
         ros::param::param("~/LikelihoodGrid/sound_range_stdev",sound_grid_->stdev.range, 0.5);
         ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid_->stdev.angle, 5.0);
 
-        initSoundGrid(SOUND_DETECTOR_FOV);
         sound_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
     }
 
@@ -209,14 +212,14 @@ bool LikelihoodGrid::transformToBase(const geometry_msgs::PoseArrayConstPtr& sou
 
 void LikelihoodGrid::initLegGrid(SensorFOV_t _FOV)
 {
-    try
-    {
+
+    try {
+
         leg_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, LEG_CELL_PROBABILITY_,
-                                      TARGET_DETETION_PROBABILITY_,
-                                      FALSE_POSITIVE_PROBABILITY_);
-    }
-    catch (std::bad_alloc& ba)
-    {
+                                      TARGET_DETETION_PROBABILITY_, FALSE_POSITIVE_PROBABILITY_);
+
+    } catch (std::bad_alloc& ba){
+
         std::cerr << "In new legGrid: bad_alloc caught: " << ba.what() << '\n';
     }
 }
@@ -346,53 +349,62 @@ void LikelihoodGrid::occupancyGrid(Grid* grid, nav_msgs::OccupancyGrid *occupanc
 
 void LikelihoodGrid::spin()
 {
+    if(LEG_DETECTION_ENABLE_){
+        leg_grid_->diff_time = ros::Time::now() - last_time_;
 
-    leg_grid_->diff_time = ros::Time::now() - last_time_;
-    leg_grid_->predict(robot_velocity_);
+        leg_grid_->predict(robot_velocity_);
 
-    /* FOR RVIZ */
-    leg_grid_->crtsn_array.current.header.frame_id = "base_footprint";
-    current_leg_base_pub_.publish(leg_grid_->crtsn_array.current);
+        /* FOR RVIZ */
+        leg_grid_->crtsn_array.current.header.frame_id = "base_footprint";
+        current_leg_base_pub_.publish(leg_grid_->crtsn_array.current);
 
-    leg_grid_->polar2Crtsn(leg_grid_->polar_array.predicted, leg_grid_->crtsn_array.predicted);
-    predicted_leg_base_pub_.publish(leg_grid_->crtsn_array.predicted);
+        leg_grid_->polar2Crtsn(leg_grid_->polar_array.predicted, leg_grid_->crtsn_array.predicted);
+        predicted_leg_base_pub_.publish(leg_grid_->crtsn_array.predicted);
 
-    leg_grid_->polar2Crtsn(leg_grid_->polar_array.past, leg_grid_->crtsn_array.past);
-    last_leg_base_pub_.publish(leg_grid_->crtsn_array.past);
-    /* ******* */
+        leg_grid_->polar2Crtsn(leg_grid_->polar_array.past, leg_grid_->crtsn_array.past);
+        last_leg_base_pub_.publish(leg_grid_->crtsn_array.past);
+        /* ******* */
 
-    leg_grid_->bayesOccupancyFilter();
+        leg_grid_->bayesOccupancyFilter();
 
 
-    //PUBLISH LEG OCCUPANCY GRID
-    occupancyGrid(leg_grid_, &leg_occupancy_grid_);
-    leg_occupancy_grid_.header.stamp = ros::Time::now();
-    legs_grid_pub_.publish(leg_occupancy_grid_);
+        //PUBLISH LEG OCCUPANCY GRID
+        occupancyGrid(leg_grid_, &leg_occupancy_grid_);
+        leg_occupancy_grid_.header.stamp = ros::Time::now();
+        legs_grid_pub_.publish(leg_occupancy_grid_);
+    }
     //---------------------------------------------
 
-    torso_grid_->diff_time = ros::Time::now() - last_time_;;
-    torso_grid_->predict(robot_velocity_);
-    torso_grid_->bayesOccupancyFilter();
+    if(TORSO_DETECTION_ENABLE_)
+    {
+        torso_grid_->diff_time = ros::Time::now() - last_time_;;
+        torso_grid_->predict(robot_velocity_);
+        torso_grid_->bayesOccupancyFilter();
 
-    //PUBLISH TORSO OCCUPANCY GRID
-    occupancyGrid(torso_grid_, &torso_occupancy_grid_);
-    torso_occupancy_grid_.header.stamp = ros::Time::now();
-    torso_grid_pub_.publish(torso_occupancy_grid_);
+        //PUBLISH TORSO OCCUPANCY GRID
+        occupancyGrid(torso_grid_, &torso_occupancy_grid_);
+        torso_occupancy_grid_.header.stamp = ros::Time::now();
+        torso_grid_pub_.publish(torso_occupancy_grid_);
+    }
     //---------------------------------------------
 
-    sound_grid_->diff_time = ros::Time::now() - last_time_;;
-    sound_grid_->predict(robot_velocity_);
-    sound_grid_->bayesOccupancyFilter();
+    if(SOUND_DETECTION_ENABLE_)
+    {
+        sound_grid_->diff_time = ros::Time::now() - last_time_;;
+        sound_grid_->predict(robot_velocity_);
+        sound_grid_->bayesOccupancyFilter();
 
-    //PUBLISH SOUND OCCUPANCY GRID
-    occupancyGrid(sound_grid_, &sound_occupancy_grid_);
-    sound_occupancy_grid_.header.stamp = ros::Time::now();
-    sound_grid_pub_.publish(sound_occupancy_grid_);
+        //PUBLISH SOUND OCCUPANCY GRID
+        occupancyGrid(sound_grid_, &sound_occupancy_grid_);
+        sound_occupancy_grid_.header.stamp = ros::Time::now();
+        sound_grid_pub_.publish(sound_occupancy_grid_);
+    }
 
     //---------------------------------------------
 
+    human_grid_->diff_time = ros::Time::now() - last_time_;
 
-    human_grid_->diff_time = ros::Time::now() - last_time_;;
+    //TODO: Should not depend on three vectors
     human_grid_->fuse(sound_grid_->posterior, leg_grid_->posterior, torso_grid_->posterior,
                       FUSE_MULTIPLY_);
     human_grid_->predict(robot_velocity_); // TODO: FIX THIS

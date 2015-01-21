@@ -8,6 +8,9 @@ class PolarPose
 public:
     double range;
     double angle;
+    double var_range;
+    double var_angle;
+    double cov;
     PolarPose():range(0.0), angle(0.0){;}
     PolarPose(const double r, const double a ):range(r), angle(a){;}
     inline void fromCart(const double x, const double y)

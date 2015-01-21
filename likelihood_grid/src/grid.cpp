@@ -213,9 +213,9 @@ void Grid::bayesOccupancyFilter()
 }
 
 
-void Grid::fuse(const std::vector<double> data_1,
-                         const std::vector<double> data_2,
-                         const std::vector<double> data_3,
+void Grid::fuse(const std::vector<double> &data_1,
+                         const std::vector<double> &data_2,
+                         const std::vector<double> &data_3,
                          bool multiply)
 {
     //TODO: FIX THIS
@@ -237,10 +237,16 @@ void Grid::fuse(const std::vector<double> data_1,
 void Grid::getPose(geometry_msgs::PoseArray& crtsn_array)
 {
     polar_array.current.clear();
+
     PolarPose polar_pose_point;
+
     for(size_t i = 0; i < crtsn_array.poses.size(); i++){
-        polar_pose_point.fromCart(crtsn_array.poses.at(i).position.x, crtsn_array.poses.at(i).position.y);
+
+        polar_pose_point.fromCart(crtsn_array.poses.at(i).position.x,
+                                  crtsn_array.poses.at(i).position.y);
+
         polar_array.current.push_back(polar_pose_point);
+
     }
 }
 
