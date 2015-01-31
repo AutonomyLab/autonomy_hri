@@ -6,7 +6,11 @@ find_package(catkin REQUIRED COMPONENTS
   hark_msgs
   tf
   autonomy_human
+  roscpp
 )
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+
 
 find_package(Boost REQUIRED COMPONENTS
 system
@@ -26,11 +30,17 @@ include_directories(include
   ${Boost_INCLUDE_DIRS}
 )
 
-
-add_executable(likelihood_grid src/likelihood_grid_node.cpp src/likelihood_grid.cpp src/grid.cpp src/leg_grid.cpp src/kalmanfilter.cpp)
+add_executable(likelihood_grid_node  src/likelihood_grid_node.cpp src/likelihood_grid.cpp src/grid.cpp )
+add_executable(leg_grid_node         src/leg_grid_node.cpp src/leg_grid.cpp src/grid.cpp )
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(likelihood_grid
+target_link_libraries(likelihood_grid_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+   ${Boost_LIBRARIES}
+)
+
+target_link_libraries(leg_grid_node
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
    ${Boost_LIBRARIES}
