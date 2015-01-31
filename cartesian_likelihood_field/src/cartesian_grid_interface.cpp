@@ -69,14 +69,16 @@ void CartesianGridInterface::init()
         ros::param::param("~/LikelihoodGrid/leg_angle_min",LEG_DETECTOR_FOV.angle.min, toRadian(-120.0));
         ros::param::param("~/LikelihoodGrid/leg_angle_max",LEG_DETECTOR_FOV.angle.max, toRadian(120.0));
 
-        ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid_->stdev.range, 0.1);
-        ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid_->stdev.angle, 1.0);
+
 
         ros::param::param("~/LikelihoodGrid/leg_human_cell_probability",LEG_CELL_PROBABILITY_.human, 0.95);
         ros::param::param("~/LikelihoodGrid/leg_free_cell_probability",LEG_CELL_PROBABILITY_.free, 0.05);
         ros::param::param("~/LikelihoodGrid/leg_unknown_cell_probability",LEG_CELL_PROBABILITY_.unknown, 0.25);
 
         initLegGrid(LEG_DETECTOR_FOV);
+
+        ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid_->stdev.range, 0.1);
+        ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid_->stdev.angle, 1.0);
 
         legs_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
         predicted_leg_base_pub_ = n_.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
@@ -93,14 +95,15 @@ void CartesianGridInterface::init()
         ros::param::param("~/LikelihoodGrid/torso_angle_min",TORSO_DETECTOR_FOV.angle.min, toRadian(-70.0/2));
         ros::param::param("~/LikelihoodGrid/torso_angle_max",TORSO_DETECTOR_FOV.angle.max, toRadian(70.0/2));
 
-        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid_->stdev.range, 0.2);
-        ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid_->stdev.angle, 1.0);
+
 
         ros::param::param("~/LikelihoodGrid/torso_human_cell_probability",TORSO_CELL_PROBABILITY_.human, 0.95);
         ros::param::param("~/LikelihoodGrid/torso_free_cell_probability",TORSO_CELL_PROBABILITY_.free, 0.05);
         ros::param::param("~/LikelihoodGrid/torso_unknown_cell_probability",TORSO_CELL_PROBABILITY_.unknown, 0.25);
 
         initTorsoGrid(TORSO_DETECTOR_FOV);
+        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid_->stdev.range, 0.2);
+        ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid_->stdev.angle, 1.0);
         torso_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("torso_occupancy_grid",10);
     }
 
@@ -117,10 +120,9 @@ void CartesianGridInterface::init()
         ros::param::param("~/LikelihoodGrid/sound_free_cell_probability",SOUND_CELL_PROBABILITY_.free, 0.05);
         ros::param::param("~/LikelihoodGrid/sound_unknown_cell_probability",SOUND_CELL_PROBABILITY_.unknown, 0.25);
 
+        initSoundGrid(SOUND_DETECTOR_FOV);
         ros::param::param("~/LikelihoodGrid/sound_range_stdev",sound_grid_->stdev.range, 0.5);
         ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid_->stdev.angle, 5.0);
-
-        initSoundGrid(SOUND_DETECTOR_FOV);
         sound_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
     }
 
