@@ -4,37 +4,47 @@
 
 #define _USE_MATH_DEFINES
 
-double normalDistribution(const double x, const double u, const double s)
+float normalDistribution(const float x, const float u, const float s)
 {
     return((1.0/(s*sqrt(2.0 * M_PI)))*exp(- 0.5 * pow(x-u,2)/(s * s)));
 //    return (1.0/sqrt(2.0 * M_PI)) * exp(-0.5*x*x);
 }
 
-double normalize(const double val,const double x_min, const double x_max, const double range_min, const double range_max)
+float pdf2D(float* mean, float* stddev, float* point)
+{
+    float m0 = (point[0] - mean[0]) * (point[0] - mean[0]) / (stddev[0] * stddev[0]);
+    float m1 = (point[1] - mean[1]) * (point[1] - mean[1]) / (stddev[1] * stddev[1]);
+    float m2 = 1 / (2 * M_PI * stddev[0] * stddev[1]);
+
+    return ( m2 * exp( -0.5 * (m0 + m1)) );
+}
+
+float pdf1D(float u, float s, float x)
+{
+    boost::math::normal_distribution<> d(u,s);
+    return boost::math::pdf(d, x);
+}
+
+
+float normalize(const float val,const float x_min, const float x_max, const float range_min, const float range_max)
 {
     ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
     return (range_min + ((range_max - range_min)*(val - x_min) / (x_max - x_min)));
 }
 
-double normalize(const double val,const double x_min, const double x_max)
+float normalize(const float val,const float x_min, const float x_max)
 {
     ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
     return ((val - x_min) / (x_max - x_min));
 }
 
-double maximum(double a, double b, double c)
-{
-    double max = (a >= b) ? a : b;
-    max = (max >= c) ? max : c;
-    return max;
-}
 
-Grid::Grid(uint32_t map_size,
+CGrid::CGrid(uint32_t map_size,
                              SensorFOV_t _sensor_fov,
-                             double_t map_resolution,
+                             float_t map_resolution,
                              CellProbability_t _cell_probability,
-                             double _target_detection_probability,
-                             double _false_positive_probability)
+                             float _target_detection_probability,
+                             float _false_positive_probability)
 {
     ROS_INFO("Constructing an instace of cartesian likelihood grid.");
     ROS_ASSERT(map_size % 2 == 0);
@@ -42,8 +52,8 @@ Grid::Grid(uint32_t map_size,
     map.height = map_size; // DEFAULT 80
     map.width = map_size; // DEFAULT 80
     map.resolution = map_resolution; // DEFAULT 0.25
-    map.origin.position.x = (double) map.height*map.resolution / -2.0;
-    map.origin.position.y = (double) map.width*map.resolution / -2.0;
+    map.origin.position.x = (float) map.height*map.resolution / -2.0;
+    map.origin.position.y = (float) map.width*map.resolution / -2.0;
 
     cell_probability = _cell_probability;
     TARGET_DETECTION_PROBABILITY_ = _target_detection_probability;
@@ -103,6 +113,13 @@ Grid::Grid(uint32_t map_size,
         }
     }
 
+
+    occupancy_grid.info.height = map.height;
+    occupancy_grid.info.width = map.width;
+    occupancy_grid.info.origin = map.origin;
+    occupancy_grid.info.resolution = map.resolution;
+    occupancy_grid.header.frame_id = "base_footprint";
+
     ROS_ASSERT( i == grid_size );
     ROS_ASSERT( temp_cell.cartesian.x > -x_.max );
     ROS_ASSERT( temp_cell.cartesian.y > -y_.max );
@@ -126,43 +143,43 @@ Grid::Grid(uint32_t map_size,
     setOutFOVProbability(predicted_false_likelihood_, cell_probability.unknown);
 }
 
-bool Grid::sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j){
+bool CGrid::sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j){
 return (posterior[i.index] < posterior[j.index]);
 }
 
-void Grid::setOutFOVProbability(std::vector<double> &data, const double val){
+void CGrid::setOutFOVProbability(std::vector<float> &data, const float val){
     for(size_t i = 0; i < grid_size; i++){
         if(!map.cell_inFOV.at(i)) { data[i] = val; }
     }
 }
 
-void Grid::setInFOVProbability(std::vector<double>& data, const double val){
+void CGrid::setInFOVProbability(std::vector<float>& data, const float val){
     for(size_t i = 0; i < grid_size; i++){
         if(map.cell_inFOV.at(i)) { data[i] = val; }
     }
 }
 
-void Grid::computeLikelihood(const std::vector<PolarPose>& pose,
-                            std::vector<double> &_true_likelihood,
-                            std::vector<double> &_false_likelihood)
+void CGrid::computeLikelihood(const std::vector<PolarPose>& pose,
+                            std::vector<float> &_true_likelihood,
+                            std::vector<float> &_false_likelihood)
 {
-//    double range_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, stdev.range);
-//    double angle_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, toRadian(stdev.angle));
+//    float range_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, stdev.range);
+//    float angle_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, toRadian(stdev.angle));
 
     for(size_t i = 0; i < grid_size; i++){
-        double range = map.cell.at(i).polar.range;
-        double angle = map.cell.at(i).polar.angle;
-        double detection_likelihood = cell_probability.unknown;
-        double miss_detection_likelihood = cell_probability.unknown;
+        float range = map.cell.at(i).polar.range;
+        float angle = map.cell.at(i).polar.angle;
+        float detection_likelihood = cell_probability.unknown;
+        float miss_detection_likelihood = cell_probability.unknown;
 
-        double cell_prob = 0.0;
+        float cell_prob = 0.0;
         if(map.cell_inFOV.at(i)){
             if(pose.empty()) miss_detection_likelihood = cell_probability.human; // ?????
 
             else{
                 for(size_t p = 0; p < pose.size(); p++){
-                    double Gr = (pose.at(p).range < 0.01) ? 1.0 : normalDistribution(range, pose.at(p).range, stdev.range);
-                    double Ga = normalDistribution(angle, pose.at(p).angle, toRadian(stdev.angle));
+                    float Gr = (pose.at(p).range < 0.01) ? 1.0 : normalDistribution(range, pose.at(p).range, stdev.range);
+                    float Ga = normalDistribution(angle, pose.at(p).angle, angles::from_degrees(stdev.angle));
                     cell_prob += Gr * Ga;
                 }
                 detection_likelihood = (((cell_prob)/(pose.size()) < cell_probability.free) ? cell_probability.free : (cell_prob)/(pose.size()));
@@ -175,14 +192,14 @@ void Grid::computeLikelihood(const std::vector<PolarPose>& pose,
 }
 
 
-void Grid::updateGridProbability(std::vector<double>& _prior,
-                                          const std::vector<double>& _true_likelihood,
-                                          const std::vector<double>& _false_likelihood,
-                                          std::vector<double>& _posterior)
+void CGrid::updateGridProbability(std::vector<float>& _prior,
+                                          const std::vector<float>& _true_likelihood,
+                                          const std::vector<float>& _false_likelihood,
+                                          std::vector<float>& _posterior)
 {
     // POSTERIOR = TARGET LOCALIZATION PROBABILITY
 
-    double normalizer_factor = 1.0;
+    float normalizer_factor = 1.0;
 
     for(size_t i = 0; i < grid_size; i++){
 
@@ -197,7 +214,57 @@ void Grid::updateGridProbability(std::vector<double>& _prior,
     }
 }
 
-void Grid::bayesOccupancyFilter()
+void CGrid::updateGrid()
+{
+    posterior.assign(grid_size, 0.0);
+
+    for(size_t j = 0; j <  polar_array.predicted.size(); j++)
+    {
+        float sum = 0.0;
+        PolarPose p = polar_array.predicted.at(j);
+        float mean[2] = {p.range, (float) angles::normalize_angle(p.angle)};
+        float stddev[2] = {(float)sqrt(p.var_range), (float)sqrt(p.var_angle)};
+
+        ROS_ASSERT(stddev[0] > 0.0 && stddev[1] > 0);
+
+        std::vector<float> temp_pdf;
+
+        for(size_t i = 0; i < grid_size; i++)
+        {
+            temp_pdf.push_back(0.0);
+            float cell[2] = {map.cell.at(i).polar.range, map.cell.at(i).polar.angle};
+
+            if(true)// TODO: check if cell is in sensor FOV: if cell is not in the sensor FOV set the pdf as zero
+            {
+            //TODO: check if the cell is close to the detected feature
+
+                    float cp0 = pdf1D(mean[0], stddev[0], cell[0]);
+                    float cp1 = pdf1D(mean[1], stddev[1], cell[1]) ;
+
+                    temp_pdf.at(i) = cp0 * cp1;
+
+                    sum += temp_pdf.at(i);
+            }
+        }
+
+        for(size_t i = 0; i < grid_size; i++)
+        {
+            posterior.at(i) = std::max((temp_pdf.at(i) / sum) ,  posterior.at(i));
+        }
+    }
+
+
+    if(!occupancy_grid.data.empty()) {occupancy_grid.data.clear();}
+
+    for(size_t i = 0; i < grid_size; i++)
+    {
+        occupancy_grid.data.push_back( (uint) 100 * posterior.at(i));
+    }
+
+    ROS_ASSERT(occupancy_grid.data.size() == grid_size);
+}
+
+void CGrid::bayesOccupancyFilter()
 {
     // PREDICTION BY MOTION MODEL
     computeLikelihood(polar_array.predicted, predicted_true_likelihood_, predicted_false_likelihood_);
@@ -213,9 +280,9 @@ void Grid::bayesOccupancyFilter()
 }
 
 
-void Grid::fuse(const std::vector<double> &data_1,
-                         const std::vector<double> &data_2,
-                         const std::vector<double> &data_3,
+void CGrid::fuse(const std::vector<float> &data_1,
+                         const std::vector<float> &data_2,
+                         const std::vector<float> &data_3,
                          bool multiply)
 {
     //TODO: FIX THIS
@@ -234,9 +301,9 @@ void Grid::fuse(const std::vector<double> &data_1,
 }
 
 
-void Grid::getPose(geometry_msgs::PoseArray& crtsn_array)
+void CGrid::getPose(geometry_msgs::PoseArray& crtsn_array)
 {
-    polar_array.current.clear();
+    if(!polar_array.current.empty()) polar_array.current.clear();
 
     PolarPose polar_pose_point;
 
@@ -248,16 +315,18 @@ void Grid::getPose(geometry_msgs::PoseArray& crtsn_array)
         polar_array.current.push_back(polar_pose_point);
 
     }
+
+    ROS_ASSERT(polar_array.current.size() == crtsn_array.poses.size());
 }
 
-void Grid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
+void CGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
 {
     polar_array.current.clear();
     PolarPose torso_polar_pose;
 
     geometry_msgs::Point torso_position_in_image;
-    double image_width = 640.0;;
-    double camera_fov = 65.0; // degree
+    float image_width = 640.0;;
+    float camera_fov = 65.0; // degree
     //(2.4,280),(3,250),(4,210),(5,180)
     // 0.0000952381 x^2-0.0696716 x+14.4483
 
@@ -266,18 +335,18 @@ void Grid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
         torso_polar_pose.angle = 2 * M_PI;
 
         torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
-        torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(toRadian(camera_fov/2.0)) * 2.0 / image_width) ;
-        double h = torso_img->detections.at(i).height;
+        torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(angles::from_degrees(camera_fov/2.0)) * 2.0 / image_width) ;
+        float h = torso_img->detections.at(i).height;
 //        torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
         polar_array.current.push_back(torso_polar_pose);
     }
 }
 
-void Grid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
+void CGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
 {
     ros::Duration d = ros::Time::now() - lk_;
     lk_ = ros::Time::now();
-    double angle2;
+    float angle2;
     if(d.toSec() > 1.0 / 10)
         polar_array.current.clear();
     PolarPose sound_src_polar;
@@ -290,17 +359,17 @@ void Grid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
 //            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
 //            sound_src_polar.range = sensor_fov.range.max/2.0;
 
-            sound_src_polar.angle = toRadian(sound_src->src.at(i).azimuth);
+            sound_src_polar.angle = angles::from_degrees(sound_src->src.at(i).azimuth);
             polar_array.current.push_back(sound_src_polar);
             if(sound_src->src.at(i).azimuth >= 0.0)  angle2 = 180.0 - sound_src->src.at(i).azimuth;
             else angle2 = -180.0 - sound_src->src.at(i).azimuth;
-            sound_src_polar.angle = toRadian(angle2);
+            sound_src_polar.angle = angles::from_degrees(angle2);
             polar_array.current.push_back(sound_src_polar);
         }
     }
 }
 
-void Grid::predict(const Velocity_t _robot_velocity)
+void CGrid::predict(const Velocity_t _robot_velocity)
 {
     polar_array.predicted.clear();
     polar_array.predicted = polar_array.past;
@@ -324,17 +393,16 @@ void Grid::predict(const Velocity_t _robot_velocity)
         polar2.fromCart(pose2.x, pose2.y);
         polar_array.predicted.at(p) = polar2;
 
-//        polar_array.predicted.at(p).range = velocity.linear * diff_time.toSec() + polar_array.past.at(p).range;
         polar_array.predicted.at(p).angle = velocity_.angular * diff_time.toSec() + polar_array.past.at(p).angle;
     }
 }
 
-size_t Grid::predictHighestProbability(size_t index)
+size_t CGrid::predictHighestProbability(size_t index)
 {
 
     geometry_msgs::Point pose1, pose2;
     PolarPose polar1, polar2;
-    double x, y;
+    float x, y;
 
 
     polar1.range = map.cell.at(index).polar.range;
@@ -368,7 +436,7 @@ size_t Grid::predictHighestProbability(size_t index)
     else return row + col * map.width;
 }
 
-void Grid::polar2Crtsn(std::vector<PolarPose>& polar_array,
+void CGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,
                  geometry_msgs::PoseArray &crtsn_array)
 {
     geometry_msgs::Pose crtsn_pose;
@@ -377,16 +445,17 @@ void Grid::polar2Crtsn(std::vector<PolarPose>& polar_array,
     crtsn_array.header.stamp = ros::Time::now();
     crtsn_array.poses.clear();
 
-    for(size_t p = 0 ; p < polar_array.size(); p++){
+    for(size_t p = 0 ; p < polar_array.size(); p++)
+    {
         polar_array.at(p).toCart(crtsn_pose.position.x, crtsn_pose.position.y);
         crtsn_pose.position.z = 0.0;
         crtsn_array.poses.push_back(crtsn_pose);
     }
 }
 
-size_t Grid::maxProbCellIndex()
+size_t CGrid::maxProbCellIndex()
 {
-    double max = posterior.at(0);
+    float max = posterior.at(0);
     size_t _cell_index = 0;
 
     for(size_t i = 1; i < grid_size; i++){ _cell_index = (max < posterior.at(i)) ? i : _cell_index;}
@@ -394,7 +463,7 @@ size_t Grid::maxProbCellIndex()
 }
 
 
-void Grid::getLocalMaximas()
+void CGrid::getLocalMaximas()
 {
     new_local_maxima_.clear();
     LocalMaxima_t tmp_new;
@@ -442,7 +511,7 @@ void Grid::getLocalMaximas()
 //                if (new_lm.empty()) new_lm.push_back(tmp_new);
 //                else{
 //                    for(size_t i = 0; i < new_lm.size(); i++){
-//                        double dist = cellsDistance(tmp_new.index, new_lm.at(i).index);
+//                        float dist = cellsDistance(tmp_new.index, new_lm.at(i).index);
 //                        if(dist <= 1.0){
 //                            if(posterior.at(new_lm.at(i).index) <= posterior.at(tmp_new.index)) new_lm.at(i).index = tmp_new.index;
 //                        }else{
@@ -463,7 +532,7 @@ void Grid::getLocalMaximas()
     }
 }
 
-void Grid::trackLocalMaximas()
+void CGrid::trackLocalMaximas()
 {
     LocalMaxima_t tmp_match;
     matched_local_maxima_ = old_local_maxima_;
@@ -476,7 +545,7 @@ void Grid::trackLocalMaximas()
     }
 
     std::vector<bool> find_match(new_local_maxima_.size(),false);
-    double dist_threshold = 2 * map.resolution;
+    float dist_threshold = 2 * map.resolution;
 
     for(size_t i = 0; i < new_local_maxima_.size(); i++){
         for(size_t j = 0; j < old_local_maxima_.size(); j++){
@@ -542,12 +611,12 @@ void Grid::trackLocalMaximas()
     local_maxima_poses.header.stamp = ros::Time::now();
 }
 
-void Grid::trackMaxProbability()
+void CGrid::trackMaxProbability()
 {
     uint8_t loop_rate = 10;
     int8_t counter_threshold = 1 * loop_rate;
-    double dist_threshold = 1.00; //4 * map.resolution;
-    double probability_threshold = (cell_probability.unknown - cell_probability.free) / 3.0;
+    float dist_threshold = 1.00; //4 * map.resolution;
+    float probability_threshold = (cell_probability.unknown - cell_probability.free) / 3.0;
 
 
     //FIND THE CELL WITH MAXIMUM PROBABILITY
@@ -569,12 +638,12 @@ void Grid::trackMaxProbability()
     Velocity_t robot_max_velocity;
     robot_max_velocity.linear = 1.0; //TODO: MAKE THESE PARAMETERS
     robot_max_velocity.angular = 1.0;
-    double range1 = map.cell.at(max_index).polar.range;
-    double range2 = map.cell.at(last_highest_lm_.index).polar.range;
-    double min_range = (range1 + range2) / 2.0;
-    double max_angular_distance = robot_max_velocity.angular * diff_time.toSec() * min_range;
-    double max_linear_distance = robot_max_velocity.linear * diff_time.toSec();
-    double tracking_distance = maximum(dist_threshold, max_linear_distance, max_angular_distance);
+    float range1 = map.cell.at(max_index).polar.range;
+    float range2 = map.cell.at(last_highest_lm_.index).polar.range;
+    float min_range = (range1 + range2) / 2.0;
+    float max_angular_distance = robot_max_velocity.angular * diff_time.toSec() * min_range;
+    float max_linear_distance = robot_max_velocity.linear * diff_time.toSec();
+    float tracking_distance = std::max(dist_threshold, std::max(max_linear_distance, max_angular_distance));
 
     if(cellsDistance(max_index, last_highest_lm_.index) < tracking_distance){
         last_highest_lm_.index = max_index;
@@ -602,7 +671,7 @@ void Grid::trackMaxProbability()
         for(size_t i = 0; i < main_local_maxima_.size(); i++){
 
             size_t lm_index = main_local_maxima_.at(i).index;
-            double temp_dist = cellsDistance(lm_index, predicted_highest_lm);
+            float temp_dist = cellsDistance(lm_index, predicted_highest_lm);
             temp_lm = (temp_dist < tracking_distance) ? lm_index : temp_lm ;
         }
 
@@ -624,22 +693,22 @@ void Grid::trackMaxProbability()
     highest_prob_point.header.stamp = ros::Time::now();
 }
 
-void Grid::updateLocalMaximas()
+void CGrid::updateLocalMaximas()
 {
     getLocalMaximas();
     trackLocalMaximas();
     trackMaxProbability();
 }
 
-double Grid::cellsDistance(size_t c1, size_t c2)
+float CGrid::cellsDistance(size_t c1, size_t c2)
 {
-    double diff_x = map.cell.at(c1).cartesian.x - map.cell.at(c2).cartesian.x;
-    double diff_y = map.cell.at(c1).cartesian.y - map.cell.at(c2).cartesian.y;
+    float diff_x = map.cell.at(c1).cartesian.x - map.cell.at(c2).cartesian.x;
+    float diff_y = map.cell.at(c1).cartesian.y - map.cell.at(c2).cartesian.y;
     return (sqrt(diff_x*diff_x + diff_y*diff_y));
 }
 
 
-Grid::~Grid()
+CGrid::~CGrid()
 {}
 
 

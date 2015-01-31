@@ -1,12 +1,14 @@
 #ifndef LEG_GRID_H
 #define LEG_GRID_H
-#include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/OccupancyGrid.h>
 #include <tf/transform_listener.h>
+#include <sensor_msgs/LaserScan.h>
 #include "grid.h"
-#include "kalmanfilter.h"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/video/tracking.hpp"
 
-class LegGrid
+class CLegGrid
 {
 
 private:
@@ -18,14 +20,11 @@ private:
     Velocity_t leg_velocity_;
     ros::Duration diff_time_;
     ros::Time last_time_;
-    Grid* grid;
-    KalmanFilter* kalman_filter;
-    bool initialized;
-
-    std::vector<PolarPose> current_state;
-    std::vector<PolarPose> current_measurement;
-    std::vector<bool> available_measurement;
-    std::vector<uint8_t> no_measurement;
+    CGrid* grid;
+    cv::KalmanFilter KFTracker;
+    cv::Mat KFmeasurement;
+    std::vector<PolarPose> cstate;
+    std::vector<PolarPose> cmeas;
 
     void init();
     void makeStates();
@@ -36,8 +35,8 @@ private:
 
 public:
 
-    LegGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
-    ~LegGrid();
+    CLegGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
+    ~CLegGrid();
 
     /* TODO: use async callback */
 

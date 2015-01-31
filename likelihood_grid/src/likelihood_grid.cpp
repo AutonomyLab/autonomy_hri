@@ -1,12 +1,12 @@
 #include "likelihood_grid.h"
 
 
-LikelihoodGrid::LikelihoodGrid()
+CLikelihoodGrid::CLikelihoodGrid()
 {
     ROS_INFO("Constructing an instace of LikelihoodGridInterface.");
 }
 
-LikelihoodGrid::LikelihoodGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
+CLikelihoodGrid::CLikelihoodGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
     n_(_n),
     tf_listener_(_tf_listener)
 {
@@ -14,24 +14,24 @@ LikelihoodGrid::LikelihoodGrid(ros::NodeHandle _n, tf::TransformListener *_tf_li
     init();
 }
 
-void LikelihoodGrid::init()
+void CLikelihoodGrid::init()
 {
-    ros::param::param("~/LikelihoodGrid/grid_angle_min",FOV_.angle.min, -M_PI);
-    ros::param::param("~/LikelihoodGrid/grid_angle_max",FOV_.angle.max, M_PI);
+    ros::param::param("~/LikelihoodGrid/grid_angle_min",FOV_.angle.min, (float)-M_PI);
+    ros::param::param("~/LikelihoodGrid/grid_angle_max",FOV_.angle.max, (float) M_PI);
 
-    ros::param::param("~/LikelihoodGrid/grid_range_min",FOV_.range.min, 0.0);
-    ros::param::param("~/LikelihoodGrid/grid_range_max",FOV_.range.max, 20.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_min",FOV_.range.min, (float) 0.0);
+    ros::param::param("~/LikelihoodGrid/grid_range_max",FOV_.range.max, (float) 20.0);
 
-    ros::param::param("~/LikelihoodGrid/resolution",MAP_RESOLUTION_, 0.5);
+    ros::param::param("~/LikelihoodGrid/resolution",MAP_RESOLUTION_, (float) 0.5);
     MAP_SIZE_ = FOV_.range.max * 2 / MAP_RESOLUTION_;
 
-    ros::param::param("~/LikelihoodGrid/update_rate",UPDATE_RATE_, 0.5);
-    ros::param::param("~/LikelihoodGrid/human_cell_probability",CELL_PROBABILITY_.human, 0.95);
-    ros::param::param("~/LikelihoodGrid/free_cell_probability",CELL_PROBABILITY_.free, 0.05);
-    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",CELL_PROBABILITY_.unknown, 0.25);
+    ros::param::param("~/LikelihoodGrid/update_rate",UPDATE_RATE_, (float) 0.5);
+    ros::param::param("~/LikelihoodGrid/human_cell_probability",CELL_PROBABILITY_.human, (float) 0.95);
+    ros::param::param("~/LikelihoodGrid/free_cell_probability",CELL_PROBABILITY_.free, (float) 0.05);
+    ros::param::param("~/LikelihoodGrid/unknown_cell_probability",CELL_PROBABILITY_.unknown, (float) 0.25);
 
-    ros::param::param("~/LikelihoodGrid/target_detection_probability",TARGET_DETETION_PROBABILITY_, 0.9);
-    ros::param::param("~/LikelihoodGrid/false_positive_probability",FALSE_POSITIVE_PROBABILITY_, 0.01);
+    ros::param::param("~/LikelihoodGrid/target_detection_probability",TARGET_DETETION_PROBABILITY_, (float) 0.9);
+    ros::param::param("~/LikelihoodGrid/false_positive_probability",FALSE_POSITIVE_PROBABILITY_, (float) 0.01);
 
     ros::param::param("~/loop_rate",LOOP_RATE_, 10);
     ros::param::param("~/motion_model_enable",MOTION_MODEL_ENABLE_, true);
@@ -50,13 +50,13 @@ void LikelihoodGrid::init()
         FOV_.range.max = 30.0;
         SensorFOV_t PERIODIC_DETECTOR_FOV = FOV_;
         PERIODIC_DETECTOR_FOV.range.min = 10.00;
-        PERIODIC_DETECTOR_FOV.angle.min = toRadian(-65.0/2);
-        PERIODIC_DETECTOR_FOV.angle.max = toRadian(65.0/2);
+        PERIODIC_DETECTOR_FOV.angle.min = angles::from_degrees(-65.0/2);
+        PERIODIC_DETECTOR_FOV.angle.max = angles::from_degrees(65.0/2);
 
         initPeriodicGrid(PERIODIC_DETECTOR_FOV);
 
-        ros::param::param("~/LikelihoodGrid/periodic_range_stdev",periodic_grid_->stdev.range, 1.0);
-        ros::param::param("~/LikelihoodGrid/periodic_angle_stdev",periodic_grid_->stdev.angle, 1.0);
+        ros::param::param("~/LikelihoodGrid/periodic_range_stdev",periodic_grid_->stdev.range, (float) 1.0);
+        ros::param::param("~/LikelihoodGrid/periodic_angle_stdev",periodic_grid_->stdev.angle, (float) 1.0);
         periodic_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("periodic_occupancy_grid",10);
     }
 
@@ -64,20 +64,20 @@ void LikelihoodGrid::init()
 
         SensorFOV_t LEG_DETECTOR_FOV = FOV_;
 
-        ros::param::param("~/LikelihoodGrid/leg_range_min",LEG_DETECTOR_FOV.range.min, 1.0);
-        ros::param::param("~/LikelihoodGrid/leg_range_max",LEG_DETECTOR_FOV.range.max, 10.0);
+        ros::param::param("~/LikelihoodGrid/leg_range_min",LEG_DETECTOR_FOV.range.min, (float) 1.0);
+        ros::param::param("~/LikelihoodGrid/leg_range_max",LEG_DETECTOR_FOV.range.max, (float) 10.0);
 
-        ros::param::param("~/LikelihoodGrid/leg_angle_min",LEG_DETECTOR_FOV.angle.min, toRadian(-120.0));
-        ros::param::param("~/LikelihoodGrid/leg_angle_max",LEG_DETECTOR_FOV.angle.max, toRadian(120.0));
+        ros::param::param("~/LikelihoodGrid/leg_angle_min",LEG_DETECTOR_FOV.angle.min, (float) angles::from_degrees(-120.0));
+        ros::param::param("~/LikelihoodGrid/leg_angle_max",LEG_DETECTOR_FOV.angle.max, (float) angles::from_degrees(120.0));
 
-        ros::param::param("~/LikelihoodGrid/leg_human_cell_probability",LEG_CELL_PROBABILITY_.human, 0.95);
-        ros::param::param("~/LikelihoodGrid/leg_free_cell_probability",LEG_CELL_PROBABILITY_.free, 0.05);
-        ros::param::param("~/LikelihoodGrid/leg_unknown_cell_probability",LEG_CELL_PROBABILITY_.unknown, 0.25);
+        ros::param::param("~/LikelihoodGrid/leg_human_cell_probability",LEG_CELL_PROBABILITY_.human, (float) 0.95);
+        ros::param::param("~/LikelihoodGrid/leg_free_cell_probability",LEG_CELL_PROBABILITY_.free, (float) 0.05);
+        ros::param::param("~/LikelihoodGrid/leg_unknown_cell_probability",LEG_CELL_PROBABILITY_.unknown, (float) 0.25);
 
         initLegGrid(LEG_DETECTOR_FOV);
 
-        ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid_->stdev.range, 0.1);
-        ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid_->stdev.angle, 0.1);
+        ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid_->stdev.range, (float) 0.1);
+        ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid_->stdev.angle, (float) 0.1);
 
         legs_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
         predicted_leg_base_pub_ = n_.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
@@ -88,20 +88,20 @@ void LikelihoodGrid::init()
     if(TORSO_DETECTION_ENABLE_){
         SensorFOV_t TORSO_DETECTOR_FOV = FOV_;
 
-        ros::param::param("~/LikelihoodGrid/torso_range_min",TORSO_DETECTOR_FOV.range.min, 2.0);
-        ros::param::param("~/LikelihoodGrid/torso_range_max",TORSO_DETECTOR_FOV.range.max, 8.0);
+        ros::param::param("~/LikelihoodGrid/torso_range_min",TORSO_DETECTOR_FOV.range.min, (float)2.0);
+        ros::param::param("~/LikelihoodGrid/torso_range_max",TORSO_DETECTOR_FOV.range.max, (float)8.0);
 
-        ros::param::param("~/LikelihoodGrid/torso_angle_min",TORSO_DETECTOR_FOV.angle.min, toRadian(-70.0/2));
-        ros::param::param("~/LikelihoodGrid/torso_angle_max",TORSO_DETECTOR_FOV.angle.max, toRadian(70.0/2));
+        ros::param::param("~/LikelihoodGrid/torso_angle_min",TORSO_DETECTOR_FOV.angle.min, (float)angles::from_degrees(-70.0/2));
+        ros::param::param("~/LikelihoodGrid/torso_angle_max",TORSO_DETECTOR_FOV.angle.max, (float)angles::from_degrees(70.0/2));
 
-        ros::param::param("~/LikelihoodGrid/torso_human_cell_probability",TORSO_CELL_PROBABILITY_.human, 0.95);
-        ros::param::param("~/LikelihoodGrid/torso_free_cell_probability",TORSO_CELL_PROBABILITY_.free, 0.05);
-        ros::param::param("~/LikelihoodGrid/torso_unknown_cell_probability",TORSO_CELL_PROBABILITY_.unknown, 0.25);
+        ros::param::param("~/LikelihoodGrid/torso_human_cell_probability",TORSO_CELL_PROBABILITY_.human, (float)0.95);
+        ros::param::param("~/LikelihoodGrid/torso_free_cell_probability",TORSO_CELL_PROBABILITY_.free, (float)0.05);
+        ros::param::param("~/LikelihoodGrid/torso_unknown_cell_probability",TORSO_CELL_PROBABILITY_.unknown, (float)0.25);
 
         initTorsoGrid(TORSO_DETECTOR_FOV);
 
-        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid_->stdev.range, 0.2);
-        ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid_->stdev.angle, 1.0);
+        ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid_->stdev.range, (float)0.2);
+        ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid_->stdev.angle, (float)1.0);
 
         torso_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("torso_occupancy_grid",10);
     }
@@ -109,20 +109,20 @@ void LikelihoodGrid::init()
     if(SOUND_DETECTION_ENABLE_){
         SensorFOV_t SOUND_DETECTOR_FOV = FOV_;
 
-        ros::param::param("~/LikelihoodGrid/sound_range_min",SOUND_DETECTOR_FOV.range.min, 1.0);
-        ros::param::param("~/LikelihoodGrid/sound_range_max",SOUND_DETECTOR_FOV.range.max, 10.0);
+        ros::param::param("~/LikelihoodGrid/sound_range_min",SOUND_DETECTOR_FOV.range.min, (float)1.0);
+        ros::param::param("~/LikelihoodGrid/sound_range_max",SOUND_DETECTOR_FOV.range.max, (float)10.0);
 
-        ros::param::param("~/LikelihoodGrid/sound_angle_min",SOUND_DETECTOR_FOV.angle.min, toRadian(-90.0));
-        ros::param::param("~/LikelihoodGrid/sound_angle_max",SOUND_DETECTOR_FOV.angle.max, toRadian(90.0));
+        ros::param::param("~/LikelihoodGrid/sound_angle_min",SOUND_DETECTOR_FOV.angle.min, (float)angles::from_degrees(-90.0));
+        ros::param::param("~/LikelihoodGrid/sound_angle_max",SOUND_DETECTOR_FOV.angle.max, (float)angles::from_degrees(90.0));
 
-        ros::param::param("~/LikelihoodGrid/sound_human_cell_probability",SOUND_CELL_PROBABILITY_.human, 0.95);
-        ros::param::param("~/LikelihoodGrid/sound_free_cell_probability",SOUND_CELL_PROBABILITY_.free, 0.05);
-        ros::param::param("~/LikelihoodGrid/sound_unknown_cell_probability",SOUND_CELL_PROBABILITY_.unknown, 0.25);
+        ros::param::param("~/LikelihoodGrid/sound_human_cell_probability",SOUND_CELL_PROBABILITY_.human, (float)0.95);
+        ros::param::param("~/LikelihoodGrid/sound_free_cell_probability",SOUND_CELL_PROBABILITY_.free, (float)0.05);
+        ros::param::param("~/LikelihoodGrid/sound_unknown_cell_probability",SOUND_CELL_PROBABILITY_.unknown, (float)0.25);
 
         initSoundGrid(SOUND_DETECTOR_FOV);
 
-        ros::param::param("~/LikelihoodGrid/sound_range_stdev",sound_grid_->stdev.range, 0.5);
-        ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid_->stdev.angle, 5.0);
+        ros::param::param("~/LikelihoodGrid/sound_range_stdev",sound_grid_->stdev.range, (float) 0.5);
+        ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid_->stdev.angle, (float) 5.0);
 
         sound_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
     }
@@ -142,7 +142,7 @@ void LikelihoodGrid::init()
     }
 }
 
-bool LikelihoodGrid::transformToBase(geometry_msgs::PointStamped& source_point,
+bool CLikelihoodGrid::transformToBase(geometry_msgs::PointStamped& source_point,
                                              geometry_msgs::PointStamped& target_point,
                                              bool debug)
 {
@@ -168,7 +168,7 @@ bool LikelihoodGrid::transformToBase(geometry_msgs::PointStamped& source_point,
     return can_transform;
 }
 
-bool LikelihoodGrid::transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
+bool CLikelihoodGrid::transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
                                              geometry_msgs::PoseArray& target,
                                              bool debug)
 {
@@ -210,12 +210,12 @@ bool LikelihoodGrid::transformToBase(const geometry_msgs::PoseArrayConstPtr& sou
 }
 
 
-void LikelihoodGrid::initLegGrid(SensorFOV_t _FOV)
+void CLikelihoodGrid::initLegGrid(SensorFOV_t _FOV)
 {
 
     try {
 
-        leg_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, LEG_CELL_PROBABILITY_,
+        leg_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, LEG_CELL_PROBABILITY_,
                                       TARGET_DETETION_PROBABILITY_, FALSE_POSITIVE_PROBABILITY_);
 
     } catch (std::bad_alloc& ba){
@@ -224,11 +224,11 @@ void LikelihoodGrid::initLegGrid(SensorFOV_t _FOV)
     }
 }
 
-void LikelihoodGrid::initTorsoGrid(SensorFOV_t _FOV)
+void CLikelihoodGrid::initTorsoGrid(SensorFOV_t _FOV)
 {
     try
     {
-        torso_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, TORSO_CELL_PROBABILITY_,
+        torso_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, TORSO_CELL_PROBABILITY_,
                                        TARGET_DETETION_PROBABILITY_,
                                        FALSE_POSITIVE_PROBABILITY_);
     }
@@ -239,11 +239,11 @@ void LikelihoodGrid::initTorsoGrid(SensorFOV_t _FOV)
 }
 
 
-void LikelihoodGrid::initSoundGrid(SensorFOV_t _FOV)
+void CLikelihoodGrid::initSoundGrid(SensorFOV_t _FOV)
 {
     try
     {
-        sound_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, SOUND_CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
+        sound_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, SOUND_CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
                                        FALSE_POSITIVE_PROBABILITY_);
     }
     catch (std::bad_alloc& ba)
@@ -252,11 +252,11 @@ void LikelihoodGrid::initSoundGrid(SensorFOV_t _FOV)
     }
 }
 
-void LikelihoodGrid::initPeriodicGrid(SensorFOV_t _FOV)
+void CLikelihoodGrid::initPeriodicGrid(SensorFOV_t _FOV)
 {
     try
     {
-        periodic_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
+        periodic_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
                                        FALSE_POSITIVE_PROBABILITY_);
     }
     catch (std::bad_alloc& ba)
@@ -266,11 +266,11 @@ void LikelihoodGrid::initPeriodicGrid(SensorFOV_t _FOV)
 }
 
 
-void LikelihoodGrid::initHumanGrid(SensorFOV_t _FOV)
+void CLikelihoodGrid::initHumanGrid(SensorFOV_t _FOV)
 {
     try
     {
-        human_grid_ = new Grid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_,
+        human_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_,
                                        TARGET_DETETION_PROBABILITY_,
                                        FALSE_POSITIVE_PROBABILITY_);
     }
@@ -280,7 +280,7 @@ void LikelihoodGrid::initHumanGrid(SensorFOV_t _FOV)
     }
 }
 
-void LikelihoodGrid::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
+void CLikelihoodGrid::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg_crtsn,
                                           const nav_msgs::OdometryConstPtr& encoder_msg)
 {
 //    ----------   ENCODER CALLBACK   ----------
@@ -309,26 +309,26 @@ void LikelihoodGrid::syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_ms
     }
 }
 
-void LikelihoodGrid::torsoCallBack(const autonomy_human::raw_detectionsConstPtr &torso_msg)
+void CLikelihoodGrid::torsoCallBack(const autonomy_human::raw_detectionsConstPtr &torso_msg)
 {
     if(TORSO_DETECTION_ENABLE_)
         torso_grid_->getPose(torso_msg);
 }
 
 
-void LikelihoodGrid::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
+void CLikelihoodGrid::soundCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg)
 {
     if(SOUND_DETECTION_ENABLE_)
         sound_grid_->getPose(sound_msg);
 }
 
-void LikelihoodGrid::periodicCallBack(const autonomy_human::raw_detectionsConstPtr &periodic_msg)
+void CLikelihoodGrid::periodicCallBack(const autonomy_human::raw_detectionsConstPtr &periodic_msg)
 {
     if(PERIODIC_GESTURE_DETECTION_ENABLE_)
         periodic_grid_->getPose(periodic_msg);
 }
 
-void LikelihoodGrid::occupancyGrid(Grid* grid, nav_msgs::OccupancyGrid *occupancy_grid)
+void CLikelihoodGrid::occupancyGrid(CGrid* grid, nav_msgs::OccupancyGrid *occupancy_grid)
 {
     if(!occupancy_grid->header.frame_id.size()){
         occupancy_grid->info.height = grid->map.height;
@@ -347,7 +347,7 @@ void LikelihoodGrid::occupancyGrid(Grid* grid, nav_msgs::OccupancyGrid *occupanc
 }
 
 
-void LikelihoodGrid::spin()
+void CLikelihoodGrid::spin()
 {
     if(LEG_DETECTION_ENABLE_){
         leg_grid_->diff_time = ros::Time::now() - last_time_;
@@ -426,7 +426,7 @@ void LikelihoodGrid::spin()
     last_time_ = ros::Time::now();
 }
 
-LikelihoodGrid::~LikelihoodGrid()
+CLikelihoodGrid::~CLikelihoodGrid()
 {
     ROS_INFO("Deconstructing the constructed LikelihoodGridInterface.");
     if(LEG_DETECTION_ENABLE_) delete leg_grid_;
