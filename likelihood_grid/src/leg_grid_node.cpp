@@ -4,7 +4,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
-#include "leg_grid.h"
+#include "cleggrid.h"
 #include <boost/bind.hpp>
 
 #define _USE_MATH_DEFINES

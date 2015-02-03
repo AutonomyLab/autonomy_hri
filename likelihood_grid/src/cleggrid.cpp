@@ -1,9 +1,4 @@
-#include "leg_grid.h"
-
-float pointDistance(geometry_msgs::Point a, geometry_msgs::Point b)
-{
-    return ((float )sqrt( (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y) ));
-}
+#include "cleggrid.h"
 
 CLegGrid::CLegGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
     n_(_n),
@@ -17,7 +12,7 @@ CLegGrid::CLegGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
 void CLegGrid::init()
 {
     float varU[2] = {0.01, (float) angles::from_degrees(1.0)}; // Motion (process) uncertainties
-    float varZ[2] = {0.01,(float)  angles::from_degrees(1.0)}; // Measurement uncertainties
+    float varZ[2] = {0.1,(float)  angles::from_degrees(0.5)}; // Measurement uncertainties
 
     setIdentity(KFTracker.transitionMatrix);
 
@@ -55,8 +50,8 @@ void CLegGrid::init()
     SensorFOV_t sfov;
     sfov.range.max = 10;
     sfov.range.min = 0.5;
-    sfov.angle.max = angles::from_degrees(270.0);
-    sfov.angle.min = angles::from_degrees(-270.0);
+    sfov.angle.max = angles::from_degrees(135.0);
+    sfov.angle.min = angles::from_degrees(-135.0);
 
     try
     {

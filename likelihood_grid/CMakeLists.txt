@@ -31,7 +31,8 @@ include_directories(include
 )
 
 add_executable(likelihood_grid_node  src/likelihood_grid_node.cpp src/likelihood_grid.cpp src/grid.cpp )
-add_executable(leg_grid_node         src/leg_grid_node.cpp src/leg_grid.cpp src/grid.cpp )
+add_executable(leg_grid_node         src/leg_grid_node.cpp src/cleggrid.cpp src/grid.cpp )
+add_executable(sound_grid_node         src/sound_grid_node.cpp src/csoundgrid.cpp src/grid.cpp )
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(likelihood_grid_node
@@ -41,6 +42,12 @@ target_link_libraries(likelihood_grid_node
 )
 
 target_link_libraries(leg_grid_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+   ${Boost_LIBRARIES}
+)
+
+target_link_libraries(sound_grid_node
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
    ${Boost_LIBRARIES}
