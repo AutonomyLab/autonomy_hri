@@ -7,22 +7,55 @@
 float normalDistribution(const float x, const float u, const float s)
 {
     return((1.0/(s*sqrt(2.0 * M_PI)))*exp(- 0.5 * pow(x-u,2)/(s * s)));
-//    return (1.0/sqrt(2.0 * M_PI)) * exp(-0.5*x*x);
-}
-
-float pdf2D(float* mean, float* stddev, float* point)
-{
-    float m0 = (point[0] - mean[0]) * (point[0] - mean[0]) / (stddev[0] * stddev[0]);
-    float m1 = (point[1] - mean[1]) * (point[1] - mean[1]) / (stddev[1] * stddev[1]);
-    float m2 = 1 / (2 * M_PI * stddev[0] * stddev[1]);
-
-    return ( m2 * exp( -0.5 * (m0 + m1)) );
 }
 
 float pdf1D(float u, float s, float x)
 {
     boost::math::normal_distribution<> d(u,s);
     return boost::math::pdf(d, x);
+}
+
+float pmfr(float u, float s, float x, float d)
+{
+    boost::math::normal_distribution<> dist(u,s);
+    float b = x - d/2;
+    float t = x + d/2;
+    float pmf;
+
+    if(b < 0)
+    {
+        pmf = boost::math::cdf(dist, t);
+    }
+    else if(t > 10.0) //TODO: make upper threshhold a param
+    {
+        pmf = boost::math::cdf(boost::math::complement(dist,t));
+    }
+    else
+    {
+        pmf = (boost::math::cdf(dist, t) - boost::math::cdf(dist, b));
+    }
+    return pmf;
+}
+
+float pmfa(float u, float s, float x, float d)
+{
+    boost::math::normal_distribution<> dist(u,s);
+    float b = x - d/2;
+    float t = x + d/2;
+    float pmf;
+    if(b < angles::from_degrees(-180.0))
+    {
+        pmf = boost::math::cdf(dist, t) ;
+    }
+    else if(t > angles::from_degrees(180.0)) //TODO: make upper threshhold a param
+    {
+        pmf = boost::math::cdf(boost::math::complement(dist,t));
+    }
+    else
+    {
+        pmf = (boost::math::cdf(dist, t) - boost::math::cdf(dist, b));
+    }
+    return pmf;
 }
 
 
@@ -36,6 +69,11 @@ float normalize(const float val,const float x_min, const float x_max)
 {
     ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
     return ((val - x_min) / (x_max - x_min));
+}
+
+float pointDistance(geometry_msgs::Point a, geometry_msgs::Point b)
+{
+    return ((float )sqrt( (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y) ));
 }
 
 
@@ -238,19 +276,24 @@ void CGrid::updateGrid()
             {
             //TODO: check if the cell is close to the detected feature
 
-                    float cp0 = pdf1D(mean[0], stddev[0], cell[0]);
-                    float cp1 = pdf1D(mean[1], stddev[1], cell[1]) ;
+//                    float cp0 = pdf1D(mean[0], stddev[0], cell[0]);
+//                    float cp1 = pdf1D(mean[1], stddev[1], cell[1]) ;
 
-                    temp_pdf.at(i) = cp0 * cp1;
+//                    temp_pdf.at(i) = cp0 * cp1;
 
-                    sum += temp_pdf.at(i);
+//                    sum += temp_pdf.at(i);
+                float cp0 = pmfr(mean[0], stddev[0], cell[0], sqrt(2.0) * map.resolution);
+                float cp1 = pmfa(mean[1], stddev[1], cell[1], 2.0 * atan2(sqrt(2.0) * map.resolution/2,cell[0]));
+                temp_pdf.at(i) = cp0 * cp1;
+                posterior.at(i) += temp_pdf.at(i);
             }
         }
 
-        for(size_t i = 0; i < grid_size; i++)
-        {
-            posterior.at(i) = std::max((temp_pdf.at(i) / sum) ,  posterior.at(i));
-        }
+        sum = 1;
+//        for(size_t i = 0; i < grid_size; i++)
+//        {
+//            posterior.at(i) = std::max((temp_pdf.at(i) / sum) ,  posterior.at(i));
+//        }
     }
 
 
@@ -355,11 +398,10 @@ void CGrid::getPose(const hark_msgs::HarkSourceConstPtr& sound_src)
         sound_src_polar.range = -1.0;
         sound_src_polar.angle = 2 * M_PI;
 
-        if(fabs(sound_src->src.at(i).y) > 1e-9 && sound_src->src.at(i).power > 28.0){
-//            sound_src_polar.range = sqrt(pow(sound_src->src[i].x*2,2) + pow(sound_src->src[i].y*2,2));
-//            sound_src_polar.range = sensor_fov.range.max/2.0;
-
+        if(fabs(sound_src->src.at(i).y) > 1e-9 && sound_src->src.at(i).power > 28.0)
+        {
             sound_src_polar.angle = angles::from_degrees(sound_src->src.at(i).azimuth);
+
             polar_array.current.push_back(sound_src_polar);
             if(sound_src->src.at(i).azimuth >= 0.0)  angle2 = 180.0 - sound_src->src.at(i).azimuth;
             else angle2 = -180.0 - sound_src->src.at(i).azimuth;

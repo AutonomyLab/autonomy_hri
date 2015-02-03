@@ -20,10 +20,9 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include "polarcord.h"
 
-float pdf2D(float* mean, float* stddev, float* point);
-
-
 float normalize(const float val, const float x_min, const float x_max, const float range_min, const float range_max);
+
+float pointDistance(geometry_msgs::Point a, geometry_msgs::Point b);
 
 struct FOV_t{
     float min;
