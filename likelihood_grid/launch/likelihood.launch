@@ -7,6 +7,8 @@
 <arg name="bayesian" value="false"/>
 <arg name="leg_node" value="false"/>
 <arg name="sound_node" value="true"/>
+<arg name="vision_node" value="true"/>
+
 
 <group if="$(arg bayesian)">
     <node pkg="likelihood_grid" type="likelihood_grid_node" name="likelihood_grid_node" output="screen">
@@ -93,10 +95,14 @@
 
 <group if="$(arg sound_node)">
         <node pkg="likelihood_grid" type="sound_grid_node" name="sound_grid_node" output="screen" >
-                    <remap from="/sound" to="HarkSource" />
+        <remap from="sound" to="HarkSource" />
         </node>
+</group>
 
-
+<group if="$(arg vision_node)">
+        <node pkg="likelihood_grid" type="vision_grid_node" name="vision_grid_node" output="screen" >
+        <remap from="torso" to="person_detection/people" />
+        </node>
 </group>
 
 <group if="$(arg leg_detection)">
