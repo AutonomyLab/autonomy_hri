@@ -24,11 +24,11 @@ float pmfr(float u, float s, float x, float d)
 
     if(b < 0)
     {
-        pmf = boost::math::cdf(dist, t);
+        pmf = boost::math::cdf(dist, x);
     }
     else if(t > 10.0) //TODO: make upper threshhold a param
     {
-        pmf = boost::math::cdf(boost::math::complement(dist,t));
+        pmf = boost::math::cdf(boost::math::complement(dist,x));
     }
     else
     {
@@ -45,11 +45,11 @@ float pmfa(float u, float s, float x, float d)
     float pmf;
     if(b < angles::from_degrees(-180.0))
     {
-        pmf = boost::math::cdf(dist, t) ;
+        pmf = boost::math::cdf(dist, x) ;
     }
     else if(t > angles::from_degrees(180.0)) //TODO: make upper threshhold a param
     {
-        pmf = boost::math::cdf(boost::math::complement(dist,t));
+        pmf = boost::math::cdf(boost::math::complement(dist,x));
     }
     else
     {
@@ -276,24 +276,19 @@ void CGrid::updateGrid()
             {
             //TODO: check if the cell is close to the detected feature
 
-//                    float cp0 = pdf1D(mean[0], stddev[0], cell[0]);
-//                    float cp1 = pdf1D(mean[1], stddev[1], cell[1]) ;
-
-//                    temp_pdf.at(i) = cp0 * cp1;
-
-//                    sum += temp_pdf.at(i);
                 float cp0 = pmfr(mean[0], stddev[0], cell[0], sqrt(2.0) * map.resolution);
+
                 float cp1 = pmfa(mean[1], stddev[1], cell[1], 2.0 * atan2(sqrt(2.0) * map.resolution/2,cell[0]));
                 temp_pdf.at(i) = cp0 * cp1;
-                posterior.at(i) += temp_pdf.at(i);
+                sum += temp_pdf.at(i);
             }
         }
 
-        sum = 1;
-//        for(size_t i = 0; i < grid_size; i++)
-//        {
+        for(size_t i = 0; i < grid_size; i++)
+        {
 //            posterior.at(i) = std::max((temp_pdf.at(i) / sum) ,  posterior.at(i));
-//        }
+            posterior.at(i) += temp_pdf.at(i) / sum;
+        }
     }
 
 

@@ -5,7 +5,8 @@
 <arg name="sound_detection" value="true" />
 <arg name="gesture_detection" value="false" />
 <arg name="bayesian" value="false"/>
-<arg name="leg_node" value="true"/>
+<arg name="leg_node" value="false"/>
+<arg name="sound_node" value="true"/>
 
 <group if="$(arg bayesian)">
     <node pkg="likelihood_grid" type="likelihood_grid_node" name="likelihood_grid_node" output="screen">
@@ -88,6 +89,14 @@
 
 <group if="$(arg leg_node)">
         <node pkg="likelihood_grid" type="leg_grid_node" name="leg_grid_node" output="screen" />
+</group>
+
+<group if="$(arg sound_node)">
+        <node pkg="likelihood_grid" type="sound_grid_node" name="sound_grid_node" output="screen" >
+                    <remap from="/sound" to="HarkSource" />
+        </node>
+
+
 </group>
 
 <group if="$(arg leg_detection)">
