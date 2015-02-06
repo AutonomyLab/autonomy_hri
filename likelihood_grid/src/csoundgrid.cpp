@@ -1,5 +1,7 @@
 #include "csoundgrid.h"
 
+#define DEBUG false
+
 CSoundGrid::CSoundGrid()
 {
 }
@@ -8,7 +10,7 @@ CSoundGrid::CSoundGrid()
 CSoundGrid::CSoundGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
     n_(_n),
     tf_listener_(_tf_listener),
-    KFTracker(2, 2, 2)
+    KFTracker_(2, 2, 2)
 {
     ROS_INFO("Constructing an instance of Sound Grid.");
     init();
@@ -16,27 +18,39 @@ CSoundGrid::CSoundGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
 
 void CSoundGrid::init()
 {
-    float varU[2] = {0.1, (float) angles::from_degrees(0.1)}; // Motion (process) uncertainties
-    float varZ[2] = {400.0,(float)  angles::from_degrees(0.1)}; // Measurement uncertainties
+    last_heard_sound_ = ros::Time::now() - ros::Duration(1000.0);
+    last_time_ = ros::Time::now() - ros::Duration(1000.0);
 
-    setIdentity(KFTracker.transitionMatrix);
+    initKF();
+    initTfListener();
+    initGrid();
 
-    KFTracker.processNoiseCov = *(cv::Mat_<float>(2, 2) << varU[0], 0.0,  0.0, varU[1]);
-    KFTracker.measurementNoiseCov = *(cv::Mat_<float>(2,2) << varZ[0], 0.0,   0.0, varZ[1]);
+    grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("sound_grid",10);
+    prob_pub_ = n_.advertise<geometry_msgs::PoseArray>("sound_probability", 10);
+}
 
-    setIdentity(KFTracker.measurementMatrix);
-    setIdentity(KFTracker.controlMatrix);
-    setIdentity(KFTracker.errorCovPre, cv::Scalar::all(0.1));
-    setIdentity(KFTracker.errorCovPost, cv::Scalar::all(0.0));
-    setIdentity(KFTracker.gain, cv::Scalar::all(0.0));
 
-    KFTracker.statePre.at<float>(0, 0) = 0.0;
-    KFTracker.statePre.at<float>(1, 0) = 0.0;
+void CSoundGrid::initKF()
+{
+    float varU[2] = {7.0, (float) angles::from_degrees(1.0)}; // Motion (process) uncertainties
+    float varZ[2] = {7.0, (float) angles::from_degrees(1.0)}; // Measurement uncertainties
 
-    /*
-     * TODO: The uncertainty of range and angle should be a function of range
-     */
 
+    KFTracker_.processNoiseCov = *(cv::Mat_<float>(2, 2) << varU[0], 0.0,  0.0, varU[1]);
+    KFTracker_.measurementNoiseCov = *(cv::Mat_<float>(2,2) << varZ[0], 0.0,   0.0, varZ[1]);
+    KFTracker_.statePre = *(cv::Mat_<float>(2,1) << 0.0, 0.0);
+
+    setIdentity(KFTracker_.measurementMatrix);
+    setIdentity(KFTracker_.controlMatrix);
+    setIdentity(KFTracker_.transitionMatrix);
+    setIdentity(KFTracker_.errorCovPre, cv::Scalar::all(0.1));
+    setIdentity(KFTracker_.errorCovPost, cv::Scalar::all(0.0));
+    setIdentity(KFTracker_.gain, cv::Scalar::all(0.0));
+}
+
+
+void CSoundGrid::initTfListener()
+{
     try
     {
         tf_listener_ = new tf::TransformListener();
@@ -45,8 +59,11 @@ void CSoundGrid::init()
     {
       std::cerr << "In Sound Grid Interface Constructor: bad_alloc caught: " << ba.what() << '\n';
     }
+}
 
 
+void CSoundGrid::initGrid()
+{
     CellProbability_t cp;
     cp.free = 0.1;
     cp.human = 0.9;
@@ -60,52 +77,120 @@ void CSoundGrid::init()
 
     try
     {
-        grid = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1);
+        grid_ = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1);
     } catch (std::bad_alloc& ba)
     {
         std::cerr << "In new SoundGrid: bad_alloc caught: " << ba.what() << '\n';
     }
 
-//    predicted_sound_pub_ = n_.advertise<hark_msgs::HarkSource>("predicted_sound",10);
-    sound_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("sound_grid",10);
+    prob_.poses.resize(grid_->grid_size);
 
-
+    for(size_t i = 0; i < grid_->grid_size; i++)
+    {
+        prob_.poses.at(i).position.x = grid_->map.cell.at(i).cartesian.x;
+        prob_.poses.at(i).position.y = grid_->map.cell.at(i).cartesian.y;
+        prob_.poses.at(i).position.z = 0.0;
+    }
 }
+
+
+void CSoundGrid::callbackClear()
+{
+    if(!grid_->polar_array.current.empty())
+        grid_->polar_array.current.clear();
+
+    if(!ss_reading_.empty())
+        ss_reading_.clear();
+}
+
+
+void CSoundGrid::rejectNotValidSoundSources(float p)
+{
+
+    for(size_t i = 0; i < ss_reading_.size(); i++)
+    {
+        if(fabs(ss_reading_.at(i).y) < 1e-9 || ss_reading_.at(i).power < p)
+            ss_reading_.erase(ss_reading_.begin() + i);
+        ROS_INFO_COND(DEBUG,"Rejecting not valid sound sources.");
+    }
+}
+
+
 
 void CSoundGrid::syncCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg,
                               const nav_msgs::OdometryConstPtr &encoder_msg)
 {
-    ROS_INFO("Recieved sound source");
-    ros::Time now = ros::Time::now(); // for calculating the sound source movement
-    if(!grid->polar_array.current.empty()) grid->polar_array.current.clear();
+    ROS_INFO_COND(DEBUG,"Received encoder and sound source msgs");
+    callbackClear();
 
-    float mirror_angle;
+    /**** ENCODER ****/
 
-    PolarPose sound_src_polar;
+    ros::Time now = ros::Time::now();
+    encoder_reading_.twist = encoder_msg->twist;
+    computeObjectVelocity();
 
-    for(size_t i = 0; i < sound_msg->src.size(); i++){
-        sound_src_polar.range = 6.0;
-        sound_src_polar.angle = angles::from_degrees(sound_msg->src.at(i).azimuth);
-        sound_src_polar.angle = angles::normalize_angle(sound_src_polar.angle);
-        ROS_INFO("Sound source direction: %f", sound_src_polar.angle);
+    diff_time_ = now - last_time_;
+    last_time_ = now;
 
-        /* Reject not valid sound sources*/
-        if(fabs(sound_msg->src.at(i).y) > 1e-9 && sound_msg->src.at(i).power > 28.0) //TODO make sound source power a param
-        {
-            grid->polar_array.current.push_back(sound_src_polar);
+    /**** SOUND ****/
 
-            mirror_angle = (sound_msg->src.at(i).azimuth >= 0.0) * 180.0 - sound_msg->src.at(i).azimuth;
-//            if(sound_src->src.at(i).azimuth >= 0.0)  mirror_angle = 180.0 - sound_src->src.at(i).azimuth;
-//            else mirror_angle = -180.0 - sound_src->src.at(i).azimuth;
-            mirror_angle = angles::from_degrees(mirror_angle);
-            mirror_angle = angles::normalize_angle(mirror_angle);
-            sound_src_polar.angle = mirror_angle;
-//            grid->polar_array.current.push_back(sound_src_polar);
-        }
+    ros::Duration d = now - last_heard_sound_;
+    ss_reading_.assign(sound_msg->src.begin(), sound_msg->src.end());
+    rejectNotValidSoundSources(25.0);
+
+    if(sound_msg->src.empty())
+    {
+        if(d.toSec() < 5.0 )
+            keepLastSound();
+        return;
     }
 
-//    grid->getPose(sound_msg);
+    else
+    {
+        last_heard_sound_ = now;
+        addSoundSource();
+    }
+}
 
+
+void CSoundGrid::addSoundSource()
+{
+    polar_ss_.range = 6.0;
+
+    for(size_t i = 0; i < ss_reading_.size(); i++)
+    {
+        polar_ss_.angle = angles::from_degrees(ss_reading_.at(i).azimuth);
+        grid_->polar_array.current.push_back(polar_ss_);
+
+        ROS_INFO_COND(DEBUG,"Sound source direction: %f", polar_ss_.angle);
+
+//        addMirrorSoundSource();
+    }
+}
+
+
+void CSoundGrid::addMirrorSoundSource()
+{
+    int8_t sign = (polar_ss_.angle >= 0.0) ? 1 : -1;
+    polar_ss_.angle = (sign * M_PI) - polar_ss_.angle;
+    grid_->polar_array.current.push_back(polar_ss_);
+    ROS_INFO_COND(DEBUG,"Sound source direction: %f", polar_ss_.angle);
+}
+
+
+void CSoundGrid::keepLastSound()
+{
+    if(!grid_->polar_array.past.empty())
+    {
+        ROS_INFO_COND(DEBUG, "Keeping last heard sound source.");
+        grid_->polar_array.current.assign(grid_->polar_array.past.begin(),
+                                         grid_->polar_array.past.end());
+    }
+}
+
+
+void CSoundGrid::computeObjectVelocity()
+{
     /*
      * For predicting the human target, we assume that robot is stationary
      * and human is moving with the robot's opposite direction.
@@ -113,61 +198,59 @@ void CSoundGrid::syncCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg,
      *  has set as detected legs's velocity
      */
 
-    sound_velocity_.linear = - sqrt( pow(encoder_msg->twist.twist.linear.x,2) + pow(encoder_msg->twist.twist.linear.y,2) );
-    sound_velocity_.angular = - encoder_msg->twist.twist.angular.z;
-
-    diff_time_ = now - last_time_;
-    last_time_ = now;
+    velocity_.linear = - sqrt( pow(encoder_reading_.twist.twist.linear.x,2) + pow(encoder_reading_.twist.twist.linear.y,2) );
+    velocity_.angular = - encoder_reading_.twist.twist.angular.z;
 }
+
 
 void CSoundGrid::makeStates()
 {
-
     /*
      * measurement = recieved leg detector data
      * control command = leg velocity (-robot velocity)
      * last state = last estimated state
      */
 
-//    ROS_WARN("size of new leg msgs: %lu", grid->polar_array.current.size());
-
-    std::vector<PolarPose> lstate(grid->polar_array.past);
-    std::vector<PolarPose> meas;
-
+    clearStates();
+    ROS_WARN("size of new sound msgs: %lu", grid_->polar_array.current.size());
 
     if(diff_time_.toSec() < 2.0)
     {
-//        ROS_INFO("Kept sound source active");
-        meas.assign(grid->polar_array.current.begin(), grid->polar_array.current.end());
-        if(!grid->polar_array.current.empty()) grid->polar_array.current.clear();
+        meas_.assign(grid_->polar_array.current.begin(), grid_->polar_array.current.end());
+        if(!grid_->polar_array.current.empty()) grid_->polar_array.current.clear();
     }
 
-    std::vector<bool> match_meas(meas.size(), false);
-    if(!cmeas.empty()) cmeas.clear();
-    if(!cstate.empty()) cstate.clear();
+    match_meas_.resize(meas_.size(), false);
+
+    addLastStates();
+    addMeasurements();
+    filterStates();
+
+    ROS_ASSERT(cmeas_.size() == cstate_.size());
+}
+
+
+
+void CSoundGrid::addLastStates()
+{
 
     /*
-     *
      * Go through last states. If there is a close measurement (match) for last state,
      * pass that as its measurement i.e. we use nearest neighbour for data association
      * If there is no match, set a zero measurement for that state. This will increase
      * the uncertainity of that state during time. If the uncertainity is more than a
      * threshhold, we remove that state.
-     *
      */
-
-    /* Go through all of last tracked states*/
+    std::vector<PolarPose> lstate(grid_->polar_array.past);
     for(size_t i = 0; i < lstate.size(); i++)
     {
         std::vector<std::vector<float>::const_iterator> it(lstate.size());
+        cstate_.push_back(lstate.at(i));
 
-        /* Add last state to the current state */
-        cstate.push_back(lstate.at(i));
-
-        if(meas.empty())
+        if(meas_.empty())
         {
             PolarPose z(-1.0, -1.0);
-            cmeas.push_back(z); /* Only for matching number of current states with current measurements*/
+            cmeas_.push_back(z);
         }
 
         /* Look for the closest current measurement to the last state*/
@@ -175,75 +258,95 @@ void CSoundGrid::makeStates()
         {
             std::vector<float> dist;
 
-            for(size_t j = 0 ; j < meas.size(); j++)
+            for(size_t j = 0 ; j < meas_.size(); j++)
             {
-                dist.push_back(lstate.at(i).distance(meas.at(j)));
+                dist.push_back((lstate.at(i).angle - meas_.at(j).angle));
             }
 
             it.at(i) = (std::min_element(dist.begin(), dist.end()));
 
             uint8_t it2 = it.at(i) - dist.begin();
 
-            if(*it.at(i) < 1.0)
+            if(*it.at(i) < angles::from_degrees(30.0))
             {
-                cmeas.push_back(meas.at(it2));
-                match_meas.at(it2) = true;
+                cmeas_.push_back(meas_.at(it2));
+                match_meas_.at(it2) = true;
             }
             else
             {
                 PolarPose z(-1.0, -1.0);
-                cmeas.push_back(z);
+                cmeas_.push_back(z);
             }
         }
     }
 
     /* number of current measurements and current states and last states
        should be the same at this level*/
-    ROS_ASSERT(cmeas.size() == cstate.size());
-    ROS_ASSERT(cstate.size() == lstate.size());
 
+    ROS_ASSERT(cmeas_.size() == cstate_.size());
+    ROS_ASSERT(cstate_.size() == lstate.size());
+
+}
+
+
+
+void CSoundGrid::clearStates()
+{
+    if(!meas_.empty()) meas_.clear();
+    if(!cmeas_.empty()) cmeas_.clear();
+    if(!cstate_.empty()) cstate_.clear();
+}
+
+
+
+void CSoundGrid::addMeasurements()
+{
     /* Go through measurements, if it is not already matched with a state, add it to current
      * measurement. corresponding current state will be the same as current measurement with
        zero variances.*/
-    for (size_t i = 0; i < meas.size(); i++)
+
+    for (size_t i = 0; i < meas_.size(); i++)
     {
-        if(!match_meas.at(i))
+        if(!match_meas_.at(i))
         {
-            cmeas.push_back(meas.at(i));
-            meas.at(i).setZeroVar();
-            cstate.push_back(meas.at(i));
+            cmeas_.push_back(meas_.at(i));
+            meas_.at(i).setZeroVar();
+            cstate_.push_back(meas_.at(i));
         }
     }
 
-    ROS_ASSERT(cmeas.size() == cstate.size());
+    ROS_ASSERT(cmeas_.size() == cstate_.size());
+}
 
-    /****/
+
+void CSoundGrid::filterStates()
+{
     std::vector<PolarPose> fstate, fmeas;
     PolarPose nstate, s1, s2, nmeas, m1, m2;
 
     /* check for close states */
-    if(cstate.size() < 2)
+    if(cstate_.size() < 2)
     {
-        fstate = cstate;
-        fmeas = cmeas;
+        fstate = cstate_;
+        fmeas = cmeas_;
     }
     else
     {
         if(!fstate.empty()) fstate.clear();
-        fstate.push_back(cstate.at(0));
+        fstate.push_back(cstate_.at(0));
 
         if(!fmeas.empty()) fmeas.clear();
-        fmeas.push_back(cmeas.at(0));
+        fmeas.push_back(cmeas_.at(0));
 
-        for(uint8_t i = 1; i < cstate.size(); i++)
+        for(uint8_t i = 1; i < cstate_.size(); i++)
         {
-            s1 = cstate.at(i);
+            s1 = cstate_.at(i);
             s2 = fstate.back();
 
-            m1 = cmeas.at(i);
+            m1 = cmeas_.at(i);
             m2 = fmeas.back();
 
-            if(s1.distance(s2) < 1.0)
+            if(fabs(s1.angle - s2.angle) < angles::from_degrees(30.0))
             {
                 fstate.pop_back();
                 nstate.range = (s1.range + s2.range) / 2;
@@ -264,97 +367,120 @@ void CSoundGrid::makeStates()
         }
     }
 
-    if(!cstate.empty()) cstate.clear();
-    cstate = fstate;
+    if(!cstate_.empty()) cstate_.clear();
+    cstate_ = fstate;
 
-    if(!cmeas.empty()) cmeas.clear();
-    cmeas = fmeas;
-    ROS_ASSERT(cmeas.size() == cstate.size());
+    if(!cmeas_.empty()) cmeas_.clear();
+    cmeas_ = fmeas;
+}
+
+void CSoundGrid::publishProbability()
+{
+    for(size_t i = 0; i < grid_->grid_size; i++)
+    {
+        prob_.poses.at(i).position.z = grid_->posterior.at(i);
+    }
+
+    if(prob_pub_.getNumSubscribers() > 0)
+        prob_pub_.publish(prob_);
+}
+
+void CSoundGrid::publishOccupancyGrid()
+{
+    if(grid_pub_.getNumSubscribers() > 0)
+        grid_pub_.publish(grid_->occupancy_grid);
 }
 
 
 void CSoundGrid::spin()
 {
-    if(!grid->polar_array.predicted.empty()) grid->polar_array.predicted.clear();
+    if(!grid_->polar_array.predicted.empty()) grid_->polar_array.predicted.clear();
 
-    ROS_INFO("--- spin ---");
+    ROS_INFO_COND(DEBUG,"--- spin ---");
 
     makeStates();
+    updateKF();
+    grid_->updateGrid(18);
+    publishProbability();
+    publishOccupancyGrid();
 
+}
+
+void CSoundGrid::updateKF()
+{
     PolarPose x;
 
-    for(uint8_t i = 0; i < cstate.size(); i++){
+    cv::Mat statePast = *(cv::Mat_<float>(2, 1) << 0.0, 0.0);
 
-        //TODO: Add these matrises to the kalman filter class
-        cv::Mat statePast = *(cv::Mat_<float>(2, 1) << cstate.at(i).range,
-                              angles::normalize_angle(cstate.at(i).angle));
+    cv::Mat errorCovPast = *(cv::Mat_<float>(2, 2) << 1e-3, 0.0,0.0, 1e-3);
 
-        cv::Mat errorCovPast = *(cv::Mat_<float>(2, 2) << cstate.at(i).var_range, 0.0,
-                                 0.0, cstate.at(i).var_angle);
+    cv::Mat control = *(cv::Mat_<float>(2, 1) << 0.0, 0.0);
 
-        cv::Mat control = *(cv::Mat_<float>(2, 1) << sound_velocity_.linear * diff_time_.toSec(),
-                              sound_velocity_.angular * diff_time_.toSec());
+    for(uint8_t i = 0; i < cstate_.size(); i++){
+
+        statePast.at<float>(0,0) = cstate_.at(i).range;
+        statePast.at<float>(1,0) = angles::normalize_angle(cstate_.at(i).angle);
+
+        errorCovPast.at<float>(0,0) = cstate_.at(i).var_range;
+        errorCovPast.at<float>(1,1)= cstate_.at(i).var_angle;
+
+        control.at<float>(0,0) = velocity_.linear * diff_time_.toSec();
+        control.at<float>(1,0) = velocity_.angular * diff_time_.toSec();
 
         /*** Prediction ***/
-        KFTracker.statePre = statePast + control;
-        KFTracker.errorCovPre = errorCovPast + KFTracker.processNoiseCov;
+        KFTracker_.statePre = statePast + control;
+        KFTracker_.errorCovPre = errorCovPast + KFTracker_.processNoiseCov;
 
 
         /*** Correction ***/
-        if(cmeas.at(i).range > 0.0)
+        if(cmeas_.at(i).range > 0.0)
         {
-            KFmeasurement = *(cv::Mat_<float>(2, 1) << cmeas.at(i).range,
-                              (float) angles::normalize_angle(cmeas.at(i).angle));
+            KFmeasurement_ = *(cv::Mat_<float>(2, 1) << cmeas_.at(i).range,
+                              (float) angles::normalize_angle(cmeas_.at(i).angle));
 
             cv::Mat temp1 =  *(cv::Mat_<float>(2, 2) << 0.0, 0.0, 0.0, 0.0);
             cv::Mat temp2 =  *(cv::Mat_<float>(2, 2) << 1.0, 0.0, 0.0, 1.0);
 
-            temp1 = (KFTracker.measurementMatrix * KFTracker.errorCovPre * KFTracker.measurementMatrix.t()) +
-                    KFTracker.measurementNoiseCov;
+            temp1 = (KFTracker_.measurementMatrix * KFTracker_.errorCovPre * KFTracker_.measurementMatrix.t()) +
+                    KFTracker_.measurementNoiseCov;
 
-            KFTracker.gain = KFTracker.errorCovPre * KFTracker.measurementMatrix.t() * temp1.inv();
+            KFTracker_.gain = KFTracker_.errorCovPre * KFTracker_.measurementMatrix.t() * temp1.inv();
 
-            KFTracker.statePost = KFTracker.statePre + KFTracker.gain *
-                    (KFmeasurement - KFTracker.measurementMatrix * KFTracker.statePre);
+            KFTracker_.statePost = KFTracker_.statePre + KFTracker_.gain *
+                    (KFmeasurement_ - KFTracker_.measurementMatrix * KFTracker_.statePre);
 
-            KFTracker.errorCovPost = (temp2 - (KFTracker.gain * KFTracker.measurementMatrix)) * KFTracker.errorCovPre;
+            KFTracker_.errorCovPost = (temp2 - (KFTracker_.gain * KFTracker_.measurementMatrix)) * KFTracker_.errorCovPre;
         }
 
         else
         {
-            KFTracker.statePost = KFTracker.statePre;
-            KFTracker.errorCovPost = KFTracker.errorCovPre;
+            KFTracker_.statePost = KFTracker_.statePre;
+            KFTracker_.errorCovPost = KFTracker_.errorCovPre;
         }
 
-        x.range = KFTracker.statePost.at<float>(0, 0);
-        x.angle = KFTracker.statePost.at<float>(1, 0);
+        x.range = KFTracker_.statePost.at<float>(0, 0);
+        x.angle = KFTracker_.statePost.at<float>(1, 0);
 
-        x.var_range = KFTracker.errorCovPost.at<float>(0, 0);
-        x.var_angle = KFTracker.errorCovPost.at<float>(1, 1);
+        x.var_range = KFTracker_.errorCovPost.at<float>(0, 0);
+        x.var_angle = KFTracker_.errorCovPost.at<float>(1, 1);
 
         ROS_ASSERT(x.var_range > 0.0 && x.var_angle > 0.0);
 
-        if(x.var_angle < (float) angles::from_degrees(5.0) && x.var_range < 20.0)
+        if(fabs(x.angle + M_PI) < 1e-2) x.angle = fabs(x.angle);
+
+        if(x.var_angle < (float) angles::from_degrees(5.0) && x.var_range < 35.0)
         {
-            grid->polar_array.predicted.push_back(x);
+            ROS_INFO_COND(DEBUG, "Checking the variance: angle: %f range: %f",
+                          x.var_angle, x.var_range);
+            grid_->polar_array.predicted.push_back(x);
         }
     }
-
-    if(!grid->polar_array.past.empty()) grid->polar_array.past.clear();
-    grid->polar_array.past = grid->polar_array.predicted;
-
-    grid->updateGrid();
-
-    /*** publish predicted legs and occupancy grid ***/
-//    grid->polar2Crtsn(grid->polar_array.predicted, grid->crtsn_array.predicted);
-//    predicted_sound_pub_.publish(grid->crtsn_array.predicted);
-    sound_grid_pub_.publish(grid->occupancy_grid);
-
 }
+
 
 CSoundGrid::~CSoundGrid()
 {
     ROS_INFO("Deconstructing the constructed SoundGrid.");
-    delete grid;
+    delete grid_;
     delete tf_listener_;
 }

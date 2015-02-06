@@ -1,17 +1,18 @@
 <launch>
 <arg name="use_encoder" value="true" />
-<arg name="leg_detection" value="false" />
-<arg name="torso_detection" value="true" />
-<arg name="sound_detection" value="true" />
+<arg name="leg_detection" value="true" />
+<arg name="torso_detection" value="false" />
+<arg name="sound_detection" value="false" />
 <arg name="gesture_detection" value="false" />
 <arg name="bayesian" value="false"/>
-<arg name="leg_node" value="false"/>
+<arg name="leg_node" value="true"/>
 <arg name="sound_node" value="true"/>
 <arg name="vision_node" value="true"/>
+<arg name="human_node" value="true"/>
 
 
 <group if="$(arg bayesian)">
-    <node pkg="likelihood_grid" type="likelihood_grid_node" name="likelihood_grid_node" output="screen">
+    <node pkg="likelihood_grid" type="likelihood_grid_node" name="likelihood_grid_node" output="screen" >
 
             <param name="use_sim_time" value="true" />
             <param name="LikelihoodGrid/resolution" value="0.25"/>
@@ -95,13 +96,21 @@
 
 <group if="$(arg sound_node)">
         <node pkg="likelihood_grid" type="sound_grid_node" name="sound_grid_node" output="screen" >
-        <remap from="sound" to="HarkSource" />
+            <remap from="sound" to="HarkSource" />
         </node>
 </group>
 
 <group if="$(arg vision_node)">
         <node pkg="likelihood_grid" type="vision_grid_node" name="vision_grid_node" output="screen" >
-        <remap from="torso" to="person_detection/people" />
+            <remap from="torso" to="person_detection/people" />
+        </node>
+</group>
+
+<group if="$(arg human_node)">
+        <node pkg="likelihood_grid" type="human_grid_node" name="human_grid_node" output="screen">
+            <param name="leg_enable" value="$(arg leg_node)"/>
+            <param name="torso_enable" value="$(arg vision_node)"/>
+            <param name="sound_enable" value="$(arg sound_node)"/>
         </node>
 </group>
 

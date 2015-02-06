@@ -9,26 +9,54 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/video/tracking.hpp>
 #include <hark_msgs/HarkSource.h>
+#include <std_msgs/Float32MultiArray.h>
 
 class CSoundGrid
 {
-public:
+private:
 
     ros::NodeHandle n_;
     tf::TransformListener* tf_listener_;
-    ros::Publisher sound_grid_pub_;
-//    ros::Publisher predicted_sound_pub_;
-    Velocity_t sound_velocity_;
+    ros::Publisher grid_pub_;
+    ros::Publisher prob_pub_;
+    Velocity_t velocity_;
     ros::Duration diff_time_;
     ros::Time last_time_;
-    CGrid* grid;
-    cv::KalmanFilter KFTracker;
-    cv::Mat KFmeasurement;
-    std::vector<PolarPose> cstate;
-    std::vector<PolarPose> cmeas;
+    ros::Time last_heard_sound_;
+    CGrid* grid_;
+    cv::KalmanFilter KFTracker_;
+    cv::Mat KFmeasurement_;
+    std::vector<PolarPose> cstate_;
+    std::vector<PolarPose> cmeas_;
+    nav_msgs::Odometry encoder_reading_;
+    std::vector<hark_msgs::HarkSourceVal> ss_reading_;
+    PolarPose polar_ss_;
+    std::vector<PolarPose> meas_;
+    std::vector<bool> match_meas_;
+    geometry_msgs::PoseArray prob_;
 
     void init();
+    void initKF();
+    void initGrid();
+    void initTfListener();
+
+    void callbackClear();
+    void computeObjectVelocity();
+    void rejectNotValidSoundSources(float p);
+    void addMirrorSoundSource();
+    void addSoundSource();
+    void keepLastSound();
+
     void makeStates();
+    void addLastStates();
+    void clearStates();
+    void addMeasurements();
+    void filterStates();
+
+    void updateKF();
+    void publishProbability();
+    void publishOccupancyGrid();
+    void passStates();
 
 
 public:

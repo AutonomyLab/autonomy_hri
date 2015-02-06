@@ -36,6 +36,8 @@ add_executable(sound_grid_node         src/sound_grid_node.cpp src/csoundgrid.cp
 
 add_executable(vision_grid_node         src/vision_grid_node.cpp src/cvisiongrid.cpp src/grid.cpp )
 
+add_executable(human_grid_node  src/human_grid_node.cpp src/chumangrid.cpp src/grid.cpp)
+
 ## Specify libraries to link a library or executable target against
 target_link_libraries(likelihood_grid_node
    ${catkin_LIBRARIES}
@@ -56,6 +58,12 @@ target_link_libraries(sound_grid_node
 )
 
 target_link_libraries(vision_grid_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+   ${Boost_LIBRARIES}
+)
+
+target_link_libraries(human_grid_node
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
    ${Boost_LIBRARIES}

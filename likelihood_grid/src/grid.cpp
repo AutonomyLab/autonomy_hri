@@ -15,7 +15,7 @@ float pdf1D(float u, float s, float x)
     return boost::math::pdf(d, x);
 }
 
-float pmfr(float u, float s, float x, float d)
+float CGrid::pmfr(float u, float s, float x, float d)
 {
     boost::math::normal_distribution<> dist(u,s);
     float b = x - d/2;
@@ -26,7 +26,7 @@ float pmfr(float u, float s, float x, float d)
     {
         pmf = boost::math::cdf(dist, x);
     }
-    else if(t > 10.0) //TODO: make upper threshhold a param
+    else if(t >  sensor_fov.range.max * sqrt(2.0)) //TODO: make upper threshhold a param
     {
         pmf = boost::math::cdf(boost::math::complement(dist,x));
     }
@@ -37,17 +37,17 @@ float pmfr(float u, float s, float x, float d)
     return pmf;
 }
 
-float pmfa(float u, float s, float x, float d)
+float CGrid::pmfa(float u, float s, float x, float d)
 {
     boost::math::normal_distribution<> dist(u,s);
     float b = x - d/2;
     float t = x + d/2;
     float pmf;
-    if(b < angles::from_degrees(-180.0))
+    if(b < -M_PI)
     {
         pmf = boost::math::cdf(dist, x) ;
     }
-    else if(t > angles::from_degrees(180.0)) //TODO: make upper threshhold a param
+    else if(t > M_PI) //TODO: make upper threshhold a param
     {
         pmf = boost::math::cdf(boost::math::complement(dist,x));
     }
@@ -100,8 +100,8 @@ CGrid::CGrid(uint32_t map_size,
     grid_size = map.height * map.width; // DEFAULT 6400
     sensor_fov = _sensor_fov;
 
-    x_.max = map.height * map.resolution / 2;
-    y_.max = map.width * map.resolution / 2;
+    x_.max = map.height * map.resolution / 2.0;
+    y_.max = map.width * map.resolution / 2.0;
     x_.min = -x_.max;
     y_.min = -y_.max;
 
@@ -252,14 +252,20 @@ void CGrid::updateGridProbability(std::vector<float>& _prior,
     }
 }
 
-void CGrid::updateGrid()
+void CGrid::updateGrid(int score)
 {
+    if(!polar_array.past.empty()) polar_array.past.clear();
+    polar_array.past = polar_array.predicted;
+
     posterior.assign(grid_size, 0.0);
+
+    float sum, cp0, cp1;
+    PolarPose p;
 
     for(size_t j = 0; j <  polar_array.predicted.size(); j++)
     {
-        float sum = 0.0;
-        PolarPose p = polar_array.predicted.at(j);
+        sum = 0.0;
+        p = polar_array.predicted.at(j);
         float mean[2] = {p.range, (float) angles::normalize_angle(p.angle)};
         float stddev[2] = {(float)sqrt(p.var_range), (float)sqrt(p.var_angle)};
 
@@ -276,9 +282,16 @@ void CGrid::updateGrid()
             {
             //TODO: check if the cell is close to the detected feature
 
-                float cp0 = pmfr(mean[0], stddev[0], cell[0], sqrt(2.0) * map.resolution);
+                if(mean[0] > 20.0)
+                {
+                    cp0 = 1.0;
+                }
+                else
+                {
+                    cp0 = pmfr(mean[0], stddev[0], cell[0], sqrt(2.0) * map.resolution);
+                }
 
-                float cp1 = pmfa(mean[1], stddev[1], cell[1], 2.0 * atan2(sqrt(2.0) * map.resolution/2,cell[0]));
+                cp1 = pmfa(mean[1], stddev[1], cell[1], 2.0 * atan2(sqrt(2.0) * map.resolution/2,cell[0]));
                 temp_pdf.at(i) = cp0 * cp1;
                 sum += temp_pdf.at(i);
             }
@@ -296,7 +309,7 @@ void CGrid::updateGrid()
 
     for(size_t i = 0; i < grid_size; i++)
     {
-        occupancy_grid.data.push_back( (uint) 100 * posterior.at(i));
+        occupancy_grid.data.push_back( (uint) 100 * score * posterior.at(i));
     }
 
     ROS_ASSERT(occupancy_grid.data.size() == grid_size);
@@ -369,13 +382,13 @@ void CGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
     // 0.0000952381 x^2-0.0696716 x+14.4483
 
     for(size_t i = 0; i < torso_img->detections.size(); i++){
-        torso_polar_pose.range = -1.0;
+        torso_polar_pose.range = 100.0;
         torso_polar_pose.angle = 2 * M_PI;
 
         torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
         torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(angles::from_degrees(camera_fov/2.0)) * 2.0 / image_width) ;
         float h = torso_img->detections.at(i).height;
-//        torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
+        torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
         polar_array.current.push_back(torso_polar_pose);
     }
 }

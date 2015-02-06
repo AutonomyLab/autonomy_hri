@@ -121,6 +121,9 @@ private:
     void getLocalMaximas();
     void trackLocalMaximas();
     bool sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j);
+    float pmfr(float u, float s, float x, float d);
+    float pmfa(float u, float s, float x, float d);
+
 
 public:
     MapMetaData_t map;
@@ -164,7 +167,7 @@ public:
                      geometry_msgs::PoseArray &crtsn_array);
     void updateLocalMaximas();
     void trackMaxProbability();
-    void updateGrid();
+    void updateGrid(int score);
 
 };
 
