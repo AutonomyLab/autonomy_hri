@@ -121,14 +121,14 @@ void CLegGrid::syncCallBack(const geometry_msgs::PoseArrayConstPtr &leg_msg,
      * Transform detected legs from laser frame to base_footprint frame
      */
 
-    if(!transformToBase(leg_msg, tmp_legs, false)){
+//    if(!transformToBase(leg_msg, tmp_legs, false)){
+    if(false){
 
         ROS_WARN("Can not transform from laser to base_footprint");
 
     } else{
 
-        /* Make Sure that all of detected legs are transformed and stored in grid Cartesian array. */
-            tmp_legs.poses = leg_msg->poses;
+            tmp_legs.poses = leg_msg->poses; //TODO: remove this for real experiment with robot
 
         ROS_ASSERT(leg_msg->poses.size() == tmp_legs.poses.size());
 
@@ -229,8 +229,11 @@ bool CLegGrid::transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
 
 void CLegGrid::clearStates()
 {
+    if(!meas_.empty()) meas_.clear();
     if(!cmeas_.empty()) cmeas_.clear();
     if(!cstate_.empty()) cstate_.clear();
+    if(!match_meas_.empty()) match_meas_.clear();
+
 }
 
 void CLegGrid::addLastStates()
@@ -389,6 +392,7 @@ void CLegGrid::makeStates()
     }
 
     match_meas_.resize(meas_.size(), false);
+
     addLastStates();
     addMeasurements();
     filterStates();
