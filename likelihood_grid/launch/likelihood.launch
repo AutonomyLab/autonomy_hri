@@ -1,6 +1,6 @@
 <launch>
 <arg name="use_encoder" value="true" />
-<arg name="leg_detection" value="true" />
+<arg name="leg_detection" value="false" />
 <arg name="torso_detection" value="false" />
 <arg name="sound_detection" value="false" />
 <arg name="gesture_detection" value="false" />
@@ -9,7 +9,7 @@
 <arg name="sound_node" value="true"/>
 <arg name="vision_node" value="true"/>
 <arg name="human_node" value="true"/>
-
+<arg name="test" value="true"/>
 
 <group if="$(arg bayesian)">
     <node pkg="likelihood_grid" type="likelihood_grid_node" name="likelihood_grid_node" output="screen" >
@@ -111,6 +111,10 @@
             <param name="leg_enable" value="$(arg leg_node)"/>
             <param name="torso_enable" value="$(arg vision_node)"/>
             <param name="sound_enable" value="$(arg sound_node)"/>
+            <param name="leg_weight" value="1"/>
+            <param name="sound_weight" value="1"/>
+            <param name="torso_weight" value="1"/>
+
         </node>
 </group>
 
@@ -122,4 +126,8 @@
     <include file="$(find autonomy_human)/launch/torso_detection.launch"/>
 </group>
 -->
+
+<group if="$(arg test)">
+    <node pkg="likelihood_grid" type="test_node" name="test_node"/>
+</group>
 </launch>

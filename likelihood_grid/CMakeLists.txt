@@ -7,11 +7,18 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   autonomy_human
   roscpp
+  dynamic_reconfigure
+  rospy
 )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
+#add dynamic reconfigure api
+generate_dynamic_reconfigure_options(
+  cfg/Test.cfg
+)
 
+# make sure configure headers are built before any node using them
 find_package(Boost REQUIRED COMPONENTS
 system
 )
@@ -37,6 +44,9 @@ add_executable(sound_grid_node         src/sound_grid_node.cpp src/csoundgrid.cp
 add_executable(vision_grid_node         src/vision_grid_node.cpp src/cvisiongrid.cpp src/grid.cpp )
 
 add_executable(human_grid_node  src/human_grid_node.cpp src/chumangrid.cpp src/grid.cpp)
+add_executable(test_node src/test.cpp )
+add_dependencies(test_node ${PROJECT_NAME}_gencfg)
+
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(likelihood_grid_node
@@ -68,4 +78,12 @@ target_link_libraries(human_grid_node
    ${OpenCV_LIBRARIES}
    ${Boost_LIBRARIES}
 )
+
+target_link_libraries(test_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+   ${Boost_LIBRARIES}
+)
+
+
 
