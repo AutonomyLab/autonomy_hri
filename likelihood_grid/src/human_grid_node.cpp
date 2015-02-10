@@ -21,10 +21,10 @@ int main(int argc, char** argv)
     ros::param::param("leg_weight", human_grid.leg_weight, 1);
 
 //    ros::param::param("sound_node", get_sound_grid, true);
-    ros::param::param("sound_weight", human_grid.sound_weight, 10);
+    ros::param::param("sound_weight", human_grid.sound_weight, 1);
 
 //    ros::param::param("torsi_node", get_torso_grid, true);
-    ros::param::param("torso_weight", human_grid.torso_weight, 5);
+    ros::param::param("torso_weight", human_grid.torso_weight, 1);
 
 
         ros::Subscriber leg_grid_sub = n.subscribe("leg_probability", 10,
