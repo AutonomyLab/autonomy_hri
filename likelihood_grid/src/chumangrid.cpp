@@ -14,6 +14,9 @@ void CHumanGrid::init()
 {
     human_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("human_grid", 10);
     highest_point_pub_ = n_.advertise<geometry_msgs::PointStamped>("highest_probability_point", 10) ;
+    local_maxima_pub_ = n_.advertise<geometry_msgs::PoseArray>("local_maxima",10);
+
+    initGrid();
     leg_prob_.poses.resize(1600); //TODO: FIX THIS
     sound_prob_.poses.resize(1600);
     torso_prob_.poses.resize(1600);
@@ -23,6 +26,37 @@ void CHumanGrid::init()
     occupancy_grid_.info.origin.position.y = (float) 40 * 0.5 / -2.0;
     occupancy_grid_.header.frame_id = "base_footprint";
     hp_.header.frame_id = "base_footprint";
+}
+
+void CHumanGrid::initGrid()
+{
+    CellProbability_t cp;
+    cp.free = 0.1;
+    cp.human = 0.9;
+    cp.unknown = 0.5;
+
+    SensorFOV_t sfov;
+    sfov.range.max = 10.0;
+    sfov.range.min = 0.0;
+    sfov.angle.max = angles::from_degrees(180.0);
+    sfov.angle.min = angles::from_degrees(-180.0);
+
+    try
+    {
+        grid_ = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1);
+    }
+    catch (std::bad_alloc& ba)
+    {
+        std::cerr << "In new human Grid: bad_alloc caught: " << ba.what() << '\n';
+    }
+    prob_.poses.resize(grid_->grid_size);
+
+    for(size_t i = 0; i < grid_->grid_size; i++)
+    {
+        prob_.poses.at(i).position.x = grid_->map.cell.at(i).cartesian.x;
+        prob_.poses.at(i).position.y = grid_->map.cell.at(i).cartesian.y;
+        prob_.poses.at(i).position.z = 0.0;
+    }
 }
 
 void CHumanGrid::legCallBack(const geometry_msgs::PoseArrayConstPtr &msg)
@@ -71,22 +105,26 @@ void CHumanGrid::torsoCallBack(const geometry_msgs::PoseArrayConstPtr &msg)
 void CHumanGrid::average()
 {
 
-    human_prob_.poses.resize(leg_prob_.poses.size());
-    occupancy_grid_.data.resize(leg_prob_.poses.size(), 0.0);
+    if(!prob_.poses.empty()) prob_.poses.clear();
+    prob_.poses.resize(grid_->grid_size);
+
+    if(!occupancy_grid_.data.empty()) occupancy_grid_.data.clear();
+    occupancy_grid_.data.resize(grid_->grid_size, 0.0);
 
     float num = 0.0;
     float denum = lw_ + tw_ + sw_; //
 
     std::vector<float> temp;
-    temp.resize(human_prob_.poses.size());
+    temp.resize(prob_.poses.size());
 
-    for(size_t i = 0; i < leg_prob_.poses.size(); i++)
+    for(size_t i = 0; i < grid_->grid_size; i++)
     {
         num =   lw_ * leg_prob_.poses.at(i).position.z +
                 sw_ * sound_prob_.poses.at(i).position.z +
                 tw_ * torso_prob_.poses.at(i).position.z;
 
-        human_prob_.poses.at(i).position.z = num/denum;
+        prob_.poses.at(i).position.z = num/denum;
+        grid_->posterior.at(i) = num/denum;
         temp.at(i) = num/denum;
         occupancy_grid_.data.at(i) = (int) 1000 * (num / denum);
     }
@@ -96,11 +134,18 @@ void CHumanGrid::average()
 
     hp_.header.stamp = ros::Time::now();
     hp_.point = leg_prob_.poses.at(it - temp.begin()).position;
-    hp_.point.z = human_prob_.poses.at(it - temp.begin()).position.z;
+    hp_.point.z = prob_.poses.at(it - temp.begin()).position.z;
 
     highest_point_pub_.publish(hp_);
+
+    grid_->updateLocalMaximas();
+    grid_->local_maxima_poses.header.stamp = ros::Time::now();
+    grid_->local_maxima_poses.header.frame_id = "base_footprint";
+    local_maxima_pub_.publish(grid_->local_maxima_poses);
 }
 
 CHumanGrid::~CHumanGrid()
 {
+    ROS_INFO("Deconstructing the constructed Human Grid.");
+    delete grid_;
 }

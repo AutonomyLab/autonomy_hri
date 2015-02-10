@@ -12,11 +12,12 @@ private:
     ros::NodeHandle n_;
     ros::Publisher human_grid_pub_;
     ros::Publisher highest_point_pub_;
+    ros::Publisher local_maxima_pub_;
 
     geometry_msgs::PoseArray leg_prob_;
     geometry_msgs::PoseArray sound_prob_;
     geometry_msgs::PoseArray torso_prob_;
-    geometry_msgs::PoseArray human_prob_;
+    geometry_msgs::PoseArray prob_;
 
     float lw_;
     float sw_;
@@ -25,8 +26,10 @@ private:
     nav_msgs::OccupancyGrid occupancy_grid_;
     geometry_msgs::PointStamped hp_;
 
+    CGrid* grid_;
 
     void init();
+    void initGrid();
 
 public:
     int leg_weight;
