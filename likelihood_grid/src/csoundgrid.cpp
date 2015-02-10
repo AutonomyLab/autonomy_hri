@@ -295,6 +295,8 @@ void CSoundGrid::clearStates()
     if(!meas_.empty()) meas_.clear();
     if(!cmeas_.empty()) cmeas_.clear();
     if(!cstate_.empty()) cstate_.clear();
+    if(!match_meas_.empty()) match_meas_.clear();
+
 }
 
 
@@ -468,7 +470,8 @@ void CSoundGrid::updateKF()
 
         if(fabs(x.angle + M_PI) < 1e-2) x.angle = fabs(x.angle);
 
-        if(x.var_angle < (float) angles::from_degrees(5.0) && x.var_range < 35.0)
+        if(x.var_angle < (float) angles::from_degrees(5.0) &&
+                x.var_range < 35.0)
         {
             ROS_INFO_COND(DEBUG, "Checking the variance: angle: %f range: %f",
                           x.var_angle, x.var_range);
