@@ -18,8 +18,8 @@ CVisionGrid::CVisionGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener
 
 void CVisionGrid::initKF()
 {
-    float varU[2] = {0.1, (float) angles::from_degrees(0.1)}; // Motion (process) uncertainties
-    float varZ[2] = {2.0,(float)  angles::from_degrees(1.0)}; // Measurement uncertainties
+    float varU[2] = {2.0, (float) angles::from_degrees(2.0)}; // Motion (process) uncertainties
+    float varZ[2] = {2.0,(float)  angles::from_degrees(2.0)}; // Measurement uncertainties
 
 
     KFTracker_.processNoiseCov = *(cv::Mat_<float>(2, 2) << varU[0], 0.0,  0.0, varU[1]);
@@ -195,6 +195,8 @@ void CVisionGrid::clearStates()
     if(!meas_.empty()) meas_.clear();
     if(!cmeas_.empty()) cmeas_.clear();
     if(!cstate_.empty()) cstate_.clear();
+    if(!match_meas_.empty()) match_meas_.clear();
+
 }
 
 void CVisionGrid::addMeasurements()
@@ -302,7 +304,7 @@ void CVisionGrid::publishProbability()
 {
     for(size_t i = 0; i < grid_->grid_size; i++)
     {
-        prob_.poses.at(i).position.z = grid_->posterior.at(0);
+        prob_.poses.at(i).position.z = grid_->posterior.at(i);
     }
 
     if(prob_pub_.getNumSubscribers() > 0)
@@ -394,10 +396,12 @@ void CVisionGrid::updateKF()
 
         if(fabs(x.angle + M_PI) < 1e-2) x.angle = fabs(x.angle);
 
-        if(x.var_angle < (float) angles::from_degrees(10.0) && x.var_range < 2.0)
+        if(x.var_angle < (float) angles::from_degrees(5.0) &&
+                x.var_range < 5.0)
         {
             grid_->polar_array.predicted.push_back(x);
         }
+
     }
 
     passStates();
