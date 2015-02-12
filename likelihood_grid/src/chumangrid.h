@@ -4,6 +4,7 @@
 #include<nav_msgs/OccupancyGrid.h>
 #include<geometry_msgs/PointStamped.h>
 #include<std_msgs/Float32MultiArray.h>
+#include<std_msgs/UInt8MultiArray.h>
 #include"grid.h"
 
 class CHumanGrid
@@ -23,6 +24,10 @@ private:
     float sw_;
     float tw_;
 
+    float leg_max;
+    float sound_max;
+    float torso_max;
+
     nav_msgs::OccupancyGrid occupancy_grid_;
     geometry_msgs::PointStamped hp_;
 
@@ -32,9 +37,9 @@ private:
     void initGrid();
 
 public:
-    int leg_weight;
-    int sound_weight;
-    int torso_weight;
+    float leg_weight;
+    float sound_weight;
+    float torso_weight;
     CHumanGrid();
     CHumanGrid(ros::NodeHandle n);
     void average();
@@ -42,6 +47,7 @@ public:
     void legCallBack(const geometry_msgs::PoseArrayConstPtr& msg);
     void soundCallBack(const geometry_msgs::PoseArrayConstPtr &msg);
     void torsoCallBack(const geometry_msgs::PoseArrayConstPtr& msg);
+    void weightsCallBack(const std_msgs::Float32MultiArrayConstPtr& msg);
     ~CHumanGrid();
 };
 
