@@ -302,9 +302,12 @@ void CVisionGrid::makeStates()
 
 void CVisionGrid::publishProbability()
 {
+    float max = -1000;
+
     for(size_t i = 0; i < grid_->grid_size; i++)
     {
         prob_.poses.at(i).position.z = grid_->posterior.at(i);
+        max = std::max(grid_->posterior.at(i), max);
     }
 
     if(prob_pub_.getNumSubscribers() > 0)

@@ -155,7 +155,7 @@ void CSoundGrid::syncCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg,
 
 void CSoundGrid::addSoundSource()
 {
-    polar_ss_.range = 6.0;
+    polar_ss_.range = 26.0;
 
     for(size_t i = 0; i < ss_reading_.size(); i++)
     {
@@ -378,9 +378,12 @@ void CSoundGrid::filterStates()
 
 void CSoundGrid::publishProbability()
 {
+    float max = -1000;
+
     for(size_t i = 0; i < grid_->grid_size; i++)
     {
         prob_.poses.at(i).position.z = grid_->posterior.at(i);
+        max = std::max(grid_->posterior.at(i), max);
     }
 
     if(prob_pub_.getNumSubscribers() > 0)
@@ -402,7 +405,7 @@ void CSoundGrid::spin()
 
     makeStates();
     updateKF();
-    grid_->updateGrid(18);
+    grid_->updateGrid(50);
     publishProbability();
     publishOccupancyGrid();
 
