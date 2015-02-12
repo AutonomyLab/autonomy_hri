@@ -5,62 +5,69 @@
 #include <nav_msgs/Odometry.h>
 #include <autonomy_human/raw_detections.h>
 #include <hark_msgs/HarkSource.h>
+#include <std_msgs/Float32MultiArray.h>
 
 geometry_msgs::PoseArray legs;
 nav_msgs::Odometry encoder;
 autonomy_human::raw_detections torso;
 hark_msgs::HarkSource sound;
+std_msgs::Float32MultiArray weights;
+
 
 bool show_sound;
 
 void callback(likelihood_grid::TestConfig &config, uint32_t level) {
 
-  if(!legs.poses.empty()) legs.poses.clear();
-  if(!torso.detections.empty()) torso.detections.clear();
-  if(!sound.src.empty()) sound.src.clear();
+    if(!legs.poses.empty()) legs.poses.clear();
+    if(!torso.detections.empty()) torso.detections.clear();
+    if(!sound.src.empty()) sound.src.clear();
+    if(!weights.data.empty()) weights.data.clear();
 
-  geometry_msgs::Pose l;
-  sensor_msgs::RegionOfInterest d;
-  hark_msgs::HarkSourceVal s;
+    geometry_msgs::Pose l;
+    sensor_msgs::RegionOfInterest d;
+    hark_msgs::HarkSourceVal s;
 
-  if(config.show_leg1)
-  {
-      l.position.x = config.leg1_x;
-      l.position.y = config.leg1_y;
-      legs.poses.push_back(l);
-  }
+    if(config.show_leg1)
+    {
+        l.position.x = config.leg1_x;
+        l.position.y = config.leg1_y;
+        legs.poses.push_back(l);
+    }
 
-  if(config.show_leg2)
-  {
-      l.position.x = config.leg2_x;
-      l.position.y = config.leg2_y;
-      legs.poses.push_back(l);
-  }
+    if(config.show_leg2)
+    {
+        l.position.x = config.leg2_x;
+        l.position.y = config.leg2_y;
+        legs.poses.push_back(l);
+    }
 
-  if(config.show_leg3)
-  {
-      l.position.x = config.leg3_x;
-      l.position.y = config.leg3_y;
-      legs.poses.push_back(l);
-  }
+    if(config.show_leg3)
+    {
+        l.position.x = config.leg3_x;
+        l.position.y = config.leg3_y;
+        legs.poses.push_back(l);
+    }
 
-   if(config.show_torso)
-  {
-      d.height = config.torso_height;
-      d.width = config.torso_width;
-      d.x_offset = config.torso_x;
-      d.y_offset = config.torso_y;
-      torso.detections.push_back(d);
-  }
+    if(config.show_torso)
+    {
+        d.height = config.torso_height;
+        d.width = config.torso_width;
+        d.x_offset = config.torso_x;
+        d.y_offset = config.torso_y;
+        torso.detections.push_back(d);
+    }
 
+    if(config.show_sound)
+    {
+        s.azimuth = config.sound_dir;
+        s.power = config.sound_pwr;
+        s.y = config.sound_y;
+        sound.src.push_back(s);
+    }
 
-  if(config.show_sound)
-  {
-      s.azimuth = config.sound_dir;
-      s.power = config.sound_pwr;
-      s.y = config.sound_y;
-      sound.src.push_back(s);
-  }
+    weights.data.push_back(config.leg_weight);
+    weights.data.push_back(config.sound_weight);
+    weights.data.push_back(config.torso_weight);
 
 }
 
@@ -81,7 +88,7 @@ int main(int argc, char** argv)
     ros::Publisher sound_pub = n.advertise<hark_msgs::HarkSource>("/HarkSource",10);
     ros::Publisher torso_pub = n.advertise<autonomy_human::raw_detections>("/person_detection/people",10);
     ros::Publisher encoder_pub = n.advertise<nav_msgs::Odometry>("/encoder",10);
-
+    ros::Publisher weights_pub = n.advertise<std_msgs::Float32MultiArray>("/weights", 10);
 
     legs.header.frame_id = frame_id;
     encoder.header.frame_id = frame_id;
@@ -103,6 +110,7 @@ int main(int argc, char** argv)
         encoder_pub.publish(encoder);
         torso_pub.publish(torso);
         sound_pub.publish(sound);
+        weights_pub.publish(weights);
 
         ros::spinOnce();
         loop_rate.sleep();
