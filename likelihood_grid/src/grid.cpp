@@ -15,6 +15,25 @@ float pdf1D(float u, float s, float x)
     return boost::math::pdf(d, x);
 }
 
+
+float normalize(const float val,const float x_min, const float x_max, const float range_min, const float range_max)
+{
+    ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
+    return (range_min + ((range_max - range_min)*(val - x_min) / (x_max - x_min)));
+}
+
+float normalize(const float val,const float x_min, const float x_max)
+{
+    ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
+    return ((val - x_min) / (x_max - x_min));
+}
+
+float pointDistance(geometry_msgs::Point a, geometry_msgs::Point b)
+{
+    return ((float )sqrt( (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y) ));
+}
+
+
 float CGrid::pmfr(float u, float s, float x, float d)
 {
     boost::math::normal_distribution<> dist(u,s);
@@ -34,6 +53,8 @@ float CGrid::pmfr(float u, float s, float x, float d)
     {
         pmf = (boost::math::cdf(dist, t) - boost::math::cdf(dist, b));
     }
+
+//    pmf = boost::math::pdf(dist, x);
     return pmf;
 }
 
@@ -55,34 +76,18 @@ float CGrid::pmfa(float u, float s, float x, float d)
     {
         pmf = (boost::math::cdf(dist, t) - boost::math::cdf(dist, b));
     }
+//    pmf = boost::math::pdf(dist, x);
+
     return pmf;
 }
 
 
-float normalize(const float val,const float x_min, const float x_max, const float range_min, const float range_max)
-{
-    ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
-    return (range_min + ((range_max - range_min)*(val - x_min) / (x_max - x_min)));
-}
-
-float normalize(const float val,const float x_min, const float x_max)
-{
-    ROS_ASSERT(fabs(x_max - x_min) > 1e-9);
-    return ((val - x_min) / (x_max - x_min));
-}
-
-float pointDistance(geometry_msgs::Point a, geometry_msgs::Point b)
-{
-    return ((float )sqrt( (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y) ));
-}
-
-
 CGrid::CGrid(uint32_t map_size,
-                             SensorFOV_t _sensor_fov,
-                             float_t map_resolution,
-                             CellProbability_t _cell_probability,
-                             float _target_detection_probability,
-                             float _false_positive_probability)
+             SensorFOV_t _sensor_fov,
+             float_t map_resolution,
+             CellProbability_t _cell_probability,
+             float _target_detection_probability,
+             float _false_positive_probability)
 {
     ROS_INFO("Constructing an instace of cartesian likelihood grid.");
     ROS_ASSERT(map_size % 2 == 0);
@@ -117,13 +122,12 @@ CGrid::CGrid(uint32_t map_size,
              x_.max,
              y_.max);
 
-    last_highest_lm_.index = 0;
-    last_highest_lm_.tracking = false;
-    last_highest_lm_.counter = 0;
+    last_gm_.index = 0;
+    last_gm_.reset();
 
-//    8 5 2
-//    7 4 1
-//    6 3 0
+    //    8 5 2
+    //    7 4 1
+    //    6 3 0
 
     Cell_t temp_cell;
     size_t i = 0;
@@ -182,7 +186,7 @@ CGrid::CGrid(uint32_t map_size,
 }
 
 bool CGrid::sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j){
-return (posterior[i.index] < posterior[j.index]);
+    return (posterior[i.index] < posterior[j.index]);
 }
 
 void CGrid::setOutFOVProbability(std::vector<float> &data, const float val){
@@ -198,11 +202,11 @@ void CGrid::setInFOVProbability(std::vector<float>& data, const float val){
 }
 
 void CGrid::computeLikelihood(const std::vector<PolarPose>& pose,
-                            std::vector<float> &_true_likelihood,
-                            std::vector<float> &_false_likelihood)
+                              std::vector<float> &_true_likelihood,
+                              std::vector<float> &_false_likelihood)
 {
-//    float range_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, stdev.range);
-//    float angle_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, toRadian(stdev.angle));
+    //    float range_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, stdev.range);
+    //    float angle_guassian_factor = cell_probability.human / normalDistribution(0.0, 0.0, toRadian(stdev.angle));
 
     for(size_t i = 0; i < grid_size; i++){
         float range = map.cell.at(i).polar.range;
@@ -231,9 +235,9 @@ void CGrid::computeLikelihood(const std::vector<PolarPose>& pose,
 
 
 void CGrid::updateGridProbability(std::vector<float>& _prior,
-                                          const std::vector<float>& _true_likelihood,
-                                          const std::vector<float>& _false_likelihood,
-                                          std::vector<float>& _posterior)
+                                  const std::vector<float>& _true_likelihood,
+                                  const std::vector<float>& _false_likelihood,
+                                  std::vector<float>& _posterior)
 {
     // POSTERIOR = TARGET LOCALIZATION PROBABILITY
 
@@ -280,7 +284,7 @@ void CGrid::updateGrid(int score)
 
             if(true)// TODO: check if cell is in sensor FOV: if cell is not in the sensor FOV set the pdf as zero
             {
-            //TODO: check if the cell is close to the detected feature
+                //TODO: check if the cell is close to the detected feature
 
                 if(mean[0] > 20.0)
                 {
@@ -291,15 +295,21 @@ void CGrid::updateGrid(int score)
                     cp0 = pmfr(mean[0], stddev[0], cell[0], sqrt(2.0) * map.resolution);
                 }
 
-                cp1 = pmfa(mean[1], stddev[1], cell[1], 2.0 * atan2(sqrt(2.0) * map.resolution/2,cell[0]));
-                temp_pdf.at(i) = cp0 * cp1;
+                //                cp1 = pmfa(mean[1], stddev[1], cell[1], 2.0 * atan2(sqrt(2.0) * map.resolution/2,cell[0]));
+                cp1 = pmfa(mean[1], stddev[1], cell[1], M_PI/180.0);
+
+                temp_pdf.at(i) = cp0 * cp1 / (M_PI/180.0 * sqrt(2.0) * map.resolution);
                 sum += temp_pdf.at(i);
             }
         }
 
+        sum = 1.0;
+        //TODO: check for sum to be non-zero
+
+//        ROS_INFO("sum: %f", sum);
         for(size_t i = 0; i < grid_size; i++)
         {
-//            posterior.at(i) = std::max((temp_pdf.at(i) / sum) ,  posterior.at(i));
+            //            posterior.at(i) = std::max((temp_pdf.at(i) / sum) ,  posterior.at(i));
             posterior.at(i) += temp_pdf.at(i) / sum;
         }
     }
@@ -332,9 +342,9 @@ void CGrid::bayesOccupancyFilter()
 
 
 void CGrid::fuse(const std::vector<float> &data_1,
-                         const std::vector<float> &data_2,
-                         const std::vector<float> &data_3,
-                         bool multiply)
+                 const std::vector<float> &data_2,
+                 const std::vector<float> &data_3,
+                 bool multiply)
 {
     //TODO: FIX THIS
     if(multiply){
@@ -347,7 +357,7 @@ void CGrid::fuse(const std::vector<float> &data_1,
         setInFOVProbability(posterior, 0.0);
         setOutFOVProbability(posterior, 0.0);
         for(size_t i = 0; i < grid_size; i++)
-            {posterior.at(i) = (data_1.at(i) + data_2.at(i) + data_3.at(i))/3.0;}
+        {posterior.at(i) = (data_1.at(i) + data_2.at(i) + data_3.at(i))/3.0;}
     }
 }
 
@@ -447,47 +457,29 @@ void CGrid::predict(const Velocity_t _robot_velocity)
     }
 }
 
-size_t CGrid::predictHighestProbability(size_t index)
+size_t CGrid::predictObjectPosition(size_t index)
 {
 
-    geometry_msgs::Point pose1, pose2;
-    PolarPose polar1, polar2;
-    float x, y;
+    geometry_msgs::Point ps;
+    PolarPose pr;
 
+    pr.range = map.cell.at(index).polar.range;
+    pr.angle = map.cell.at(index).polar.angle;
 
-    polar1.range = map.cell.at(index).polar.range;
-    polar1.angle = map.cell.at(index).polar.angle;
-    polar1.angle = velocity_.angular * diff_time.toSec() + polar1.angle;
-    polar1.toCart(pose1.x, pose1.y);
+    pr.angle += (velocity_.angular * diff_time.toSec());
+    pr.range += (velocity_.linear * diff_time.toSec());
 
-    x = velocity_.lin.x * diff_time.toSec() + pose1.x;
-    y = velocity_.lin.y * diff_time.toSec() + pose1.y;
+    pr.toCart(ps.x, ps.y);
 
-//    polar2.fromCart(pose2.x, pose2.y);
-//    polar_array.predicted.at(p) = polar2;
-
-
-
-//    PolarPose pose1, pose2;
-
-//    pose1.range = map.cell.at(index).polar.range;
-//    pose1.angle = map.cell.at(index).polar.angle;
-
-//    pose2.range = velocity.linear * diff_time.toSec() + pose1.range;
-//    pose2.angle = velocity.angular * diff_time.toSec() + pose1.angle;
-//    pose2.toCart(x,y);
-
-    // x = -map.height * map.resolution / 2 + map.resolution / 2.0 + row * map.resolution;
-
-    size_t row = size_t (abs(x/map.resolution + map.height * 0.5 - 0.5));
-    size_t col = size_t (abs(y/map.resolution + map.width * 0.5 - 0.5));
+    size_t row = size_t ( abs(ps.x / map.resolution + map.height * 0.5 - 0.5) );
+    size_t col = size_t ( abs(ps.y / map.resolution + map.width * 0.5 - 0.5) );
 
     if(row >= map.height || col >= map.width) return index;
     else return row + col * map.width;
 }
 
 void CGrid::polar2Crtsn(std::vector<PolarPose>& polar_array,
-                 geometry_msgs::PoseArray &crtsn_array)
+                        geometry_msgs::PoseArray &crtsn_array)
 {
     geometry_msgs::Pose crtsn_pose;
 
@@ -515,230 +507,317 @@ size_t CGrid::maxProbCellIndex()
 
 void CGrid::getLocalMaximas()
 {
-    new_local_maxima_.clear();
-    LocalMaxima_t tmp_new;
-    int x = 0;
-    tmp_new.counter = 1;
-    tmp_new.tracking = false;
-    std::vector<int8_t> filter_grid(grid_size, -1);
-    std::vector<size_t> neighbors;
-    int8_t ss = 3; //searching size : ss = 3 --> ~1.00 meter around the person
+    new_lms_.clear();
+
+    LocalMaxima_t lm_new;
+    lm_new.reset();
+
+    std::vector<int8_t> search_grid(grid_size, -1); // -1: not checked yet; 0: not local maxima; 1: local maxima
+    std::vector<size_t> not_lm_neighbors;
+
+    int8_t ss = 2; // searching size : ~1.00 meter around the person
     int8_t row_shift = 1;
     int8_t col_shift = map.height;
-    bool lm = false;
 
-    for(size_t k = 0; k < grid_size; k++){
-        non_local_maxima:
-        tmp_new.index = k;
-        tmp_new.probability = posterior.at(k);
-        lm = false;
-        uint8_t col = k / map.height;
-        uint8_t row = k % map.height;
+    bool is_local_maxima = false;
 
-        if ((tmp_new.probability <= posterior.at(0)) ||(filter_grid.at(k) == 0)) filter_grid.at(k) = 0;
+    for(size_t i = 0; i < grid_size; i++)
+    {
+        if (posterior.at(i) < 1e-4) // If probability is less that 1e-4 we do not consider it as maxima
+        {
+            search_grid.at(i) = 0;
+            continue;
+        }
+        if(search_grid.at(i) == -1)
+        {
+            search_grid.at(i) = 0;
 
-        else {
-            filter_grid.at(k) = 0;
-            for(int8_t c = -ss; c <= ss; c++){
+            lm_new.index = i;
+            lm_new.probability = posterior.at(i);
+
+            uint8_t col = i / map.height;
+            uint8_t row = i % map.height;
+            is_local_maxima = false;
+
+            for(int8_t c = -ss; c <= ss; c++)
+            {
                 int search_col = c + col;
-                if(search_col >= map.height || search_col < 0) continue;
 
-                for(int8_t r = -ss; r <= ss; r++){
+                if(search_col >= map.height || search_col < 0) // Not Valid Column Number
+                    continue;
+
+                for(int8_t r = -ss; r <= ss; r++)
+                {
                     int search_row = r + row;
-                    if(search_row > map.height || search_row < 0) continue;
 
-                    x = (search_row * row_shift) + (search_col * col_shift) ;
-                    if(x < 0 || x == k || x >= grid_size) continue;  // make sure the index is valid
+                    if(search_row > map.height || search_row < 0) // Not Valid Row Number
+                        continue;
 
-                    if(tmp_new.probability >= posterior.at(x)){ // if the cell(k) has higher prob. than its neighbor(x)
-                        lm = true;
-                        neighbors.push_back(x);
-                    } else goto non_local_maxima;
+                    int lm_neig = (search_row * row_shift) + (search_col * col_shift); // lm_neig is the index of lm_new's neighbor
+
+                    if(lm_neig < 0 || lm_neig == i || lm_neig >= grid_size)  // make sure the index is valid
+                        continue;
+
+                    if(lm_new.probability >= posterior.at(lm_neig))  // if the cell(k) has higher prob. than its neighbor(lm_neig)
+                    {
+                        is_local_maxima = true;
+                        not_lm_neighbors.push_back(lm_neig);
+                    }
+                    else // if the cell(k) has lower prob. than *one* of its neighbors, mark it as non_local_maxima
+                    {
+                        is_local_maxima = false;
+                        goto terminate_search;
+                    }
                 }
             }
 
-            if(lm){
-//                if (new_lm.empty()) new_lm.push_back(tmp_new);
-//                else{
-//                    for(size_t i = 0; i < new_lm.size(); i++){
-//                        float dist = cellsDistance(tmp_new.index, new_lm.at(i).index);
-//                        if(dist <= 1.0){
-//                            if(posterior.at(new_lm.at(i).index) <= posterior.at(tmp_new.index)) new_lm.at(i).index = tmp_new.index;
-//                        }else{
-//                            new_lm.push_back(tmp_new);
-//                        }
-//                    }
-//                }
+            //FINISH THE SEARCH
+terminate_search:
 
-                if(tmp_new.probability > cell_probability.unknown)
-                    new_local_maxima_.push_back(tmp_new);
-                filter_grid.at(k) = 1;
-                for(size_t n = 0; n < neighbors.size(); n++){
-                    filter_grid.at(neighbors.at(n)) = 0;
-                }
+            for(size_t n = 0; n < not_lm_neighbors.size(); n++)
+            {
+                search_grid.at(not_lm_neighbors.at(n)) = 0;
+            }
+            not_lm_neighbors.clear();
+
+            if(is_local_maxima)
+            {
+                new_lms_.push_back(lm_new);
+                search_grid.at(i) = 1;
             }
         }
-        neighbors.clear();
     }
 }
 
 void CGrid::trackLocalMaximas()
 {
-    LocalMaxima_t tmp_match;
-    matched_local_maxima_ = old_local_maxima_;
-    main_local_maxima_.clear();
-    int8_t counter_threshold = 5;
+    int8_t counter_threshold = 10;
+    float dist_threshold = 1.0;
 
-    if(old_local_maxima_.empty()){
-        old_local_maxima_ = new_local_maxima_;
+    main_lms_.clear();
+    matched_lms_.clear();
+
+    if(old_lms_.empty())
+    {
+        old_lms_.assign(new_lms_.begin(), new_lms_.end());
         return;
     }
 
-    std::vector<bool> find_match(new_local_maxima_.size(),false);
-    float dist_threshold = 2 * map.resolution;
+    for(size_t k = 0; k < old_lms_.size(); k++)
+    {
+        if(old_lms_.at(k).probability < 1e-4) { old_lms_.erase(old_lms_.begin() + k); }
+    }
 
-    for(size_t i = 0; i < new_local_maxima_.size(); i++){
-        for(size_t j = 0; j < old_local_maxima_.size(); j++){
+    matched_lms_.assign(old_lms_.begin(), old_lms_.end());
 
-            if(cellsDistance(new_local_maxima_.at(i).index, old_local_maxima_.at(j).index) < dist_threshold && !find_match.at(i)){
-                matched_local_maxima_.at(j).index = new_local_maxima_.at(i).index;
-                matched_local_maxima_.at(j).counter = old_local_maxima_.at(j).counter + 1;
-                find_match.at(i) = true;
+    for(size_t ni = 0; ni < new_lms_.size(); ni++)
+    {
+        bool new_lm_match = false;
+
+        for(size_t oi = 0; oi < matched_lms_.size(); oi++)
+        {
+
+            if(cellsDistance(new_lms_.at(ni).index, matched_lms_.at(oi).index) < dist_threshold)
+            {
+                matched_lms_.at(oi).index = new_lms_.at(ni).index;
+                matched_lms_.at(oi).probability = posterior.at(new_lms_.at(ni).index);
+
+                if(++matched_lms_.at(oi).counter > counter_threshold)
+                {
+                    matched_lms_.at(oi).tracking = true;
+                    matched_lms_.at(oi).counter = counter_threshold + 1;
+                }
+                new_lm_match = true;
+                continue;
             }
         }
 
-        if(!find_match.at(i)){
-            tmp_match.index = new_local_maxima_.at(i).index;
-            tmp_match.counter = 1;
-            tmp_match.tracking = false;
-            matched_local_maxima_.push_back(tmp_match);
+        /* It there is no match for this new local maxima with any of the old maximas
+         * push that into matched_lms_
+         */
+
+        if(!new_lm_match)
+        {
+            LocalMaxima_t lm_not_matched;
+            lm_not_matched.index = new_lms_.at(ni).index;
+            lm_not_matched.reset();
+            lm_not_matched.probability = new_lms_.at(ni).probability;
+            matched_lms_.push_back(lm_not_matched);
         }
     }
-    ROS_ASSERT(old_local_maxima_.size() <= matched_local_maxima_.size());
+    ROS_ASSERT(old_lms_.size() <= matched_lms_.size());
 
-    for(size_t k = 0; k < old_local_maxima_.size(); k++){
-        if(matched_local_maxima_.at(k).counter == old_local_maxima_.at(k).counter){
-            matched_local_maxima_.at(k).counter = old_local_maxima_.at(k).counter - 1;
+    /* If there were no match for this old local maxima with any of the new local maximas
+     * decrease its counter
+     */
+
+    for(size_t k = 0; k < old_lms_.size(); k++)
+    {
+        if(matched_lms_.at(k).counter == old_lms_.at(k).counter)
+        {
+            matched_lms_.at(k).counter--;
         }
     }
 
-    old_local_maxima_.clear();
+    old_lms_.clear();
 
-    for(size_t a = 0; a < matched_local_maxima_.size(); a++){
-//        size_t index = matched_local_maxima.at(a).index;
+    for(size_t a = 0; a < matched_lms_.size(); a++)
+    {
+        LocalMaxima_t l = matched_lms_.at(a);
 
-        if(matched_local_maxima_.at(a).probability < posterior.at(0)) matched_local_maxima_.at(a).counter = -counter_threshold-1;
+/*
+//        if(matched_lms_.at(a).probability < 1e-4)
+//        {
+//            matched_lms_.at(a).counter = 0.0;
+//            matched_lms_.at(a).tracking = false;
+//        }
 
-        if(matched_local_maxima_.at(a).counter > counter_threshold){
-            matched_local_maxima_.at(a).counter = counter_threshold +1;
-            if(!matched_local_maxima_.at(a).tracking) matched_local_maxima_.at(a).tracking = true;
+
+//        if(matched_lms_.at(a).counter <= 0)
+//        {
+//            matched_lms_.at(a).tracking = false;
+//        }
+//        else
+//        {
+//            if(matched_lms_.at(a).counter > counter_threshold)
+//            {
+//                matched_lms_.at(a).counter = counter_threshold + 1;
+//                matched_lms_.at(a).tracking = true;
+//            }
+//            old_lms_.push_back(matched_lms_.at(a));
+//        }
+*/
+        if(l.counter <= 0)
+        {
+            matched_lms_.erase(matched_lms_.begin() + a);
         }
-        if(matched_local_maxima_.at(a).counter <= 0){
-            matched_local_maxima_.at(a).tracking = false;
-        } else {
-            old_local_maxima_.push_back(matched_local_maxima_.at(a));
-        }
+        else{
+            old_lms_.push_back(l);
 
-        if(matched_local_maxima_.at(a).tracking == true )
-            main_local_maxima_.push_back(matched_local_maxima_.at(a));
+
+            if(l.tracking == true )
+            {
+                main_lms_.push_back(l);
+            }
+        }
     }
-    // Don't Track!
-    main_local_maxima_.clear();
-    main_local_maxima_ = new_local_maxima_;
-    std::sort (main_local_maxima_.begin(), main_local_maxima_.end());
+
+    // For disable tracking uncomment these two lines:
+//    main_lms_.clear();
+//    main_lms_.assign(new_lms_.begin(), new_lms_.end());
+
+    std::sort (main_lms_.begin(), main_lms_.end());
 
     local_maxima_poses.poses.clear();
-    geometry_msgs::Pose tmp_pose;
-    for(size_t j = 0; j < main_local_maxima_.size(); j++){
-        uint index = main_local_maxima_.at(j).index;
-        tmp_pose.position.x = map.cell.at(index).cartesian.x;
-        tmp_pose.position.y = map.cell.at(index).cartesian.y;
-        tmp_pose.position.z = 0.0;
-        local_maxima_poses.poses.push_back(tmp_pose);
-//        ROS_INFO("lm %lu    x:%.2f  y:%.2f   p:%.4f", j, tmp_pose.position.x, tmp_pose.position.y, main_local_maxima.at(j).probability);
+    geometry_msgs::Pose pose;
+
+    for(size_t j = 0; j < main_lms_.size(); j++)
+    {
+        uint in = main_lms_.at(j).index;
+        pose.position.x = map.cell.at(in).cartesian.x;
+        pose.position.y = map.cell.at(in).cartesian.y;
+        pose.position.z = main_lms_.at(j).probability;
+        local_maxima_poses.poses.push_back(pose);
     }
+
     local_maxima_poses.header.frame_id = "base_footprint";
     local_maxima_poses.header.stamp = ros::Time::now();
+
+
 }
 
 void CGrid::trackMaxProbability()
 {
     uint8_t loop_rate = 10;
     int8_t counter_threshold = 1 * loop_rate;
-    float dist_threshold = 1.00; //4 * map.resolution;
-    float probability_threshold = (cell_probability.unknown - cell_probability.free) / 3.0;
+    float dist_threshold = 1.00;
+    float tracking_distance = dist_threshold;
 
-
-    //FIND THE CELL WITH MAXIMUM PROBABILITY
-
-    size_t max_index = 0;
-
-    if(!main_local_maxima_.empty()){
-        std::sort (main_local_maxima_.begin(), main_local_maxima_.end());
-        max_index = main_local_maxima_.at(main_local_maxima_.size()-1).index;
+    /* Find the cell with highest probability*/
+    size_t gm_index = 0;
+    for(size_t i = 0; i < main_lms_.size(); i++)
+    {
+        size_t in = main_lms_.at(i).index;
+        gm_index = (posterior.at(in) > posterior.at(gm_index)) ? in : gm_index;
     }
-//    for(size_t i = 0; i < main_local_maxima.size(); i++){
-//        size_t index = main_local_maxima.at(i).index;
-//        max_index = (posterior.at(index) > posterior.at(max_index)) ? index : max_index;
-//    }
 
-    if(last_highest_lm_.index == 0)
-        last_highest_lm_.index = (main_local_maxima_.empty()) ? last_highest_lm_.index : max_index;
-
+    /* If there were no last gm */
+    if(last_gm_.index == 0) last_gm_.index = (main_lms_.empty()) ? last_gm_.index : gm_index;
+/*
     Velocity_t robot_max_velocity;
     robot_max_velocity.linear = 1.0; //TODO: MAKE THESE PARAMETERS
     robot_max_velocity.angular = 1.0;
-    float range1 = map.cell.at(max_index).polar.range;
-    float range2 = map.cell.at(last_highest_lm_.index).polar.range;
+
+    float range1 = map.cell.at(gm_index).polar.range;
+    float range2 = map.cell.at(last_gm_.index).polar.range;
     float min_range = (range1 + range2) / 2.0;
+
     float max_angular_distance = robot_max_velocity.angular * diff_time.toSec() * min_range;
     float max_linear_distance = robot_max_velocity.linear * diff_time.toSec();
-    float tracking_distance = std::max(dist_threshold, std::max(max_linear_distance, max_angular_distance));
+    tracking_distance = std::max(dist_threshold, std::max(max_linear_distance, max_angular_distance));
+    */
 
-    if(cellsDistance(max_index, last_highest_lm_.index) < tracking_distance){
-        last_highest_lm_.index = max_index;
-        last_highest_lm_.counter++;
+    if(cellsDistance(gm_index, last_gm_.index) < tracking_distance)
+    {
+        last_gm_.index = gm_index;
+        last_gm_.counter++;
+        last_gm_.probability = posterior.at(gm_index);
     }
-    else {
-        if((posterior.at(max_index) - posterior.at(last_highest_lm_.index)) < probability_threshold){
-            last_highest_lm_.counter++;
-        } else last_highest_lm_.counter--;
+    else
+    {
+        if((posterior.at(gm_index) - posterior.at(last_gm_.index)) > 0.01 * posterior.at(gm_index))
+        {
+            last_gm_.counter--;
+        }
     }
 
-    if(last_highest_lm_.counter > counter_threshold){
-        last_highest_lm_.tracking = true;
-        last_highest_lm_.counter = counter_threshold + 1;
+    if(last_gm_.counter > counter_threshold)
+    {
+        last_gm_.tracking = true;
+        last_gm_.counter = counter_threshold + 1;
         goto stop;
-    } else if(last_highest_lm_.counter < 0){
-        last_highest_lm_.index = max_index;
-        last_highest_lm_.counter = counter_threshold + 1;
-
+    }
+    else if(last_gm_.counter < 0)
+    {
+        last_gm_.index = gm_index;
+        last_gm_.counter = counter_threshold + 1;
+        last_gm_.probability = posterior.at(gm_index);
         goto stop;
-    } else {
-        size_t predicted_highest_lm = predictHighestProbability(last_highest_lm_.index);
-        size_t temp_lm = last_highest_lm_.index;
+    }
+    else
+    {
+        /*
+        size_t predicted_highest_lm = predictObjectPosition(last_gm_.index);
+        size_t temp_lm = last_gm_.index;
 
-        for(size_t i = 0; i < main_local_maxima_.size(); i++){
+        for(size_t i = 0; i < main_lms_.size(); i++){
 
-            size_t lm_index = main_local_maxima_.at(i).index;
-            float temp_dist = cellsDistance(lm_index, predicted_highest_lm);
-            temp_lm = (temp_dist < tracking_distance) ? lm_index : temp_lm ;
+            float dist = cellsDistance(main_lms_.at(i).index, predicted_highest_lm);
+            temp_lm = (dist > tracking_distance) ? temp_lm : main_lms_.at(i).index;
         }
 
-        last_highest_lm_.index = (fabs(velocity_.linear) > 1e-4 || fabs(velocity_.angular) > 1e-4)
-                ? temp_lm : last_highest_lm_.index;
+        last_gm_.index = (fabs(velocity_.linear) > 1e-4 || fabs(velocity_.angular) > 1e-4)
+                ? temp_lm : last_gm_.index;
+                */
         goto stop;
     }
 
-//    //DO NOT TRACK HIGHEST PROBABILITY POINT
-//    last_highest_lm.index = max_index;
-//    last_highest_lm.tracking = true;
+//    if(!main_lms_.empty())
+//    {
 
-    stop:
+//        for(size_t i = 0; i < main_lms_.size(); i++){
+//            size_t in = main_lms_.at(i).index;
+//            gm_index = (posterior.at(in) > posterior.at(gm_index)) ? in : gm_index;
+//        }
+//    }
+//        last_gm_.index = gm_index;
+//        last_gm_.tracking = true;
 
-    highest_prob_point.point.x = map.cell.at(last_highest_lm_.index).cartesian.x;
-    highest_prob_point.point.y = map.cell.at(last_highest_lm_.index).cartesian.y;
-    highest_prob_point.point.z = 0.0;
+stop:
+
+    highest_prob_point.point.x = map.cell.at(last_gm_.index).cartesian.x;
+    highest_prob_point.point.y = map.cell.at(last_gm_.index).cartesian.y;
+    highest_prob_point.point.z = posterior.at(last_gm_.index);
     highest_prob_point.header.frame_id = "base_footprint";
     highest_prob_point.header.stamp = ros::Time::now();
 }

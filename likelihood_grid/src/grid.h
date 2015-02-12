@@ -50,10 +50,16 @@ struct LocalMaxima_t{
     {
         return (probability < lm.probability);
     }
+
+    void reset()
+    {
+        tracking = false;
+        counter = 1;
+    }
 };
 
 struct Cell_t{
-    geometry_msgs::Point32    cartesian;
+    geometry_msgs::Point    cartesian;
     PolarPose               polar;
 };
 
@@ -88,12 +94,11 @@ private:
 
     ros::Time lk_;
 
-    size_t maxProbCellIndex();
     float cellsDistance(size_t c1, size_t c2);
-    std::vector<LocalMaxima_t> old_local_maxima_;
-    std::vector<LocalMaxima_t> new_local_maxima_;
-    std::vector<LocalMaxima_t> matched_local_maxima_;
-    std::vector<LocalMaxima_t> main_local_maxima_;
+    std::vector<LocalMaxima_t> old_lms_;
+    std::vector<LocalMaxima_t> new_lms_;
+    std::vector<LocalMaxima_t> matched_lms_;
+    std::vector<LocalMaxima_t> main_lms_;
 
     std::vector<float> true_likelihood_;
     std::vector<float> false_likelihood_;
@@ -101,13 +106,12 @@ private:
     std::vector<float> predicted_true_likelihood_;
     std::vector<float> predicted_false_likelihood_;
 
-    LocalMaxima_t last_highest_lm_;
+    LocalMaxima_t last_gm_;
     Velocity_t velocity_;
     Velocity_t last_velocity_;
 
     float TARGET_DETECTION_PROBABILITY_;
     float FALSE_DETECTION_PROBABILITY_;
-    float max_probability_;
 
     void computeLikelihood(const std::vector<PolarPose>& pose,
                                 std::vector<float> &_true_likelihood,
@@ -132,6 +136,7 @@ public:
     CellProbability_t cell_probability;
     SensorFOV_t sensor_fov;
     nav_msgs::OccupancyGrid occupancy_grid;
+    float max_probability_;
 
     std::vector<float> posterior;
     std::vector<float> prior;
@@ -162,12 +167,14 @@ public:
     void getPose(const autonomy_human::raw_detectionsConstPtr torso_img);
     void getPose(const hark_msgs::HarkSourceConstPtr& sound_src);
     void predict(const Velocity_t _robot_velocity);
-    size_t predictHighestProbability(size_t index);
+    size_t predictObjectPosition(size_t index);
     void polar2Crtsn(std::vector<PolarPose> &polar_array,
                      geometry_msgs::PoseArray &crtsn_array);
     void updateLocalMaximas();
     void trackMaxProbability();
     void updateGrid(int score);
+    size_t maxProbCellIndex();
+
 
 };
 
