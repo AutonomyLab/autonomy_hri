@@ -8,7 +8,7 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "human_node_grid");
     ros::NodeHandle n;
     int loop_rate;
-    ros::param::param("~/loop_rate", loop_rate, 10);
+    ros::param::param("~/loop_rate", loop_rate, 5);
     ros::Rate looprate(loop_rate);
 
     CHumanGrid human_grid(n);
@@ -18,13 +18,13 @@ int main(int argc, char** argv)
     bool get_torso_grid = true;
 
 //    ros::param::param("leg_node", get_leg_grid, true);
-//    ros::param::param("leg_weight", human_grid.leg_weight, 1);
+    ros::param::param("leg_weight", human_grid.leg_weight, 2.5);
 
 //    ros::param::param("sound_node", get_sound_grid, true);
-//    ros::param::param("sound_weight", human_grid.sound_weight, 5);
+    ros::param::param("sound_weight", human_grid.sound_weight, 3.7);
 
 //    ros::param::param("torsi_node", get_torso_grid, true);
-//    ros::param::param("torso_weight", human_grid.torso_weight, 5);
+    ros::param::param("torso_weight", human_grid.torso_weight, 3.8);
 
 
         ros::Subscriber leg_grid_sub = n.subscribe("leg_probability", 10,
