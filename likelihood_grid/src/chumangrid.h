@@ -37,9 +37,9 @@ private:
     void initGrid();
 
 public:
-    float leg_weight;
-    float sound_weight;
-    float torso_weight;
+    double leg_weight;
+    double sound_weight;
+    double torso_weight;
     CHumanGrid();
     CHumanGrid(ros::NodeHandle n);
     void average();

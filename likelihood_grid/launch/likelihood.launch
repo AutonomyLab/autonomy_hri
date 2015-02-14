@@ -1,6 +1,6 @@
 <launch>
 <arg name="use_encoder" value="true" />
-<arg name="leg_detection" value="false" />
+<arg name="leg_detection" value="true" />
 <arg name="torso_detection" value="false" />
 <arg name="sound_detection" value="false" />
 <arg name="gesture_detection" value="false" />
@@ -9,7 +9,7 @@
 <arg name="sound_node" value="true"/>
 <arg name="vision_node" value="true"/>
 <arg name="human_node" value="true"/>
-<arg name="test" value="true"/>
+<arg name="test" value="false"/>
 
 <group if="$(arg bayesian)">
     <node pkg="likelihood_grid" type="likelihood_grid_node" name="likelihood_grid_node" output="screen" >
@@ -91,7 +91,7 @@
 </group>
 
 <group if="$(arg leg_node)">
-        <node pkg="likelihood_grid" type="leg_grid_node" name="leg_grid_node" output="screen" />
+        <node pkg="likelihood_grid" type="leg_grid_node" name="leg_grid_node" output="screen"/>
 </group>
 
 <group if="$(arg sound_node)">
@@ -112,8 +112,8 @@
             <param name="torso_enable" value="$(arg vision_node)"/>
             <param name="sound_enable" value="$(arg sound_node)"/>
             <param name="leg_weight" value="1"/>
-            <param name="sound_weight" value="1"/>
-            <param name="torso_weight" value="1"/>
+            <param name="sound_weight" value="2"/>
+            <param name="torso_weight" value="3"/>
 
         </node>
 </group>
@@ -121,11 +121,12 @@
 <group if="$(arg leg_detection)">
     <include file="$(find autonomy_leg_detection)/launch/leg_detection.launch"/>
 </group>
-<!--
+
 <group if="$(arg torso_detection)">
-    <include file="$(find autonomy_human)/launch/torso_detection.launch"/>
+    <include file="$(find person_detection)/launch/person_detection.launch"/>
+    <remap from="axis/image_raw/decompressed" to="/camera/front/rgb/image_color/compressed" />
 </group>
--->
+
 
 <group if="$(arg test)">
     <node pkg="likelihood_grid" type="test_node" name="test_node"/>
