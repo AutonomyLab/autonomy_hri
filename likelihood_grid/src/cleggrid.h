@@ -22,6 +22,7 @@ private:
     Velocity_t velocity_;
     ros::Duration diff_time_;
     ros::Time last_time_;
+    ros::Time last_seen_leg_;
     CGrid* grid_;
     cv::KalmanFilter KFTracker_;
     cv::Mat KFmeasurement_;
@@ -31,6 +32,9 @@ private:
     std::vector<bool> match_meas_;
     nav_msgs::Odometry encoder_reading_;
     geometry_msgs::PoseArray prob_;
+//    geometry_msgs::PoseArray legs_reading_;
+    geometry_msgs::PoseArray filtered_legs_;
+    geometry_msgs::PoseArray base_footprint_legs_;
 
     void init();
     void initKF();
@@ -47,6 +51,8 @@ private:
     void publishPredictedLegs();
     void publishProbability();
     void publishOccupancyGrid();
+    void filterLegs();
+    void keepLastLegs();
 
     bool transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
                          geometry_msgs::PoseArray& target,
@@ -59,8 +65,12 @@ public:
 
     /* TODO: use async callback */
 
-    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
-                      const nav_msgs::OdometryConstPtr& encoder_msg);
+//    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
+//                      const nav_msgs::OdometryConstPtr& encoder_msg);
+
+    void legs_cb(const geometry_msgs::PoseArrayConstPtr& leg_msg);
+
+    void encoder_cb(const nav_msgs::OdometryConstPtr& encoder_msg);
 
     void spin();
 

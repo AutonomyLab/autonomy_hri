@@ -22,15 +22,19 @@ int main(int argc, char** argv)
 
     CLegGrid leg_grid(n, tf_listener);
 
-    message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 10);
-    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);
+//    message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 10);
+//    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);
 
-    typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
-            nav_msgs::Odometry> MySyncPolicy;
+//    typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
+//            nav_msgs::Odometry> MySyncPolicy;
 
-    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub);
-    sync.registerCallback(boost::bind(&CLegGrid::syncCallBack,
-                                      &leg_grid, _1, _2));
+//    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), legs_sub, encoder_sub);
+//    sync.registerCallback(boost::bind(&CLegGrid::syncCallBack,
+//                                      &leg_grid, _1, _2));
+
+    ros::Subscriber legs_sub = n.subscribe("legs", 10,
+                                           &CLegGrid::legs_cb, &leg_grid);
+    ros::Subscriber encoder_sub = n.subscribe("encoder", 10, &CLegGrid::encoder_cb, &leg_grid);
 
     while (ros::ok())
     {

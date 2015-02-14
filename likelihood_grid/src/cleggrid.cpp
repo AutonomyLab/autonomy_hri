@@ -1,5 +1,6 @@
 #include "cleggrid.h"
 #define DEBUG false
+#define BASE_FOOTPRINT_FRAME false
 
 CLegGrid::CLegGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
     n_(_n),
@@ -71,7 +72,8 @@ void CLegGrid::initGrid()
 
 void CLegGrid::init()
 {
-    last_time_ = ros::Time::now() - ros::Duration(1000.0);
+    last_time_ = ros::Time::now();
+    last_seen_leg_ = ros::Time::now();
 
     initKF();
     initTfListener();
@@ -102,72 +104,101 @@ void CLegGrid::computeObjectVelocity()
     velocity_.angular = - encoder_reading_.twist.twist.angular.z;
 }
 
-void CLegGrid::syncCallBack(const geometry_msgs::PoseArrayConstPtr &leg_msg,
-                           const nav_msgs::OdometryConstPtr &encoder_msg)
+void CLegGrid::encoder_cb(const nav_msgs::OdometryConstPtr &encoder_msg)
+{
+    encoder_reading_.twist = encoder_msg->twist;
+    computeObjectVelocity();
+}
+
+void CLegGrid::legs_cb(const geometry_msgs::PoseArrayConstPtr &leg_msg)
+
+//void CLegGrid::syncCallBack(const geometry_msgs::PoseArrayConstPtr &leg_msg,
+//                           const nav_msgs::OdometryConstPtr &encoder_msg)
 {
     callbackClear();
 
-    /**** ENCODER ****/
-
     ros::Time now = ros::Time::now();
-    encoder_reading_.twist = encoder_msg->twist;
-    computeObjectVelocity();
 
     diff_time_ = now - last_time_;
     last_time_ = now;
-    geometry_msgs::PoseArray tmp_legs;
 
-    /*
-     * Transform detected legs from laser frame to base_footprint frame
-     */
+    ros::Duration d = now - last_seen_leg_;
 
-//    if(!transformToBase(leg_msg, tmp_legs, false)){
-    if(false){
+    base_footprint_legs_.poses.clear();
 
-        ROS_WARN("Can not transform from laser to base_footprint");
-
-    } else{
-
-            tmp_legs.poses = leg_msg->poses; //TODO: remove this for real experiment with robot
-
-        ROS_ASSERT(leg_msg->poses.size() == tmp_legs.poses.size());
-
-        geometry_msgs::PoseArray filter_legs;
-        geometry_msgs::Pose new_leg, p1, p2;
-
-        /* check for close detected legs */
-        if(leg_msg->poses.size() < 2)
+    if(! BASE_FOOTPRINT_FRAME)
+    {
+        if(!transformToBase(leg_msg, base_footprint_legs_, false)) /* Transform detected legs from laser frame to base_footprint frame */
         {
-            filter_legs.poses = leg_msg->poses;
+            ROS_WARN("Can not transform from laser to base_footprint");
+            return;
         }
-        else
-        {
-            if(!filter_legs.poses.empty()) filter_legs.poses.clear();
-            filter_legs.poses.push_back(tmp_legs.poses.at(0));
-
-            for(uint8_t i = 1; i < tmp_legs.poses.size(); i++)
-            {
-                p1.position = tmp_legs.poses.at(i).position;
-                p2.position = filter_legs.poses.back().position;
-
-                if(pointDistance(p1.position, p2.position) < 1.0)
-                {
-                    filter_legs.poses.pop_back();
-                    new_leg.position.x = (p1.position.x + p2.position.x) / 2;
-                    new_leg.position.y = (p1.position.y + p2.position.y) / 2;
-                    filter_legs.poses.push_back(new_leg);
-
-                } else
-                {
-                    filter_legs.poses.push_back(p1);
-                }
-            }
-        }
-
-        /* Convert Cartesian points to Polar points */
-        grid_->getPose(filter_legs);
+    }
+    else
+    {
+        base_footprint_legs_.poses.assign(leg_msg->poses.begin(), leg_msg->poses.end());
     }
 
+    ROS_ASSERT(leg_msg->poses.size() == base_footprint_legs_.poses.size());
+
+    if(base_footprint_legs_.poses.empty())
+    {
+        if(d.toSec() < 1.0)
+        {
+            keepLastLegs();
+            return;
+        }
+    }
+    else
+    {
+        last_seen_leg_ = now;
+        filterLegs();
+        grid_->getPose(filtered_legs_);
+    }
+}
+
+void CLegGrid::keepLastLegs()
+{
+    if(!grid_->polar_array.past.empty())
+    {
+        ROS_INFO_COND(DEBUG, "Keeping last seen Legs.");
+        grid_->polar_array.current.assign(grid_->polar_array.past.begin(),
+                                         grid_->polar_array.past.end());
+    }
+}
+void CLegGrid::filterLegs()
+{
+
+    geometry_msgs::Pose new_leg, p1, p2;
+
+    /* check for close detected legs */
+    if(base_footprint_legs_.poses.size() < 2)
+    {
+        filtered_legs_.poses = base_footprint_legs_.poses;
+    }
+    else
+    {
+        if(!filtered_legs_.poses.empty()) filtered_legs_.poses.clear();
+        filtered_legs_.poses.push_back(base_footprint_legs_.poses.at(0));
+
+        for(uint8_t i = 1; i < base_footprint_legs_.poses.size(); i++)
+        {
+            p1.position = base_footprint_legs_.poses.at(i).position;
+            p2.position = filtered_legs_.poses.back().position;
+
+            if(pointDistance(p1.position, p2.position) < 1.0)
+            {
+                filtered_legs_.poses.pop_back();
+                new_leg.position.x = (p1.position.x + p2.position.x) / 2;
+                new_leg.position.y = (p1.position.y + p2.position.y) / 2;
+                filtered_legs_.poses.push_back(new_leg);
+
+            } else
+            {
+                filtered_legs_.poses.push_back(p1);
+            }
+        }
+    }
 }
 
 bool CLegGrid::transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
@@ -382,7 +413,7 @@ void CLegGrid::makeStates()
      */
     clearStates();
 
-    ROS_INFO("size of new leg msgs: %lu", grid_->polar_array.current.size());
+    ROS_INFO_COND(DEBUG,"size of new leg msgs: %lu", grid_->polar_array.current.size());
 
     if(diff_time_.toSec() < 1.0)
     {
@@ -472,6 +503,7 @@ void CLegGrid::updateKF()
 void CLegGrid::publishProbability()
 {
     float max = -1000;
+    if(prob_.poses.empty()) ROS_WARN("there is no probability");
 
     for(size_t i = 0; i < grid_->grid_size; i++)
     {
@@ -479,12 +511,18 @@ void CLegGrid::publishProbability()
         max = std::max(grid_->posterior.at(i), max);
     }
 
+    ROS_INFO("Maximum probability is %f", max);
+
+    prob_.header.stamp = ros::Time::now();
     if(prob_pub_.getNumSubscribers() > 0)
         prob_pub_.publish(prob_);
 }
 
 void CLegGrid::publishOccupancyGrid()
 {
+    if(grid_->occupancy_grid.data.empty()) ROS_WARN("there is no probability");
+    grid_->occupancy_grid.header.stamp = ros::Time::now();
+    grid_->occupancy_grid.info.map_load_time = ros::Time::now();
     if(grid_pub_.getNumSubscribers() > 0)
         grid_pub_.publish(grid_->occupancy_grid);
 }
@@ -492,6 +530,7 @@ void CLegGrid::publishOccupancyGrid()
 void CLegGrid::publishPredictedLegs()
 {
     grid_->polar2Crtsn(grid_->polar_array.predicted, grid_->crtsn_array.predicted);
+    grid_->crtsn_array.predicted.header.stamp = ros::Time::now();
 
     if(predicted_leg_pub_.getNumSubscribers() > 0)
         predicted_leg_pub_.publish(grid_->crtsn_array.predicted);
@@ -501,7 +540,7 @@ void CLegGrid::spin()
 {
     if(!grid_->polar_array.predicted.empty()) grid_->polar_array.predicted.clear();
 
-    ROS_INFO_COND(DEBUG,"--- spin ---");
+    ROS_INFO_COND(true,"--- spin ---");
 
     makeStates();
     updateKF();
