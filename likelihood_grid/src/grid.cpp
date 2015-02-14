@@ -263,12 +263,13 @@ void CGrid::updateGrid(int score)
 
     posterior.assign(grid_size, 0.0);
 
-    float sum, cp0, cp1;
+    float sum, cp0, cp1, maxp;
     PolarPose p;
 
     for(size_t j = 0; j <  polar_array.predicted.size(); j++)
     {
         sum = 0.0;
+        maxp = -1000;
         p = polar_array.predicted.at(j);
         float mean[2] = {p.range, (float) angles::normalize_angle(p.angle)};
         float stddev[2] = {(float)sqrt(p.var_range), (float)sqrt(p.var_angle)};
@@ -286,7 +287,7 @@ void CGrid::updateGrid(int score)
             {
                 //TODO: check if the cell is close to the detected feature
 
-                if(mean[0] > 20.0)
+                if(mean[0] > 20.0) // This means we don't have information about range
                 {
                     cp0 = 1.0;
                 }
@@ -295,22 +296,27 @@ void CGrid::updateGrid(int score)
                     cp0 = pmfr(mean[0], stddev[0], cell[0], sqrt(2.0) * map.resolution);
                 }
 
-                //                cp1 = pmfa(mean[1], stddev[1], cell[1], 2.0 * atan2(sqrt(2.0) * map.resolution/2,cell[0]));
+//                cp1 = pmfa(mean[1], stddev[1], cell[1], 2.0 * atan2(sqrt(2.0) * map.resolution/2,cell[0]));
                 cp1 = pmfa(mean[1], stddev[1], cell[1], M_PI/180.0);
 
                 temp_pdf.at(i) = cp0 * cp1 / (M_PI/180.0 * sqrt(2.0) * map.resolution);
                 sum += temp_pdf.at(i);
+
             }
         }
 
-        sum = 1.0;
-        //TODO: check for sum to be non-zero
+        std::vector<float>::iterator it = std::max_element(temp_pdf.begin(), temp_pdf.end());
+        maxp = temp_pdf.at(it - temp_pdf.begin());
 
-//        ROS_INFO("sum: %f", sum);
+        //For not normalizing the grid so that the sum of all probabilities will be one, uncomment the line below.
+        sum = 1.0;
+
         for(size_t i = 0; i < grid_size; i++)
         {
-            //            posterior.at(i) = std::max((temp_pdf.at(i) / sum) ,  posterior.at(i));
-            posterior.at(i) += temp_pdf.at(i) / sum;
+            if(maxp)    temp_pdf.at(i) /= maxp;
+            if(sum)     temp_pdf.at(i) /= sum;
+            posterior.at(i) = std::max(temp_pdf.at(i),  posterior.at(i));
+//            posterior.at(i) += temp_pdf.at(i);
         }
     }
 
