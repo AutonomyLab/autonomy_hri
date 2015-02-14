@@ -18,8 +18,8 @@ CSoundGrid::CSoundGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
 
 void CSoundGrid::init()
 {
-    last_heard_sound_ = ros::Time::now() - ros::Duration(1000.0);
-    last_time_ = ros::Time::now() - ros::Duration(1000.0);
+    last_heard_sound_ = ros::Time::now() ;
+    last_time_ = ros::Time::now() ;
 
     initKF();
     initTfListener();
@@ -405,7 +405,7 @@ void CSoundGrid::spin()
 
     makeStates();
     updateKF();
-    grid_->updateGrid(50);
+    grid_->updateGrid(1);
     publishProbability();
     publishOccupancyGrid();
 
