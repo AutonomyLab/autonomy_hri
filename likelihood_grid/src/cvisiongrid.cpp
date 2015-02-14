@@ -81,7 +81,8 @@ void CVisionGrid::initGrid()
 void CVisionGrid::init()
 {
 
-    last_time_ = ros::Time::now() - ros::Duration(1000.0);
+    last_time_ = ros::Time::now();
+    last_seen_torso_ = ros::Time::now();
     initKF();
     initTfListener();
     initGrid();
@@ -111,7 +112,6 @@ void CVisionGrid::syncCallBack(const autonomy_human::raw_detectionsConstPtr &tor
 {
     ROS_INFO_COND(DEBUG,"Recieved detected torsos");
 
-
     callbackClear();
 
     /**** ENCODER ****/
@@ -123,9 +123,29 @@ void CVisionGrid::syncCallBack(const autonomy_human::raw_detectionsConstPtr &tor
     last_time_ = now;
 
     /****************/
+    ros::Duration d = now - last_seen_torso_;
+    torso_reading_.detections.assign(torso_msg->detections.begin(), torso_msg->detections.end());
+    if(torso_msg->detections.empty())
+    {
+        if(d.toSec() < 2.0)
+            KeepLastTorso();
+        return;
+    }
+    else
+    {
+        last_seen_torso_ = now;
+        grid_->getPose(torso_msg);
+    }
+}
 
-    grid_->getPose(torso_msg);
-
+void CVisionGrid::KeepLastTorso()
+{
+    if(!grid_->polar_array.past.empty())
+    {
+        ROS_INFO_COND(DEBUG, "Keeping last seen Torso.");
+        grid_->polar_array.current.assign(grid_->polar_array.past.begin(),
+                                         grid_->polar_array.past.end());
+    }
 }
 
 void CVisionGrid::addLastStates()
@@ -329,7 +349,7 @@ void CVisionGrid::spin()
 
     makeStates();
     updateKF();
-    grid_->updateGrid(10);
+    grid_->updateGrid(1);
     publishProbability();
     publishOccupancyGrid();
 

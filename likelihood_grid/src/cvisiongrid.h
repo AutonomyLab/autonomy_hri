@@ -29,6 +29,7 @@ class CVisionGrid
     autonomy_human::raw_detections torso_reading_;
     std::vector<bool> match_meas_;
     geometry_msgs::PoseArray prob_;
+    ros::Time last_seen_torso_;
 
 
     void init();
@@ -46,6 +47,7 @@ class CVisionGrid
     void publishProbability();
     void publishOccupancyGrid();
     void passStates();
+    void KeepLastTorso();
 
 
 public:
