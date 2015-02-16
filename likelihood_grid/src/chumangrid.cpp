@@ -27,6 +27,7 @@ void CHumanGrid::init()
     occupancy_grid_.info.origin.position.y = (float) 40 * 0.5 / -2.0;
     occupancy_grid_.header.frame_id = "base_footprint";
     hp_.header.frame_id = "base_footprint";
+    last_hp_.point.z = -1000;
 }
 
 void CHumanGrid::initGrid()
@@ -65,11 +66,11 @@ void CHumanGrid::legCallBack(const geometry_msgs::PoseArrayConstPtr &msg)
     leg_prob_.poses.clear();
     leg_prob_.poses = msg->poses;
 
-    leg_max = 0.0;
+    leg_max_ = 0.0;
     for(size_t i = 0; i < leg_prob_.poses.size(); i++)
     {
-        leg_max = (leg_max > leg_prob_.poses.at(i).position.z)
-                ? leg_max : leg_prob_.poses.at(i).position.z;
+        leg_max_ = (leg_max_ > leg_prob_.poses.at(i).position.z)
+                ? leg_max_ : leg_prob_.poses.at(i).position.z;
     }
 }
 
@@ -78,11 +79,11 @@ void CHumanGrid::soundCallBack(const geometry_msgs::PoseArrayConstPtr& msg)
     sound_prob_.poses.clear();
     sound_prob_.poses = msg->poses;
 
-    sound_max = 0.0;
+    sound_max_ = 0.0;
     for(size_t i = 0; i < sound_prob_.poses.size(); i++)
     {
-        sound_max = (sound_max > sound_prob_.poses.at(i).position.z)
-                ? sound_max : sound_prob_.poses.at(i).position.z;
+        sound_max_ = (sound_max_ > sound_prob_.poses.at(i).position.z)
+                ? sound_max_ : sound_prob_.poses.at(i).position.z;
     }
 }
 
@@ -91,11 +92,11 @@ void CHumanGrid::torsoCallBack(const geometry_msgs::PoseArrayConstPtr &msg)
     torso_prob_.poses.clear();
     torso_prob_.poses = msg->poses;
 
-    torso_max = 0.0;
+    torso_max_ = 0.0;
     for(size_t i = 0; i < torso_prob_.poses.size(); i++)
     {
-        torso_max = (torso_max > torso_prob_.poses.at(i).position.z)
-                ? torso_max : torso_prob_.poses.at(i).position.z;
+        torso_max_ = (torso_max_ > torso_prob_.poses.at(i).position.z)
+                ? torso_max_ : torso_prob_.poses.at(i).position.z;
     }
 }
 
@@ -110,11 +111,11 @@ void CHumanGrid::weightsCallBack(const std_msgs::Float32MultiArrayConstPtr &msg)
 
 void CHumanGrid::average()
 {
-    float maxw = std::max(std::max(leg_max, sound_max), torso_max);
+    float maxw = std::max(std::max(leg_max_, sound_max_), torso_max_);
 
-    lw_  = (leg_max > 0.0) ? (maxw / leg_max) : 0.0;
-    sw_ = (sound_max > 0.0) ? (maxw / sound_max) : 0.0;
-    tw_ = (torso_max > 0.0) ? (maxw / torso_max) : 0.0;
+    lw_  = (leg_max_ > 0.0) ? (maxw / leg_max_) : 0.0;
+    sw_ = (sound_max_ > 0.0) ? (maxw / sound_max_) : 0.0;
+    tw_ = (torso_max_ > 0.0) ? (maxw / torso_max_) : 0.0;
 
     float num = 0.0;
     float denum = (lw_ * leg_weight) + (sw_ * sound_weight) + (tw_ * torso_weight); //
@@ -123,6 +124,7 @@ void CHumanGrid::average()
     temp.resize(prob_.poses.size());
 
     float max = -1000;
+
 
     for(size_t i = 0; i < grid_->grid_size; i++)
     {
@@ -145,17 +147,24 @@ void CHumanGrid::average()
     human_grid_pub_.publish(occupancy_grid_);
     std::vector<float>::iterator it = std::max_element(temp.begin(), temp.end());
 
-    ROS_INFO("max probability: %.4f ", max);
+    ROS_INFO_COND(false,"max probability: %.4f ", max);
+
+
 
     hp_.header.stamp = ros::Time::now();
-    hp_.point = prob_.poses.at(it - temp.begin()).position;
-    hp_.point.z = prob_.poses.at(it - temp.begin()).position.z;
+//    hp_.point = prob_.poses.at(it - temp.begin()).position;
+//    hp_.point.z = prob_.poses.at(it - temp.begin()).position.z;
+
 
     // Using Local Maxima
-//    hp_.point = grid_->highest_prob_point.point;
-    highest_point_pub_.publish(hp_);
 
     grid_->updateLocalMaximas();
+    hp_.point = grid_->highest_prob_point.point;
+
+//    if(fabs(hp_.point.z - last_hp_.point.z) < 0.01 * last_hp_.point.z) hp_.point = last_hp_.point;
+    highest_point_pub_.publish(hp_);
+    last_hp_.point = hp_.point;
+
     grid_->local_maxima_poses.header.stamp = ros::Time::now();
     grid_->local_maxima_poses.header.frame_id = "base_footprint";
     local_maxima_pub_.publish(grid_->local_maxima_poses);

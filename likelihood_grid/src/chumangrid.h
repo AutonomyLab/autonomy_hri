@@ -24,12 +24,14 @@ private:
     float sw_;
     float tw_;
 
-    float leg_max;
-    float sound_max;
-    float torso_max;
+    float leg_max_;
+    float sound_max_;
+    float torso_max_;
 
     nav_msgs::OccupancyGrid occupancy_grid_;
     geometry_msgs::PointStamped hp_;
+    geometry_msgs::PointStamped last_hp_;
+
 
     CGrid* grid_;
 
