@@ -186,6 +186,8 @@ void CLegGrid::filterLegs()
             p1.position = base_footprint_legs_.poses.at(i).position;
             p2.position = filtered_legs_.poses.back().position;
 
+            if(sqrt(p1.position.x*p1.position.x + p1.position.y*p1.position.y) > 10.0) continue;
+
             if(pointDistance(p1.position, p2.position) < 1.0)
             {
                 filtered_legs_.poses.pop_back();
@@ -197,6 +199,7 @@ void CLegGrid::filterLegs()
             {
                 filtered_legs_.poses.push_back(p1);
             }
+
         }
     }
 }
@@ -510,8 +513,6 @@ void CLegGrid::publishProbability()
         prob_.poses.at(i).position.z = grid_->posterior.at(i);
         max = std::max(grid_->posterior.at(i), max);
     }
-
-    ROS_INFO("Maximum probability is %f", max);
 
     prob_.header.stamp = ros::Time::now();
     if(prob_pub_.getNumSubscribers() > 0)
