@@ -734,9 +734,9 @@ void CGrid::trackLocalMaximas()
 
 void CGrid::trackMaxProbability()
 {
-    uint8_t loop_rate = 10;
+    uint8_t loop_rate = 2;
     int8_t counter_threshold = 1 * loop_rate;
-    float dist_threshold = 1.00;
+    float dist_threshold = 0.5;
     float tracking_distance = dist_threshold;
 
     /* Find the cell with highest probability*/
