@@ -27,14 +27,14 @@
       <Parameter name="LENGTH" type="subnet_param" value="LENGTH" description="The length of a frame (per channel)."/>
       <Parameter name="SAMPLING_RATE" type="subnet_param" value="SAMPLING_RATE" description="Sampling Rate (Hz)."/>
       <Parameter name="A_MATRIX" type="subnet_param" value="A_MATRIX" description="Filename of a transfer function matrix."/>
-      <Parameter name="WINDOW" type="int" value="50" description="The number of frames used for calculating a correlation function."/>
-      <Parameter name="WINDOW_TYPE" type="string" value="FUTURE" description="Window selection to accumulate a correlation function. If PAST, the past WINDOW frames from the current frame are used for the accumulation. If MIDDLE, the current frame will be the middle of the accumulated frames. If FUTURE, the future WINDOW frames from the current frame are used for the accumulation. FUTURE is the default from version 1.0, but this makes a delay since we have to wait for the future information. PAST generates a internal buffers for the accumulation, which realizes no delay for localization."/>
-      <Parameter name="PERIOD" type="int" value="50" description="The period in which the source localization is processed."/>
-      <Parameter name="NUM_SOURCE" type="int" value="2" description="Number of sources, which should be less than number of channels."/>
-      <Parameter name="MIN_DEG" type="int" value="-90" description="source direction (lower)."/>
-      <Parameter name="MAX_DEG" type="int" value="90" description="source direction (higher)."/>
-      <Parameter name="LOWER_BOUND_FREQUENCY" type="int" value="300" description="Lower bound of frequency (Hz) used for correlation function calculation."/>
-      <Parameter name="UPPER_BOUND_FREQUENCY" type="int" value="2700" description="Upper bound of frequency (Hz) used for correlation function calculation."/>
+      <Parameter name="WINDOW" type="int" value="25" description="The number of frames used for calculating a correlation function."/>
+      <Parameter name="WINDOW_TYPE" type="string" value="PAST" description="Window selection to accumulate a correlation function. If PAST, the past WINDOW frames from the current frame are used for the accumulation. If MIDDLE, the current frame will be the middle of the accumulated frames. If FUTURE, the future WINDOW frames from the current frame are used for the accumulation. FUTURE is the default from version 1.0, but this makes a delay since we have to wait for the future information. PAST generates a internal buffers for the accumulation, which realizes no delay for localization."/>
+      <Parameter name="PERIOD" type="int" value="25" description="The period in which the source localization is processed."/>
+      <Parameter name="NUM_SOURCE" type="int" value="1" description="Number of sources, which should be less than number of channels."/>
+      <Parameter name="MIN_DEG" type="int" value="-175" description="source direction (lower)."/>
+      <Parameter name="MAX_DEG" type="int" value="175" description="source direction (higher)."/>
+      <Parameter name="LOWER_BOUND_FREQUENCY" type="int" value="500" description="Lower bound of frequency (Hz) used for correlation function calculation."/>
+      <Parameter name="UPPER_BOUND_FREQUENCY" type="int" value="2800" description="Upper bound of frequency (Hz) used for correlation function calculation."/>
       <Parameter name="SPECTRUM_WEIGHT_TYPE" type="string" value="A_Characteristic" description="MUSIC spectrum weight for each frequency bin."/>
       <Parameter name="A_CHAR_SCALING" type="float" value="1" description="Scaling factor of the A-Weight with respect to frequency"/>
       <Parameter name="MANUAL_WEIGHT_SPLINE" type="object" value="&lt;Matrix&lt;float&gt; &lt;rows 2&gt; &lt;cols 5&gt; &lt;data 0.0 2000.0 4000.0 6000.0 8000.0 1.0 1.0 1.0 1.0 1.0&gt; &gt;" description="MUSIC spectrum weight for each frequency bin. This is a 2 by M matrix. The first row represents the frequency, and the second row represents the weight gain. &quot;M&quot; represents the number of key points for the spectrum weight. The frequency range between M key points will be interpolated by spline manner. The format is &quot;&lt;Matrix&lt;float&gt; &lt;rows 2&gt; &lt;cols 2&gt; &lt;data 1 2 3 4&gt; &gt;&quot;."/>
@@ -44,9 +44,9 @@
       <Parameter name="DEBUG" type="bool" value="true" description="Debug option. If the parameter is true, this node outputs sound localization results to a standard output."/>
     </Node>
     <Node name="node_SourceTracker_1" type="SourceTracker" x="314" y="300">
-      <Parameter name="THRESH" type="float" value="38.5" description="Power threshold for localization results. A localization result with higher power than THRESH is tracked, otherwise ignored."/>
-      <Parameter name="PAUSE_LENGTH" type="float" value="1200" description="Life duration of source in ms. When any localization result for a source is found for more than PAUSE_LENGTH / 10 iterations, the source is terminated. [default: 800]"/>
-      <Parameter name="MIN_SRC_INTERVAL" type="float" value="20" description="Source interval threshold in degree. When the angle between a localization result and a source is smaller than MIN_SRC_INTERVAL, the same ID is given to the localization result. [default: 20]"/>
+      <Parameter name="THRESH" type="float" value="26.0" description="Power threshold for localization results. A localization result with higher power than THRESH is tracked, otherwise ignored."/>
+      <Parameter name="PAUSE_LENGTH" type="float" value="800" description="Life duration of source in ms. When any localization result for a source is found for more than PAUSE_LENGTH / 10 iterations, the source is terminated. [default: 800]"/>
+      <Parameter name="MIN_SRC_INTERVAL" type="float" value="10" description="Source interval threshold in degree. When the angle between a localization result and a source is smaller than MIN_SRC_INTERVAL, the same ID is given to the localization result. [default: 20]"/>
       <Parameter name="MIN_ID" type="int" value="0" description="Minimum ID of source locations. MIN_ID should be greater than 0 or equal."/>
       <Parameter name="DEBUG" type="bool" value="false" description="Output debug information if true [default: false]"/>
     </Node>
@@ -67,7 +67,7 @@
     </Node>
     <Node name="node_RosHarkMsgsPublisher_1" type="RosHarkMsgsPublisher" x="1140" y="540">
       <Parameter name="ADVANCE" type="subnet_param" value="ADVANCE" description="Shift sample number for sliding spectrum analysis."/>
-      <Parameter name="ENABLE_DEBUG" type="bool" value="false" description="print debug message of this module in case of true."/>
+      <Parameter name="ENABLE_DEBUG" type="bool" value="true" description="print debug message of this module in case of true."/>
       <Parameter name="TOPIC_NAME_HARKWAVE" type="string" value="HarkWave" description="Published topic name for ROS (HarkWave type message)"/>
       <Parameter name="TOPIC_NAME_HARKFFT" type="string" value="HarkFFT" description="Published topic name for ROS (HarkFFT type message)"/>
       <Parameter name="TOPIC_NAME_HARKFEATURE" type="string" value="HarkFeature" description="Published topic name for ROS (HarkFeature type message)"/>
@@ -76,7 +76,7 @@
       <Parameter name="TOPIC_NAME_HARKSRCFFT" type="string" value="HarkSrcFFT" description="Published topic name for ROS (HarkSrcFFT type message)"/>
       <Parameter name="TOPIC_NAME_HARKSRCFEATURE" type="string" value="HarkSrcFeature" description="Published topic name for ROS (HarkSrcFeature type message)"/>
       <Parameter name="TOPIC_NAME_HARKSRCFEATUREMFM" type="string" value="HarkSrcFeatureMFM" description="Published topic name for ROS (HarkSrcFeatureMFM type message)"/>
-      <Parameter name="BUFFER_NUM" type="int" value="10" description="Buffer size for a ROS published message"/>
+      <Parameter name="BUFFER_NUM" type="int" value="100" description="Buffer size for a ROS published message"/>
       <Parameter name="ROS_LOOP_RATE" type="float" value="10000" description="This allows you to specify a frequency that you would like to loop at [Hz]. Keep this value large. (If ROS interval is shorter than HARK interval, ROS interval is overwritten.)"/>
       <Parameter name="TIMESTAMP_TYPE" type="string" value="CONSTANT_INCREMENT" description="Time stamp type. If TIMESTAMP is connected, this is ignored."/>
       <Parameter name="SAMPLING_RATE" type="int" value="16000" description="The time increment is caluculated as ADVANCE / SAMPLING_RATE"/>
