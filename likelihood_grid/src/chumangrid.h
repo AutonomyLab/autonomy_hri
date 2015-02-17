@@ -37,6 +37,7 @@ private:
 
     void init();
     void initGrid();
+    void printFusedFeatures();
 
 public:
     double leg_weight;

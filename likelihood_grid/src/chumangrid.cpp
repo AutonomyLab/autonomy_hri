@@ -13,7 +13,7 @@ CHumanGrid::CHumanGrid(ros::NodeHandle n):
 void CHumanGrid::init()
 {
     human_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("human_grid", 10);
-    highest_point_pub_ = n_.advertise<geometry_msgs::PointStamped>("highest_probability_point", 10) ;
+    highest_point_pub_ = n_.advertise<geometry_msgs::PointStamped>("maximum_probability", 10) ;
     local_maxima_pub_ = n_.advertise<geometry_msgs::PoseArray>("local_maxima",10);
 
     initGrid();
@@ -108,14 +108,29 @@ void CHumanGrid::weightsCallBack(const std_msgs::Float32MultiArrayConstPtr &msg)
 
 }
 
+void CHumanGrid::printFusedFeatures()
+{
+    std::string state = "NO FEATURE";
+    float eps = 1e-3;
+    if(hp_.point.z < (0.1667 + eps)){state = "LEG"; ROS_INFO("WTF?");}
+    else if(hp_.point.z < (0.3334 + eps)) {state = "SOUND";}
+    else if(hp_.point.z < (0.5 + eps)) {state = "TORSO OR LEG+SOUND";}
+    else if(hp_.point.z < (0.6667 + eps)) {state = "LEG+TORSO";}
+    else if(hp_.point.z < (0.8334 + eps)) {state = "SOUND+TORSO";}
+    else {state = "ALL :)";}
+
+    ROS_WARN("state is %s   %0.4f", state.c_str(), hp_.point.z);
+
+}
+
 
 void CHumanGrid::average()
 {
     float maxw = std::max(std::max(leg_max_, sound_max_), torso_max_);
 
-    lw_  = (leg_max_ > 0.0) ? (maxw / leg_max_) : 0.0;
-    sw_ = (sound_max_ > 0.0) ? (maxw / sound_max_) : 0.0;
-    tw_ = (torso_max_ > 0.0) ? (maxw / torso_max_) : 0.0;
+    lw_  = (leg_max_ > 0.0) ? (maxw / leg_max_) : 1.0;
+    sw_ = (sound_max_ > 0.0) ? (maxw / sound_max_) : 1.0;
+    tw_ = (torso_max_ > 0.0) ? (maxw / torso_max_) : 1.0;
 
     float num = 0.0;
     float denum = (lw_ * leg_weight) + (sw_ * sound_weight) + (tw_ * torso_weight); //
@@ -152,18 +167,24 @@ void CHumanGrid::average()
 
 
     hp_.header.stamp = ros::Time::now();
-//    hp_.point = prob_.poses.at(it - temp.begin()).position;
-//    hp_.point.z = prob_.poses.at(it - temp.begin()).position.z;
-
 
     // Using Local Maxima
+//    grid_->updateLocalMaximas();
+//    hp_.point = grid_->highest_prob_point.point;
 
-    grid_->updateLocalMaximas();
-    hp_.point = grid_->highest_prob_point.point;
+    //Use highest Point
+    hp_.point = prob_.poses.at(it - temp.begin()).position;
+    hp_.point.z = prob_.poses.at(it - temp.begin()).position.z;
 
-//    if(fabs(hp_.point.z - last_hp_.point.z) < 0.01 * last_hp_.point.z) hp_.point = last_hp_.point;
+    if(fabs(hp_.point.z - last_hp_.point.z) < 0.01 * last_hp_.point.z) hp_.point = last_hp_.point;
+
+    if(hp_.point.z <  (0.4) ||
+            fabs(hp_.point.z - last_hp_.point.z) < 0.01 * last_hp_.point.z)
+        hp_.point = last_hp_.point;
+
     highest_point_pub_.publish(hp_);
     last_hp_.point = hp_.point;
+    printFusedFeatures();
 
     grid_->local_maxima_poses.header.stamp = ros::Time::now();
     grid_->local_maxima_poses.header.frame_id = "base_footprint";

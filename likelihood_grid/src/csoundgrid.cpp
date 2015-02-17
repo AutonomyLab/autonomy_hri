@@ -136,7 +136,7 @@ void CSoundGrid::syncCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg,
 
     ros::Duration d = now - last_heard_sound_;
     ss_reading_.assign(sound_msg->src.begin(), sound_msg->src.end());
-    rejectNotValidSoundSources(25.0);
+    rejectNotValidSoundSources(30.0);
 
     if(sound_msg->src.empty())
     {
@@ -212,7 +212,7 @@ void CSoundGrid::makeStates()
      */
 
     clearStates();
-    ROS_WARN("size of new sound msgs: %lu", grid_->polar_array.current.size());
+    ROS_WARN_COND(DEBUG,"size of new sound msgs: %lu", grid_->polar_array.current.size());
 
     if(diff_time_.toSec() < 2.0)
     {
