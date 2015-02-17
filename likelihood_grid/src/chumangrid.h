@@ -3,6 +3,7 @@
 
 #include<nav_msgs/OccupancyGrid.h>
 #include<geometry_msgs/PointStamped.h>
+#include<nav_msgs/Odometry.h>
 #include<std_msgs/Float32MultiArray.h>
 #include<std_msgs/UInt8MultiArray.h>
 #include"grid.h"
@@ -28,6 +29,15 @@ private:
     float sound_max_;
     float torso_max_;
 
+    float state_time_threshold_;
+
+    ros::Time last_time_;
+    ros::Time state_time_;
+
+    bool initialized_;
+
+    Velocity_t velocity_;
+
     nav_msgs::OccupancyGrid occupancy_grid_;
     geometry_msgs::PointStamped hp_;
     geometry_msgs::PointStamped last_hp_;
@@ -37,7 +47,12 @@ private:
 
     void init();
     void initGrid();
+    void transitState();
     void printFusedFeatures();
+    void predictLastHighestPoint();
+
+    void publishLocalMaxima();
+    void resetState();
 
 public:
     double leg_weight;
@@ -51,6 +66,8 @@ public:
     void soundCallBack(const geometry_msgs::PoseArrayConstPtr &msg);
     void torsoCallBack(const geometry_msgs::PoseArrayConstPtr& msg);
     void weightsCallBack(const std_msgs::Float32MultiArrayConstPtr& msg);
+    void encoderCallBack(const nav_msgs::OdometryConstPtr& msg);
+
     ~CHumanGrid();
 };
 

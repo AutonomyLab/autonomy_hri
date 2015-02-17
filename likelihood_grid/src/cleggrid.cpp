@@ -104,13 +104,13 @@ void CLegGrid::computeObjectVelocity()
     velocity_.angular = - encoder_reading_.twist.twist.angular.z;
 }
 
-void CLegGrid::encoder_cb(const nav_msgs::OdometryConstPtr &encoder_msg)
+void CLegGrid::encoderCallBack(const nav_msgs::OdometryConstPtr &encoder_msg)
 {
     encoder_reading_.twist = encoder_msg->twist;
     computeObjectVelocity();
 }
 
-void CLegGrid::legs_cb(const geometry_msgs::PoseArrayConstPtr &leg_msg)
+void CLegGrid::legsCallBack(const geometry_msgs::PoseArrayConstPtr &leg_msg)
 
 //void CLegGrid::syncCallBack(const geometry_msgs::PoseArrayConstPtr &leg_msg,
 //                           const nav_msgs::OdometryConstPtr &encoder_msg)

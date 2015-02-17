@@ -609,9 +609,9 @@ void CGrid::trackLocalMaximas()
         return;
     }
 
-    for(size_t k = 0; k < old_lms_.size(); k++)
+    for(std::vector<LocalMaxima_t>::iterator k = old_lms_.begin(); k != old_lms_.end(); k++)
     {
-        if(old_lms_.at(k).probability < 1e-4) { old_lms_.erase(old_lms_.begin() + k); }
+        if(k->probability < 1e-4) { old_lms_.erase(k); }
     }
 
     matched_lms_.assign(old_lms_.begin(), old_lms_.end());
@@ -667,46 +667,51 @@ void CGrid::trackLocalMaximas()
 
     old_lms_.clear();
 
-    for(size_t a = 0; a < matched_lms_.size(); a++)
+    if(!matched_lms_.empty())
     {
-        LocalMaxima_t l = matched_lms_.at(a);
-
-/*
-//        if(matched_lms_.at(a).probability < 1e-4)
-//        {
-//            matched_lms_.at(a).counter = 0.0;
-//            matched_lms_.at(a).tracking = false;
-//        }
-
-
-//        if(matched_lms_.at(a).counter <= 0)
-//        {
-//            matched_lms_.at(a).tracking = false;
-//        }
-//        else
-//        {
-//            if(matched_lms_.at(a).counter > counter_threshold)
-//            {
-//                matched_lms_.at(a).counter = counter_threshold + 1;
-//                matched_lms_.at(a).tracking = true;
-//            }
-//            old_lms_.push_back(matched_lms_.at(a));
-//        }
-*/
-        if(l.counter <= 0)
+        for(std::vector<LocalMaxima_t>::iterator a = matched_lms_.begin();
+            a != matched_lms_.end(); a++)
         {
-            matched_lms_.erase(matched_lms_.begin() + a);
-        }
-        else{
-            old_lms_.push_back(l);
+            LocalMaxima_t l = *a;
+
+    /*
+    //        if(matched_lms_.at(a).probability < 1e-4)
+    //        {
+    //            matched_lms_.at(a).counter = 0.0;
+    //            matched_lms_.at(a).tracking = false;
+    //        }
 
 
-            if(l.tracking == true )
+    //        if(matched_lms_.at(a).counter <= 0)
+    //        {
+    //            matched_lms_.at(a).tracking = false;
+    //        }
+    //        else
+    //        {
+    //            if(matched_lms_.at(a).counter > counter_threshold)
+    //            {
+    //                matched_lms_.at(a).counter = counter_threshold + 1;
+    //                matched_lms_.at(a).tracking = true;
+    //            }
+    //            old_lms_.push_back(matched_lms_.at(a));
+    //        }
+    */
+            if(l.counter <= 0)
             {
-                main_lms_.push_back(l);
+                matched_lms_.erase( a);
+            }
+            else{
+                old_lms_.push_back(l);
+
+
+                if(l.tracking == true )
+                {
+                    main_lms_.push_back(l);
+                }
             }
         }
     }
+
 
     // For disable tracking uncomment these two lines:
 //    main_lms_.clear();

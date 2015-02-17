@@ -68,9 +68,9 @@ public:
 //    void syncCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg,
 //                      const nav_msgs::OdometryConstPtr& encoder_msg);
 
-    void legs_cb(const geometry_msgs::PoseArrayConstPtr& leg_msg);
+    void legsCallBack(const geometry_msgs::PoseArrayConstPtr& leg_msg);
 
-    void encoder_cb(const nav_msgs::OdometryConstPtr& encoder_msg);
+    void encoderCallBack(const nav_msgs::OdometryConstPtr& encoder_msg);
 
     void spin();
 
