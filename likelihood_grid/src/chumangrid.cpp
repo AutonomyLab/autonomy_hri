@@ -1,11 +1,13 @@
 #include "chumangrid.h"
-
+#define DEBUG false
 CHumanGrid::CHumanGrid()
 {
 }
 
 CHumanGrid::CHumanGrid(ros::NodeHandle n):
-    n_(n)
+    n_(n),
+    initialized_(false),
+    state_time_threshold_(10.0)
 {
     init();
 }
@@ -27,7 +29,11 @@ void CHumanGrid::init()
     occupancy_grid_.info.origin.position.y = (float) 40 * 0.5 / -2.0;
     occupancy_grid_.header.frame_id = "base_footprint";
     hp_.header.frame_id = "base_footprint";
-    last_hp_.point.z = -1000;
+    last_hp_.point.z = hp_.point.z = 0.0;
+    last_hp_.point.x = last_hp_.point.y = -10.0;
+    hp_.point.x = hp_.point.y = -10.0;
+    last_time_ = ros::Time::now();
+    state_time_ = ros::Time::now();
 }
 
 void CHumanGrid::initGrid()
@@ -59,6 +65,7 @@ void CHumanGrid::initGrid()
         prob_.poses.at(i).position.y = grid_->map.cell.at(i).cartesian.y;
         prob_.poses.at(i).position.z = 0.0;
     }
+    grid_->local_maxima_poses.header.frame_id = "base_footprint";
 }
 
 void CHumanGrid::legCallBack(const geometry_msgs::PoseArrayConstPtr &msg)
@@ -100,6 +107,18 @@ void CHumanGrid::torsoCallBack(const geometry_msgs::PoseArrayConstPtr &msg)
     }
 }
 
+void CHumanGrid::encoderCallBack(const nav_msgs::OdometryConstPtr& msg)
+{
+    velocity_.angular = - msg->twist.twist.angular.z;
+    velocity_.linear = - sqrt(msg->twist.twist.linear.x * msg->twist.twist.linear.x +
+            msg->twist.twist.linear.y * msg->twist.twist.linear.y);
+    velocity_.lin.x = - msg->twist.twist.linear.x;
+    velocity_.lin.y = - msg->twist.twist.linear.y;
+
+    ROS_INFO_COND(DEBUG,"linear: %0.4f     angular: %0.4f",velocity_.linear, velocity_.angular);
+}
+
+
 void CHumanGrid::weightsCallBack(const std_msgs::Float32MultiArrayConstPtr &msg)
 {
     leg_weight = msg->data.at(0);
@@ -108,11 +127,34 @@ void CHumanGrid::weightsCallBack(const std_msgs::Float32MultiArrayConstPtr &msg)
 
 }
 
+void CHumanGrid::predictLastHighestPoint()
+{
+    if(fabs(velocity_.linear) < 1e-2 && fabs(velocity_.angular) < 1e-2) return;
+
+    ros::Duration dt = ros::Time::now() - last_time_;
+
+    ROS_INFO("dt: %0.4f", dt.toSec());
+    float dr = velocity_.linear * dt.toSec();
+    float da = velocity_.angular * dt.toSec();
+
+    float r1 = sqrt(last_hp_.point.x * last_hp_.point.x + last_hp_.point.y * last_hp_.point.y);
+    float a1 = atan2(last_hp_.point.y, last_hp_.point.x);
+
+    float r2 = r1 + dr;
+    float a2 = a1 + da;
+
+    last_hp_.point.x = r2 * cos(a2);
+    last_hp_.point.y = r2 * sin(a2);
+
+    ROS_INFO("Updating last state...");
+
+}
+
 void CHumanGrid::printFusedFeatures()
 {
     std::string state = "NO FEATURE";
     float eps = 1e-3;
-    if(hp_.point.z < (0.1667 + eps)){state = "LEG"; ROS_INFO("WTF?");}
+    if(hp_.point.z < (0.1667 + eps)){state = "LEG";}
     else if(hp_.point.z < (0.3334 + eps)) {state = "SOUND";}
     else if(hp_.point.z < (0.5 + eps)) {state = "TORSO OR LEG+SOUND";}
     else if(hp_.point.z < (0.6667 + eps)) {state = "LEG+TORSO";}
@@ -126,6 +168,7 @@ void CHumanGrid::printFusedFeatures()
 
 void CHumanGrid::average()
 {
+    ros::Time now = ros::Time::now();
     float maxw = std::max(std::max(leg_max_, sound_max_), torso_max_);
 
     lw_  = (leg_max_ > 0.0) ? (maxw / leg_max_) : 1.0;
@@ -158,15 +201,14 @@ void CHumanGrid::average()
         occupancy_grid_.data.at(i) = (int) 100 * (temp.at(i)) / max;
     }
 
-    occupancy_grid_.header.stamp = ros::Time::now();
+    occupancy_grid_.header.stamp = now;
     human_grid_pub_.publish(occupancy_grid_);
+
     std::vector<float>::iterator it = std::max_element(temp.begin(), temp.end());
 
-    ROS_INFO_COND(false,"max probability: %.4f ", max);
+    ROS_INFO_COND(DEBUG,"max probability: %.4f ", max);
 
 
-
-    hp_.header.stamp = ros::Time::now();
 
     // Using Local Maxima
 //    grid_->updateLocalMaximas();
@@ -174,20 +216,51 @@ void CHumanGrid::average()
 
     //Use highest Point
     hp_.point = prob_.poses.at(it - temp.begin()).position;
-    hp_.point.z = prob_.poses.at(it - temp.begin()).position.z;
 
-    if(fabs(hp_.point.z - last_hp_.point.z) < 0.01 * last_hp_.point.z) hp_.point = last_hp_.point;
+    if(!initialized_ && hp_.point.z > 0.0){ last_hp_ = hp_; initialized_ = true;}
 
-    if(hp_.point.z <  (0.4) ||
-            fabs(hp_.point.z - last_hp_.point.z) < 0.01 * last_hp_.point.z)
-        hp_.point = last_hp_.point;
+    transitState();
+    last_time_ = now;
 
+    hp_.header.stamp = now;
     highest_point_pub_.publish(hp_);
-    last_hp_.point = hp_.point;
-    printFusedFeatures();
 
+    printFusedFeatures();
+    publishLocalMaxima();
+}
+
+void CHumanGrid::resetState()
+{
+    state_time_ = ros::Time::now();
+    last_hp_.point = hp_.point;
+}
+
+void CHumanGrid::transitState()
+{
+    ros::Duration dt = ros::Time::now() - state_time_;
+
+    if(hp_.point.z <  0.4 ||
+            fabs(hp_.point.z - last_hp_.point.z) < 0.01 * hp_.point.z)
+    {
+        if(dt.toSec() > state_time_threshold_)    {    ROS_INFO("11");
+ resetState(); return;    }
+
+        predictLastHighestPoint();
+        hp_.point = last_hp_.point;
+        ROS_INFO("12.");
+
+    }
+    else{ resetState();     ROS_INFO("2");}
+
+
+    last_hp_.point = hp_.point;
+
+
+}
+
+void CHumanGrid::publishLocalMaxima()
+{
     grid_->local_maxima_poses.header.stamp = ros::Time::now();
-    grid_->local_maxima_poses.header.frame_id = "base_footprint";
     local_maxima_pub_.publish(grid_->local_maxima_poses);
 }
 

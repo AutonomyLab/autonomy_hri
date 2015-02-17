@@ -106,16 +106,19 @@ void CSoundGrid::callbackClear()
 
 void CSoundGrid::rejectNotValidSoundSources(float p)
 {
+    if(ss_reading_.empty()) return;
     std::vector<hark_msgs::HarkSourceVal>::iterator it;
+    std::vector<hark_msgs::HarkSourceVal> temp;
 
-    for(it = ss_reading_.begin(); it != ss_reading_.end(); ++it)
+    for(it = ss_reading_.begin(); it != ss_reading_.end(); it++)
     {
-        if(fabs(it->y) < 1e-9 || it->power < p)
-        {
-            ss_reading_.erase(it);
-            ROS_INFO_COND(DEBUG,"Rejecting not valid sound sources.");
+        if(fabs(it->y) > 1e-9 && it->power > p){
+            temp.push_back(*it);
         }
     }
+
+    ss_reading_.clear();
+    ss_reading_.assign(temp.begin(), temp.end());
 }
 
 
@@ -138,10 +141,11 @@ void CSoundGrid::syncCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg,
     /**** SOUND ****/
 
     ros::Duration d = now - last_heard_sound_;
-    ss_reading_.assign(sound_msg->src.begin(), sound_msg->src.end());
-    rejectNotValidSoundSources(28.0);
 
-    if(sound_msg->src.empty())
+    ss_reading_.assign(sound_msg->src.begin(), sound_msg->src.end());
+
+    rejectNotValidSoundSources(28.0);
+    if(ss_reading_.empty())
     {
         if(d.toSec() < 5.0 )
             keepLastSound();
