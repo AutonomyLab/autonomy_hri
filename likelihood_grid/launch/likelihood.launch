@@ -1,7 +1,7 @@
 <launch>
 <arg name="use_encoder" value="true" />
 <arg name="leg_detection" value="true" />
-<arg name="torso_detection" value="false" />
+<arg name="torso_detection" value="true" />
 <arg name="sound_detection" value="false" />
 <arg name="gesture_detection" value="false" />
 <arg name="bayesian" value="false"/>
@@ -95,7 +95,7 @@
 </group>
 
 <group if="$(arg sound_node)">
-        <node pkg="likelihood_grid" type="sound_grid_node" name="sound_grid_node" output="screen" >
+        <node pkg="likelihood_grid" type="sound_grid_node" name="sound_grid_node" output="screen">
             <remap from="sound" to="HarkSource" />
         </node>
 </group>
@@ -111,10 +111,11 @@
             <param name="leg_enable" value="$(arg leg_node)"/>
             <param name="torso_enable" value="$(arg vision_node)"/>
             <param name="sound_enable" value="$(arg sound_node)"/>
-            <param name="leg_weight" value="1"/>
-            <param name="sound_weight" value="2"/>
-            <param name="torso_weight" value="3"/>
-
+            <rosparam>
+                leg_weight: 1
+                sound_weight: 2
+                torso_weight: 3
+            </rosparam>
         </node>
 </group>
 
@@ -125,6 +126,9 @@
 <group if="$(arg torso_detection)">
     <include file="$(find person_detection)/launch/person_detection.launch"/>
     <remap from="axis/image_raw/decompressed" to="/camera/front/rgb/image_color/compressed" />
+
+<!--     <node pkg="image_transport" type="republish" name="republish" args="compressed in:=/camera/front/rgb/image_color _image_transport:=compressed raw out:=/camera/front/rgb/image_color" output="screen">
+    </node> -->
 </group>
 
 
