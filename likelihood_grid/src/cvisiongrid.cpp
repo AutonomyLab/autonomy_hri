@@ -125,6 +125,8 @@ void CVisionGrid::syncCallBack(const autonomy_human::raw_detectionsConstPtr &tor
     /****************/
     ros::Duration d = now - last_seen_torso_;
     torso_reading_.detections.assign(torso_msg->detections.begin(), torso_msg->detections.end());
+//     grid_->getPose(torso_msg);
+
     if(torso_msg->detections.empty())
     {
         if(d.toSec() < 2.0)
@@ -303,7 +305,7 @@ void CVisionGrid::makeStates()
      */
 
     clearStates();
-    ROS_ERROR("size of new torso msgs: %lu", grid_->polar_array.current.size());
+    ROS_ERROR_COND(DEBUG,"size of new torso msgs: %lu", grid_->polar_array.current.size());
 
 
     if(diff_time_.toSec() < 1.0)
