@@ -52,7 +52,8 @@ private:
     void predictLastHighestPoint();
 
     void publishLocalMaxima();
-    void resetState();
+    void newState();
+    void originState();
 
 public:
     double leg_weight;

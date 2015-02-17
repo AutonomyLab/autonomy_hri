@@ -217,7 +217,7 @@ void CHumanGrid::average()
     //Use highest Point
     hp_.point = prob_.poses.at(it - temp.begin()).position;
 
-    if(!initialized_ && hp_.point.z > 0.0){ last_hp_ = hp_; initialized_ = true;}
+//    if(!initialized_ && hp_.point.z > 0.0){ last_hp_ = hp_; initialized_ = true;}
 
     transitState();
     last_time_ = now;
@@ -229,9 +229,18 @@ void CHumanGrid::average()
     publishLocalMaxima();
 }
 
-void CHumanGrid::resetState()
+void CHumanGrid::newState()
 {
     state_time_ = ros::Time::now();
+    last_hp_.point = hp_.point;
+}
+
+void CHumanGrid::originState()
+{
+    state_time_ = ros::Time::now();
+    hp_.point.z = 0.0;
+    hp_.point.x = -10.0;
+    hp_.point.y = -10.0;
     last_hp_.point = hp_.point;
 }
 
@@ -242,20 +251,17 @@ void CHumanGrid::transitState()
     if(hp_.point.z <  0.4 ||
             fabs(hp_.point.z - last_hp_.point.z) < 0.01 * hp_.point.z)
     {
-        if(dt.toSec() > state_time_threshold_)    {    ROS_INFO("11");
- resetState(); return;    }
-
-        predictLastHighestPoint();
-        hp_.point = last_hp_.point;
-        ROS_INFO("12.");
-
+        if(dt.toSec() < state_time_threshold_)
+        {
+            predictLastHighestPoint();
+            hp_.point = last_hp_.point;
+        } else { originState();}
     }
-    else{ resetState();     ROS_INFO("2");}
 
-
-    last_hp_.point = hp_.point;
-
-
+    else {
+        newState();
+        return;
+    }
 }
 
 void CHumanGrid::publishLocalMaxima()
