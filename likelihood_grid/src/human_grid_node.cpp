@@ -21,13 +21,13 @@ int main(int argc, char** argv)
     //    ros::param::param("/human_grid_node/leg_node", get_leg_grid, true);
     //    ros::param::param("/human_grid_node/torso_node", get_torso_grid, true);
     //    ros::param::param("/human_grid_node/sound_node", get_sound_grid, true);
-    ros::param::param("/human_grid_node/sound_weight", sw, 4);
+    ros::param::param("/human_grid_node/sound_weight", sw, 4.0);
     ros::param::get("/human_grid_node/sound_weight", sw);
 
-    ros::param::param("/human_grid_node/torso_weight",tw, 3);
+    ros::param::param("/human_grid_node/torso_weight",tw, 3.0);
     ros::param::get("/human_grid_node/torso_weight", tw);
 
-    ros::param::param("/human_grid_node/leg_weight", lw, 2);
+    ros::param::param("/human_grid_node/leg_weight", lw, 2.0);
     ros::param::get("/human_grid_node/leg_weight", lw);
     CHumanGrid human_grid(n,lw, sw, tw);
 
