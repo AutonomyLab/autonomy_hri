@@ -29,7 +29,12 @@ private:
     float sound_max_;
     float torso_max_;
 
+    float leg_weight_;
+    float sound_weight_;
+    float torso_weight_;
+
     float state_time_threshold_;
+    float probability_threshold_;
 
     ros::Time last_time_;
     ros::Time state_time_;
@@ -53,15 +58,15 @@ private:
 
     void publishLocalMaxima();
     void newState();
-    void originState();
+    void resetState();
+    void calculateProbabilityThreshold();
 
 public:
-    double leg_weight;
-    double sound_weight;
-    double torso_weight;
+
     CHumanGrid();
     CHumanGrid(ros::NodeHandle n);
-    void average();
+    CHumanGrid(ros::NodeHandle n, float lw, float sw, float tw);
+    void integrateProbabilities();
 
     void legCallBack(const geometry_msgs::PoseArrayConstPtr& msg);
     void soundCallBack(const geometry_msgs::PoseArrayConstPtr &msg);

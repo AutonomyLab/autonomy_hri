@@ -11,23 +11,25 @@ int main(int argc, char** argv)
     ros::param::param("~/loop_rate", loop_rate, 5);
     ros::Rate looprate(loop_rate);
 
-    CHumanGrid human_grid(n);
 
-    bool get_leg_grid = true;
-    bool get_sound_grid = true;
-    bool get_torso_grid = true;
+//    bool get_leg_grid = true;
+//    bool get_sound_grid = true;
+//    bool get_torso_grid = true;
+
+    double lw, sw, tw;
 
     //    ros::param::param("/human_grid_node/leg_node", get_leg_grid, true);
     //    ros::param::param("/human_grid_node/torso_node", get_torso_grid, true);
     //    ros::param::param("/human_grid_node/sound_node", get_sound_grid, true);
-    ros::param::param("/human_grid_node/sound_weight", human_grid.sound_weight, 3.7);
-    ros::param::get("/human_grid_node/sound_weight", human_grid.sound_weight);
+    ros::param::param("/human_grid_node/sound_weight", sw, 4.0);
+    ros::param::get("/human_grid_node/sound_weight", sw);
 
-    ros::param::param("/human_grid_node/torso_weight", human_grid.torso_weight, 3.8);
-    ros::param::get("/human_grid_node/torso_weight", human_grid.torso_weight);
+    ros::param::param("/human_grid_node/torso_weight",tw, 3.0);
+    ros::param::get("/human_grid_node/torso_weight", tw);
 
-    ros::param::param("/human_grid_node/leg_weight", human_grid.leg_weight, 2.5);
-    ros::param::get("/human_grid_node/leg_weight", human_grid.leg_weight);
+    ros::param::param("/human_grid_node/leg_weight", lw, 2.0);
+    ros::param::get("/human_grid_node/leg_weight", lw);
+    CHumanGrid human_grid(n,lw, sw, tw);
 
 
     ros::Subscriber leg_grid_sub = n.subscribe("leg_probability", 10,
@@ -51,7 +53,7 @@ int main(int argc, char** argv)
 
     while(ros::ok())
     {
-        human_grid.average();
+        human_grid.integrateProbabilities();
 
         if(looprate.cycleTime() > looprate.expectedCycleTime())
             ROS_ERROR("It is taking too long! %f", looprate.cycleTime().toSec());

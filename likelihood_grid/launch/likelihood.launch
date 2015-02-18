@@ -112,8 +112,8 @@
             <param name="torso_enable" value="$(arg vision_node)"/>
             <param name="sound_enable" value="$(arg sound_node)"/>
             <rosparam>
-                leg_weight: 1
-                sound_weight: 2
+                leg_weight: 2
+                sound_weight: 4
                 torso_weight: 3
             </rosparam>
         </node>
@@ -126,9 +126,6 @@
 <group if="$(arg torso_detection)">
     <include file="$(find person_detection)/launch/person_detection.launch"/>
     <remap from="axis/image_raw/decompressed" to="/camera/front/rgb/image_color/compressed" />
-
-<!--     <node pkg="image_transport" type="republish" name="republish" args="compressed in:=/camera/front/rgb/image_color _image_transport:=compressed raw out:=/camera/front/rgb/image_color" output="screen">
-    </node> -->
 </group>
 
 

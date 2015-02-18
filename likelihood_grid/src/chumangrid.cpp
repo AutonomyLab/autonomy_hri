@@ -1,5 +1,7 @@
 #include "chumangrid.h"
 #define DEBUG false
+#define STATE_DEBUG false
+
 CHumanGrid::CHumanGrid()
 {
 }
@@ -12,6 +14,17 @@ CHumanGrid::CHumanGrid(ros::NodeHandle n):
     init();
 }
 
+CHumanGrid::CHumanGrid(ros::NodeHandle n, float lw, float sw, float tw):
+    n_(n),
+    initialized_(false),
+    state_time_threshold_(10.0),
+    leg_weight_(lw),
+    sound_weight_(sw),
+    torso_weight_(tw)
+{
+    init();
+}
+
 void CHumanGrid::init()
 {
     human_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("human_grid", 10);
@@ -19,6 +32,7 @@ void CHumanGrid::init()
     local_maxima_pub_ = n_.advertise<geometry_msgs::PoseArray>("local_maxima",10);
 
     initGrid();
+    calculateProbabilityThreshold();
     leg_prob_.poses.resize(1600); //TODO: FIX THIS
     sound_prob_.poses.resize(1600);
     torso_prob_.poses.resize(1600);
@@ -121,10 +135,19 @@ void CHumanGrid::encoderCallBack(const nav_msgs::OdometryConstPtr& msg)
 
 void CHumanGrid::weightsCallBack(const std_msgs::Float32MultiArrayConstPtr &msg)
 {
-    leg_weight = msg->data.at(0);
-    sound_weight = msg->data.at(1);
-    torso_weight = msg->data.at(2);
+    leg_weight_ = msg->data.at(0);
+    sound_weight_ = msg->data.at(1);
+    torso_weight_ = msg->data.at(2);
+    calculateProbabilityThreshold();
 
+}
+
+void CHumanGrid::calculateProbabilityThreshold()
+{
+    probability_threshold_ = std::min(leg_weight_ + sound_weight_,
+                               std::min(leg_weight_ + torso_weight_, torso_weight_ + sound_weight_));
+
+    probability_threshold_ /= (sound_weight_ + leg_weight_ + torso_weight_);
 }
 
 void CHumanGrid::predictLastHighestPoint()
@@ -152,13 +175,16 @@ void CHumanGrid::predictLastHighestPoint()
 
 void CHumanGrid::printFusedFeatures()
 {
+    float sum = leg_weight_ + sound_weight_ + torso_weight_;
+
     std::string state = "NO FEATURE";
     float eps = 1e-3;
-    if(hp_.point.z < (0.1667 + eps)){state = "LEG";}
-    else if(hp_.point.z < (0.3334 + eps)) {state = "SOUND";}
-    else if(hp_.point.z < (0.5 + eps)) {state = "TORSO OR LEG+SOUND";}
-    else if(hp_.point.z < (0.6667 + eps)) {state = "LEG+TORSO";}
-    else if(hp_.point.z < (0.8334 + eps)) {state = "SOUND+TORSO";}
+    if(hp_.point.z < (leg_weight_/sum + eps)){state = "LEG";}
+    else if(hp_.point.z < (torso_weight_/sum + eps)) {state = "TORSO";}
+    else if(hp_.point.z < (sound_weight_/sum + eps)) {state = "SOUND";}
+    else if(hp_.point.z < ((leg_weight_ + torso_weight_)/sum + eps)) {state = "LEG  +TROSO";}
+    else if(hp_.point.z < ((leg_weight_ + sound_weight_)/sum + eps)) {state = "LEG + SOUND";}
+    else if(hp_.point.z < ((torso_weight_ + sound_weight_)/sum + eps)) {state = "SOUND+TORSO";}
     else {state = "ALL :)";}
 
     ROS_WARN("state is %s   %0.4f", state.c_str(), hp_.point.z);
@@ -166,17 +192,19 @@ void CHumanGrid::printFusedFeatures()
 }
 
 
-void CHumanGrid::average()
+void CHumanGrid::integrateProbabilities()
 {
     ros::Time now = ros::Time::now();
-    float maxw = std::max(std::max(leg_max_, sound_max_), torso_max_);
 
-    lw_  = (leg_max_ > 0.0) ? (maxw / leg_max_) : 1.0;
-    sw_ = (sound_max_ > 0.0) ? (maxw / sound_max_) : 1.0;
-    tw_ = (torso_max_ > 0.0) ? (maxw / torso_max_) : 1.0;
+//    float maxw = std::max(std::max(leg_max_, sound_max_), torso_max_);
+//    lw_  = (leg_max_ > 0.0) ? (maxw / leg_max_) : 1.0;
+//    sw_ = (sound_max_ > 0.0) ? (maxw / sound_max_) : 1.0;
+//    tw_ = (torso_max_ > 0.0) ? (maxw / torso_max_) : 1.0;
+
+    lw_ = sw_ = tw_ = 1.0; //TODO: REMOVE THESE PARAMS
 
     float num = 0.0;
-    float denum = (lw_ * leg_weight) + (sw_ * sound_weight) + (tw_ * torso_weight); //
+    float denum = (lw_ * leg_weight_) + (sw_ * sound_weight_) + (tw_ * torso_weight_); //
 
     std::vector<float> temp;
     temp.resize(prob_.poses.size());
@@ -186,13 +214,12 @@ void CHumanGrid::average()
 
     for(size_t i = 0; i < grid_->grid_size; i++)
     {
-        num =   lw_ * leg_weight * leg_prob_.poses.at(i).position.z +
-                sw_ * sound_weight * sound_prob_.poses.at(i).position.z +
-                tw_ * torso_weight * torso_prob_.poses.at(i).position.z;
+        num =   lw_ * leg_weight_ * leg_prob_.poses.at(i).position.z +
+                sw_ * sound_weight_ * sound_prob_.poses.at(i).position.z +
+                tw_ * torso_weight_ * torso_prob_.poses.at(i).position.z;
 
         prob_.poses.at(i).position.z = num/denum;
-        grid_->posterior.at(i) = num/denum;
-        temp.at(i) = num/denum;
+        temp.at(i) = grid_->posterior.at(i) = num/denum;
         max = std::max(max, temp.at(i));
     }
 
@@ -209,15 +236,12 @@ void CHumanGrid::average()
     ROS_INFO_COND(DEBUG,"max probability: %.4f ", max);
 
 
-
     // Using Local Maxima
 //    grid_->updateLocalMaximas();
 //    hp_.point = grid_->highest_prob_point.point;
 
     //Use highest Point
     hp_.point = prob_.poses.at(it - temp.begin()).position;
-
-//    if(!initialized_ && hp_.point.z > 0.0){ last_hp_ = hp_; initialized_ = true;}
 
     transitState();
     last_time_ = now;
@@ -235,7 +259,7 @@ void CHumanGrid::newState()
     last_hp_.point = hp_.point;
 }
 
-void CHumanGrid::originState()
+void CHumanGrid::resetState()
 {
     state_time_ = ros::Time::now();
     hp_.point.z = 0.0;
@@ -248,20 +272,77 @@ void CHumanGrid::transitState()
 {
     ros::Duration dt = ros::Time::now() - state_time_;
 
-    if(hp_.point.z <  0.4 ||
-            fabs(hp_.point.z - last_hp_.point.z) < 0.01 * hp_.point.z)
+    ROS_ERROR("time duration: %0.4f",dt.toSec());
+
+    if(hp_.point.z - probability_threshold_ > -1e-2)
     {
-        if(dt.toSec() < state_time_threshold_)
+        ROS_INFO_COND(STATE_DEBUG,"two cues: 1");
+
+        if(fabs(hp_.point.z - last_hp_.point.z) > 0.01 * hp_.point.z)
         {
-            predictLastHighestPoint();
-            hp_.point = last_hp_.point;
-        } else { originState();}
+            ROS_INFO_COND(STATE_DEBUG,"start new state: 3");
+            newState();
+        }
+
+        else
+        {
+            ROS_INFO_COND(STATE_DEBUG,"should I track last state?: 4");
+
+            if(dt.toSec() < state_time_threshold_)
+            {
+                ROS_INFO_COND(STATE_DEBUG,"Yes! track last state: 5");
+                predictLastHighestPoint();
+                hp_.point = last_hp_.point;
+            }
+            else
+            {
+                ROS_INFO_COND(STATE_DEBUG,"NO! reset everything: 6");
+                resetState();
+            }
+        }
     }
 
-    else {
-        newState();
-        return;
+    else
+    {
+        ROS_INFO_COND(STATE_DEBUG,"one cue: 2");
+
+        if(last_hp_.point.z - probability_threshold_ > -1e-2)
+        {
+            ROS_INFO_COND(STATE_DEBUG,"should i still track last state? : 6");
+            if(dt.toSec() < state_time_threshold_)
+            {
+                ROS_INFO_COND(STATE_DEBUG,"Yes! track last state: 5");
+                predictLastHighestPoint();
+                hp_.point = last_hp_.point;
+            }
+            else
+            {
+                ROS_INFO_COND(STATE_DEBUG,"NO! reset everything: 6");
+                resetState();
+            }
+        }
+        else
+        {
+            ROS_INFO_COND(STATE_DEBUG,"reset state :7");
+            resetState();
+
+        }
     }
+
+//    if(hp_.point.z <  probability_threshold_ ||
+//            fabs(hp_.point.z - last_hp_.point.z) < 0.01 * hp_.point.z)
+//    {
+//        if(dt.toSec() < state_time_threshold_)
+//        {
+//            predictLastHighestPoint();
+//            hp_.point = last_hp_.point;
+//        } else { resetState();}
+//    }
+
+//    else {
+//        newState();
+//        return;
+//    }
 }
 
 void CHumanGrid::publishLocalMaxima()
