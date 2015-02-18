@@ -159,11 +159,16 @@ void CLegGrid::legsCallBack(const geometry_msgs::PoseArrayConstPtr &leg_msg)
 
 void CLegGrid::keepLastLegs()
 {
-    if(!grid_->polar_array.past.empty())
+    PolarPose p;
+    if(! grid_->polar_array.current.empty()) grid_->polar_array.current.clear();
+
+    for(size_t i = 0; i < grid_->polar_array.past.size() ; i++)
     {
-        ROS_INFO_COND(DEBUG, "Keeping last seen Legs.");
-        grid_->polar_array.current.assign(grid_->polar_array.past.begin(),
-                                         grid_->polar_array.past.end());
+        ROS_INFO_COND(DEBUG, "Keeping last heard sound source.");
+
+        p.range = grid_->polar_array.past.at(i).range + velocity_.linear * diff_time_.toSec();
+        p.angle = grid_->polar_array.past.at(i).angle + velocity_.angular * diff_time_.toSec();
+        grid_->polar_array.current.push_back(p);
     }
 }
 void CLegGrid::filterLegs()
