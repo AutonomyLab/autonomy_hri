@@ -45,7 +45,7 @@ private:
 
     nav_msgs::OccupancyGrid occupancy_grid_;
     geometry_msgs::PointStamped hp_;
-    geometry_msgs::PointStamped last_hp_;
+    geometry_msgs::PointStamped tracked_hp_;
 
 
     CGrid* grid_;
