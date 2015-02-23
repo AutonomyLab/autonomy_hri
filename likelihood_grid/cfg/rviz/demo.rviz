@@ -5,7 +5,6 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /PointStamped1
       Splitter Ratio: 0.530201
     Tree Height: 267
   - Class: rviz/Selection
@@ -91,9 +90,9 @@ Visualization Manager:
       Name: PoseArray
       Topic: /local_maxima
       Value: true
-    - Arrow Length: 0.5
+    - Arrow Length: 1
       Class: rviz/PoseArray
-      Color: 170; 85; 255
+      Color: 255; 0; 0
       Enabled: true
       Name: PoseArray
       Topic: /predicted_legs
@@ -104,7 +103,7 @@ Visualization Manager:
       Enabled: true
       History Length: 1
       Name: PointStamped
-      Radius: 1
+      Radius: 0.5
       Topic: /maximum_probability
       Value: true
     - Alpha: 1
@@ -113,7 +112,7 @@ Visualization Manager:
       Draw Behind: false
       Enabled: true
       Name: Map
-      Topic: /human_grid
+      Topic: /torso_grid
       Value: true
     - Class: rviz/Image
       Enabled: true
@@ -185,5 +184,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1215
-  X: 1978
+  X: 1976
   Y: 80
