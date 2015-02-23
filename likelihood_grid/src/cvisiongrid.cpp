@@ -196,7 +196,7 @@ void CVisionGrid::addLastStates()
 
             uint8_t it2 = it.at(i) - dist.begin();
 
-            if(*it.at(i) < angles::from_degrees(30.0))
+            if(*it.at(i) < angles::from_degrees(10.0))
             {
                 cmeas_.push_back(meas_.at(it2));
                 match_meas_.at(it2) = true;
@@ -271,7 +271,7 @@ void CVisionGrid::filterStates()
             m1 = cmeas_.at(i);
             m2 = fmeas.back();
 
-            if(fabs(s1.angle - s2.angle) < angles::from_degrees(30.0))
+            if(fabs(s1.angle - s2.angle) < angles::from_degrees(10.0))
             {
                 fstate.pop_back();
                 nstate.range = (s1.range + s2.range) / 2;

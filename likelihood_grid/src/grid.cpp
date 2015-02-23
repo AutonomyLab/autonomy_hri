@@ -403,8 +403,13 @@ void CGrid::getPose(const autonomy_human::raw_detectionsConstPtr torso_img)
 
         torso_position_in_image.x = torso_img->detections.at(i).x_offset + 0.5 * torso_img->detections.at(i).width;
         torso_polar_pose.angle = atan((image_width/2.0-torso_position_in_image.x)* tan(angles::from_degrees(camera_fov/2.0)) * 2.0 / image_width) ;
-        float h = torso_img->detections.at(i).height;
-        torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
+        uint32_t h = torso_img->detections.at(i).height;
+//        torso_polar_pose.range = 0.0000952381 * h * h - 0.0696716 * h + 14.4483;
+//        torso_polar_pose.range = 9.211679 - 0.022351 * h;
+//        torso_polar_pose.range = 9.211679527975-0.022351622586089 * h;
+        torso_polar_pose.range=10.915365096324-0.030518179693499*h;
+
+//        ROS_INFO("distance is %f  for  %d", torso_polar_pose.range, h);
         polar_array.current.push_back(torso_polar_pose);
     }
 }
