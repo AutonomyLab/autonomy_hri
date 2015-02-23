@@ -1,6 +1,22 @@
 <launch>
-<arg name="bag_file" />
-    <node pkg="rosbag" type="record" name="record" output="screen" args="-O $(arg bag_file) /tf /encoder /lms111/scan /HarkSource /camera/front/rgb/image_color/compressed /odometry/filtered /navsat/enu /imu/data /clock  /diagnostics /teleop/joy" />
+    <arg name="bag_file" value="/home/administrator/bags/default/1"/>
+    <node pkg="rosbag" type="record" name="record" output="screen" 
+        args="-O $(arg bag_file) 
+        /tf 
+        /encoder 
+        /lms111/scan 
+        /HarkSource 
+        /camera/front/rgb/image_color/compressed 
+        /odometry/filtered 
+        /navsat/enu 
+        /imu/data 
+        /clock  
+        /diagnostics 
+        /teleop/joy 
+        /robotsound 
+        /maximum_probability 
+        /husky/cmd_vel
+        " />
 </launch>
 
 
