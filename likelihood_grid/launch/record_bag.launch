@@ -1,6 +1,6 @@
 <launch>
 <arg name="bag_file" value="`pwd`/1.bag"/>
-    <node pkg="rosbag" type="record" name="record" output="screen" args="-O $(arg bag_file) /tf /encoder /lms111/scan /HarkSource /camera/front/rgb/image_color/compressed /odometry/filtered /navsat/enu /imu/data /clock  /diagnostics /teleop/joy" />
+    <node pkg="rosbag" type="record" name="record" output="screen" args="-O $(arg bag_file) /tf /encoder /lms111/scan /HarkSource /camera/front/rgb/image_color/compressed /clock  /diagnostics person_detection/people /legs /person_detection/viz" />
 </launch>
 
 

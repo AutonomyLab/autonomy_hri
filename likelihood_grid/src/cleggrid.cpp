@@ -1,6 +1,6 @@
 #include "cleggrid.h"
 #define DEBUG false
-#define BASE_FOOTPRINT_FRAME false
+#define BASE_FOOTPRINT_FRAME true
 
 CLegGrid::CLegGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
     n_(_n),
@@ -546,7 +546,7 @@ void CLegGrid::spin()
 {
     if(!grid_->polar_array.predicted.empty()) grid_->polar_array.predicted.clear();
 
-    ROS_INFO_COND(true,"--- spin ---");
+    ROS_INFO_COND(DEBUG,"--- spin ---");
 
     makeStates();
     updateKF();

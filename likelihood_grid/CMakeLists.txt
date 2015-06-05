@@ -45,6 +45,8 @@ add_executable(vision_grid_node         src/vision_grid_node.cpp src/cvisiongrid
 
 add_executable(human_grid_node  src/human_grid_node.cpp src/chumangrid.cpp src/grid.cpp)
 add_executable(test_node src/test.cpp )
+add_executable(data_node src/data_extraction.cpp)
+add_executable(distance_data_node src/distance_data.cpp)
 add_dependencies(test_node ${PROJECT_NAME}_gencfg)
 
 
@@ -80,6 +82,18 @@ target_link_libraries(human_grid_node
 )
 
 target_link_libraries(test_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+   ${Boost_LIBRARIES}
+)
+
+target_link_libraries(data_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+   ${Boost_LIBRARIES}
+)
+
+target_link_libraries(distance_data_node
    ${catkin_LIBRARIES}
    ${OpenCV_LIBRARIES}
    ${Boost_LIBRARIES}

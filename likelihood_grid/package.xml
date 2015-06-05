@@ -22,4 +22,5 @@
   <run_depend>hark_msgs</run_depend>
   <run_depend>cv_bridge</run_depend>
   <run_depend>autonomy_human</run_depend>
+<!--  <run_depend>rosbag</run_depend>-->
 </package>

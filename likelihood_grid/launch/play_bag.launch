@@ -1,7 +1,8 @@
 <launch>
 <arg name="bag_file" />
 
-    <node pkg="rosbag" type="play" name="play" output="screen" args="--bags $(arg bag_file) --clock --topics /tf /encoder /lms111/scan /HarkSource /camera/front/rgb/image_color/compressed /odometry/filtered /clock /teleop/joy " />
+    <node pkg="rosbag" type="play" name="play" output="screen" args="--bags $(arg bag_file) --clock --topics /tf /encoder /lms111/scan /HarkSource /camera/front/rgb/image_color/compressed /odometry/filtered /clock /teleop/joy /maximum_probability" />
+
 
 </launch>
 
