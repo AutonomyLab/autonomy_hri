@@ -8,7 +8,7 @@
     <include file="$(find hark_msgs)/launch/hark.launch"/>
 
     <node pkg="sound_relay" name="sound_relay" type="sound_relay.py" />
-    <include file="$(find sound_play)/launch/soundplay_node.launch"/>
+    <include file="$(find sound_play)/soundplay_node.launch"/>
 </launch>
 
 
