@@ -18,6 +18,6 @@
     </node>
 
     <node pkg="laser_filters" type="scan_to_scan_filter_chain" output="screen"      name="laser_filter">
-          <remap from="scan" to="lms111/scan" />
+        <remap from="scan" to="lidar/front/scan" />
     </node>
 </launch>
