@@ -2,7 +2,6 @@
     <include file="$(find likelihood_grid)/launch/likelihood.launch"/>
 
     <include file="$(find oth_behavior)/launch/oth_behavior.launch"/>
-    <include file="$(find safe_motion_planner)/launch/safe_motion_planner.launch"/>
     <include file="$(find likelihood_grid)/launch/openni.launch"/>
     <include file="$(find likelihood_grid)/launch/lms111-horizontal.launch"/>
     <include file="$(find hark_msgs)/launch/hark.launch"/>
