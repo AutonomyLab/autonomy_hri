@@ -193,7 +193,7 @@ void CSoundGrid::keepLastSound()
 
     for(size_t i = 0; i < grid_->polar_array.past.size() ; i++)
     {
-        ROS_INFO_COND(true, "Keeping last heard sound source.");
+        ROS_INFO_COND(DEBUG, "Keeping last heard sound source.");
         p.range = grid_->polar_array.past.at(i).range + velocity_.linear * diff_time_.toSec();
         p.angle = grid_->polar_array.past.at(i).angle + velocity_.angular * diff_time_.toSec();
         grid_->polar_array.current.push_back(p);
