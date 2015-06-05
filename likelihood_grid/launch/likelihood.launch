@@ -107,7 +107,7 @@
 </group>
 
 <group if="$(arg human_node)">
-        <node pkg="likelihood_grid" type="human_grid_node" name="human_grid_node" output="screen">
+        <node pkg="likelihood_grid" type="human_grid_node" name="human_grid_node">
             <param name="leg_enable" value="$(arg leg_node)"/>
             <param name="torso_enable" value="$(arg vision_node)"/>
             <param name="sound_enable" value="$(arg sound_node)"/>
