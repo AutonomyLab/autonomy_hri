@@ -546,7 +546,7 @@ void CLegGrid::spin()
 {
     if(!grid_->polar_array.predicted.empty()) grid_->polar_array.predicted.clear();
 
-    ROS_INFO_COND(true,"--- spin ---");
+    ROS_INFO_COND(DEBUG,"--- spin ---");
 
     makeStates();
     updateKF();
