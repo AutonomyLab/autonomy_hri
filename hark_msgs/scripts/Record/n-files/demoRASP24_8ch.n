@@ -1,0 +1,55 @@
+#!/usr/bin/env batchflow
+<?xml version="1.0"?>
+<Document>
+  <Network type="subnet" name="MAIN">
+    <Node name="node_MAIN_LOOP_1" type="MAIN_LOOP" x="-61.000000" y="146.000000">
+      <Parameter name="LENGTH" type="int" value="512" description="The length of a frame in one channel (in samples)."/>
+      <Parameter name="ADVANCE" type="int" value="160" description="The shift length between adjacent frames."/>
+      <Parameter name="SAMPLING_RATE" type="int" value="16000" description="Sampling rate (Hz)."/>
+      <Parameter name="GET_FRAMES" type="subnet_param" value="int:ARG1" description="Number of iteration to do (max)"/>
+      <Parameter name="DOWHILE" type="bool" value="" description=""/>
+    </Node>
+    <NetOutput name="OUTPUT1" node="node_MAIN_LOOP_1" terminal="OUTPUT1" object_type="Map&lt;int,ObjectRef&gt;" description="The same as input."/>
+    <NetOutput name="OUTPUT2" node="node_MAIN_LOOP_1" terminal="OUTPUT2" object_type="Map&lt;int,ObjectRef&gt;" description="The same as input."/>
+    <Note x="0" y="0" visible="0" text="Created with FlowDesigner 0.9.1"/>
+  </Network>
+  <Network type="iterator" name="MAIN_LOOP">
+    <Node name="node_AudioStreamFromMic_1" type="AudioStreamFromMic" x="-191.000000" y="192.000000">
+      <Parameter name="LENGTH" type="subnet_param" value="LENGTH" description="The length of a frame in one channel (in samples)."/>
+      <Parameter name="ADVANCE" type="subnet_param" value="ADVANCE" description="The shift length beween adjacent frames (in samples)."/>
+      <Parameter name="CHANNEL_COUNT" type="int" value="16" description="The number of channels."/>
+      <Parameter name="SAMPLING_RATE" type="subnet_param" value="SAMPLING_RATE" description="Sampling rate (Hz)."/>
+      <Parameter name="DEVICETYPE" type="string" value="RASP24-16" description="Device type (ASIO, ALSA, RASP, or WS)."/>
+      <Parameter name="GAIN" type="string" value="12dB" description="capture gain (dB)  [default: 0dB]."/>
+      <Parameter name="DEVICE" type="string" value="127.0.0.1" description="The name of device."/>
+    </Node>
+    <Node name="node_MatrixToMap_1" type="MatrixToMap" x="201.000000" y="238.000000"/>
+    <Node name="node_Iterate_1" type="Iterate" x="-120.000000" y="256.000000">
+      <Parameter name="MAX_ITER" type="subnet_param" value="GET_FRAMES" description="Number of iteration to do (max)"/>
+    </Node>
+    <Node name="node_SaveWavePCM_1" type="SaveWavePCM" x="329.000000" y="238.000000">
+      <Parameter name="BASENAME" type="string" value="rec_each" description="Basename of files. [default: sep_]"/>
+      <Parameter name="ADVANCE" type="int" value="160" description="The shift length beween adjacent frames (in samples)[default: 160]."/>
+      <Parameter name="SAMPLING_RATE" type="int" value="16000" description="Sampling rate (in samples)[default: 16000]."/>
+      <Parameter name="BITS" type="string" value="int16" description="Bit format of samples. int16 , int24 and float32 bits are supported."/>
+    </Node>
+    <Node name="node_SaveWavePCM_2" type="SaveWavePCM" x="256.000000" y="185.000000">
+      <Parameter name="BASENAME" type="string" value="rec_all" description="Basename of files. [default: sep_]"/>
+      <Parameter name="ADVANCE" type="int" value="160" description="The shift length beween adjacent frames (in samples)[default: 160]."/>
+      <Parameter name="SAMPLING_RATE" type="int" value="16000" description="Sampling rate (in samples)[default: 16000]."/>
+      <Parameter name="BITS" type="string" value="int16" description="Bit format of samples. int16 , int24 and float32 bits are supported."/>
+    </Node>
+    <Node name="node_ChannelSelector_1" type="ChannelSelector" x="38.000000" y="185.000000">
+      <Parameter name="SELECTOR" type="object" value="&lt;Vector&lt;int&gt; 0 1 2 3 4 5 6 7&gt;" description="Channel selection setting which is a vector consisting of channel IDs (ID starts with 0). When the first three channels are selected from four channels, this should be set to &lt;Vector&lt;int&gt; 0 1 2&gt;."/>
+    </Node>
+    <Link from="node_MatrixToMap_1" output="OUTPUT" to="node_SaveWavePCM_1" input="INPUT"/>
+    <Link from="node_AudioStreamFromMic_1" output="AUDIO" to="node_ChannelSelector_1" input="INPUT"/>
+    <Link from="node_ChannelSelector_1" output="OUTPUT" to="node_SaveWavePCM_2" input="INPUT"/>
+    <Link from="node_ChannelSelector_1" output="OUTPUT" to="node_MatrixToMap_1" input="INPUT">94 185 120 185 120 238 155 238 </Link>
+    <NetCondition name="CONDITION" node="node_Iterate_1" terminal="OUTPUT"/>
+    <NetOutput name="OUTPUT1" node="node_SaveWavePCM_2" terminal="OUTPUT" object_type="Map&lt;int,ObjectRef&gt;" description="The same as input."/>
+    <NetOutput name="OUTPUT2" node="node_SaveWavePCM_1" terminal="OUTPUT" object_type="Map&lt;int,ObjectRef&gt;" description="The same as input."/>
+    <Note x="0" y="0" visible="0" text="Created with FlowDesigner 0.9.1"/>
+  </Network>
+  <Parameter name="int:ARG1" type="int" value="200"/>
+</Document>
