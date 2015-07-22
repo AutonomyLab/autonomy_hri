@@ -45,7 +45,7 @@ int main(int argc, char** argv)
                                                  &CHumanGrid::torsoCallBack,
                                                  &human_grid);
 
-    ros::Subscriber encoder_sub = n.subscribe("encoder", 10,
+    ros::Subscriber encoder_sub = n.subscribe("husky/odom", 10,
                                               &CHumanGrid::encoderCallBack, &human_grid);
 
     ros::Subscriber weights_sub = n.subscribe("/weights", 10,

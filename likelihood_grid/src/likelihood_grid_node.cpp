@@ -22,7 +22,7 @@ int main(int argc, char** argv)
     CLikelihoodGrid likelihood_grid(n,tf_listener);
 
     message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 10);
-    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);
+    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "husky/odom", 10);
 
     typedef sync_policies::ApproximateTime <geometry_msgs::PoseArray,
             nav_msgs::Odometry> MySyncPolicy;

@@ -22,7 +22,7 @@ int main(int argc, char** argv)
     CSoundGrid sound_grid(n, tf_listener);
 
     message_filters::Subscriber<hark_msgs::HarkSource> sound_sub(n, "sound", 10);
-    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);
+    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "husky/odom", 10);
 
     typedef sync_policies::ApproximateTime <hark_msgs::HarkSource,
             nav_msgs::Odometry> MySyncPolicy;

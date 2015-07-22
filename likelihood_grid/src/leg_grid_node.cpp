@@ -34,7 +34,7 @@ int main(int argc, char** argv)
 
     ros::Subscriber legs_sub = n.subscribe("legs", 10,
                                            &CLegGrid::legsCallBack, &leg_grid);
-    ros::Subscriber encoder_sub = n.subscribe("encoder", 10, &CLegGrid::encoderCallBack, &leg_grid);
+    ros::Subscriber encoder_sub = n.subscribe("husky/odom", 10, &CLegGrid::encoderCallBack, &leg_grid);
 
     while (ros::ok())
     {

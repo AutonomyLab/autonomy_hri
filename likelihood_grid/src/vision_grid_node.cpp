@@ -23,7 +23,7 @@ int main(int argc, char** argv)
     CVisionGrid vision_grid(n, tf_listener);
 
     message_filters::Subscriber<autonomy_human::raw_detections> vision_sub(n, "torso", 10);
-    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);
+    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "husky/odom", 10);
 
     typedef sync_policies::ApproximateTime <autonomy_human::raw_detections,
             nav_msgs::Odometry> MySyncPolicy;

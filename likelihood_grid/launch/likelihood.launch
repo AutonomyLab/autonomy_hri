@@ -87,6 +87,7 @@
             <remap from="/torso" to="person_detection/people" />
             <remap from="/sound" to="HarkSource" />
             <remap from="/gesture" to="periodic_gestures/raw_detections" />
+            <remap from="/encoder" to="/husky/odom"/>
         </node>
 </group>
 
