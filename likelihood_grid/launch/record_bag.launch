@@ -1,5 +1,5 @@
 <launch>
-    <arg name="bag_file" value="/home/administrator/bags/default/1"/>
+    <arg name="bag_file"/>
     <node pkg="rosbag" type="record" name="record" output="screen" 
         args="-O $(arg bag_file) 
         /tf 
