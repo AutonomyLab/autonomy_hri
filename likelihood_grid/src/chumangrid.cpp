@@ -6,30 +6,34 @@ CHumanGrid::CHumanGrid()
 {
 }
 
-CHumanGrid::CHumanGrid(ros::NodeHandle n):
+CHumanGrid::CHumanGrid(ros::NodeHandle n, int _probability_projection_step):
     n_(n),
     initialized_(false),
-    state_time_threshold_(10.0)
+    state_time_threshold_(10.0),
+    probability_projection_step(_probability_projection_step)
 {
     init();
 }
 
-CHumanGrid::CHumanGrid(ros::NodeHandle n, float lw, float sw, float tw):
+CHumanGrid::CHumanGrid(ros::NodeHandle n, float lw, float sw, float tw, int _probability_projection_step):
     n_(n),
     initialized_(false),
     state_time_threshold_(5.0),
     leg_weight_(lw),
     sound_weight_(sw),
-    torso_weight_(tw)
+    torso_weight_(tw),
+    probability_projection_step(_probability_projection_step)
 {
     init();
 }
 
 void CHumanGrid::init()
 {
-    human_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("human_grid", 10);
-    highest_point_pub_ = n_.advertise<geometry_msgs::PointStamped>("maximum_probability", 10) ;
-    local_maxima_pub_ = n_.advertise<geometry_msgs::PoseArray>("local_maxima",10);
+    human_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("human/grid", 10);
+    highest_point_pub_ = n_.advertise<geometry_msgs::PointStamped>("human/maximum_probability", 10) ;
+    local_maxima_pub_ = n_.advertise<geometry_msgs::PoseArray>("human/local_maxima",10);
+    proj_pub_ = n_.advertise<geometry_msgs::PoseArray>("human/projection",10);
+
 
     initGrid();
     calculateProbabilityThreshold();
@@ -65,7 +69,7 @@ void CHumanGrid::initGrid()
 
     try
     {
-        grid_ = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1);
+        grid_ = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1, probability_projection_step);
     }
     catch (std::bad_alloc& ba)
     {
@@ -194,6 +198,12 @@ void CHumanGrid::printFusedFeatures()
 
 }
 
+void CHumanGrid::publishProjection()
+{
+    if(proj_pub_.getNumSubscribers() > 0)
+        proj_pub_.publish(grid_->grid_projection);
+}
+
 
 void CHumanGrid::integrateProbabilities()
 {
@@ -254,6 +264,8 @@ void CHumanGrid::integrateProbabilities()
 
     printFusedFeatures();
     publishLocalMaxima();
+    grid_->projectGrid();
+    publishProjection();
 }
 
 void CHumanGrid::newState()

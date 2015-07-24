@@ -40,6 +40,9 @@ void CLikelihoodGrid::init()
     ros::param::param("~/sound_detection_enable",SOUND_DETECTION_ENABLE_, true);
     ros::param::param("~/periodic_gesture_detection_enable",PERIODIC_GESTURE_DETECTION_ENABLE_, false);
 
+    ros::param::param("~/LikelihoodGrid/probability_projection_step", PROJECTION_ANGLE_STEP, 1);
+
+
     number_of_sensors_ = (LEG_DETECTION_ENABLE_) + (TORSO_DETECTION_ENABLE_)
             + (SOUND_DETECTION_ENABLE_) + (PERIODIC_GESTURE_DETECTION_ENABLE_);
     ROS_INFO("number_of_sensors is set to %u",number_of_sensors_);
@@ -79,7 +82,9 @@ void CLikelihoodGrid::init()
         ros::param::param("~/LikelihoodGrid/leg_range_stdev",leg_grid_->stdev.range, (float) 0.1);
         ros::param::param("~/LikelihoodGrid/leg_angle_stdev",leg_grid_->stdev.angle, (float) 0.1);
 
-        legs_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("leg_occupancy_grid",10);
+        leg_grid_->projection_angle_step = PROJECTION_ANGLE_STEP;
+
+        legs_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("leg/occupancy_grid",10);
         predicted_leg_base_pub_ = n_.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
         last_leg_base_pub_ = n_.advertise<geometry_msgs::PoseArray>("last_legs",10);
         current_leg_base_pub_ = n_.advertise<geometry_msgs::PoseArray>("legs_basefootprint",10);
@@ -102,8 +107,9 @@ void CLikelihoodGrid::init()
 
         ros::param::param("~/LikelihoodGrid/torso_range_stdev",torso_grid_->stdev.range, (float)0.2);
         ros::param::param("~/LikelihoodGrid/torso_angle_stdev",torso_grid_->stdev.angle, (float)1.0);
+        torso_grid_->projection_angle_step = PROJECTION_ANGLE_STEP;
 
-        torso_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("torso_occupancy_grid",10);
+        torso_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("torso/occupancy_grid",10);
     }
 
     if(SOUND_DETECTION_ENABLE_){
@@ -123,12 +129,13 @@ void CLikelihoodGrid::init()
 
         ros::param::param("~/LikelihoodGrid/sound_range_stdev",sound_grid_->stdev.range, (float) 0.5);
         ros::param::param("~/LikelihoodGrid/sound_angle_stdev",sound_grid_->stdev.angle, (float) 5.0);
-
-        sound_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("sound_occupancy_grid",10);
+        sound_grid_->projection_angle_step = PROJECTION_ANGLE_STEP;
+        sound_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("sound/occupancy_grid",10);
     }
 
     initHumanGrid(FOV_);
-    human_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("human_occupancy_grid",10);
+    human_grid_->projection_angle_step = PROJECTION_ANGLE_STEP;
+    human_grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("human/occupancy_grid",10);
     local_maxima_pub_ = n_.advertise<geometry_msgs::PoseArray>("local_maxima",10);
     max_prob_pub_ = n_.advertise<geometry_msgs::PointStamped>("maximum_probability",10);
 
@@ -216,7 +223,8 @@ void CLikelihoodGrid::initLegGrid(SensorFOV_t _FOV)
     try {
 
         leg_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, LEG_CELL_PROBABILITY_,
-                                      TARGET_DETETION_PROBABILITY_, FALSE_POSITIVE_PROBABILITY_);
+                                      TARGET_DETETION_PROBABILITY_, FALSE_POSITIVE_PROBABILITY_,
+                                      PROJECTION_ANGLE_STEP);
 
     } catch (std::bad_alloc& ba){
 
@@ -230,7 +238,8 @@ void CLikelihoodGrid::initTorsoGrid(SensorFOV_t _FOV)
     {
         torso_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, TORSO_CELL_PROBABILITY_,
                                        TARGET_DETETION_PROBABILITY_,
-                                       FALSE_POSITIVE_PROBABILITY_);
+                                       FALSE_POSITIVE_PROBABILITY_,
+                                       PROJECTION_ANGLE_STEP);
     }
     catch (std::bad_alloc& ba)
     {
@@ -244,7 +253,7 @@ void CLikelihoodGrid::initSoundGrid(SensorFOV_t _FOV)
     try
     {
         sound_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, SOUND_CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
-                                       FALSE_POSITIVE_PROBABILITY_);
+                                       FALSE_POSITIVE_PROBABILITY_, PROJECTION_ANGLE_STEP);
     }
     catch (std::bad_alloc& ba)
     {
@@ -257,7 +266,8 @@ void CLikelihoodGrid::initPeriodicGrid(SensorFOV_t _FOV)
     try
     {
         periodic_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_, TARGET_DETETION_PROBABILITY_,
-                                       FALSE_POSITIVE_PROBABILITY_);
+                                       FALSE_POSITIVE_PROBABILITY_,
+                                       PROJECTION_ANGLE_STEP);
     }
     catch (std::bad_alloc& ba)
     {
@@ -272,7 +282,8 @@ void CLikelihoodGrid::initHumanGrid(SensorFOV_t _FOV)
     {
         human_grid_ = new CGrid(MAP_SIZE_, _FOV, MAP_RESOLUTION_, CELL_PROBABILITY_,
                                        TARGET_DETETION_PROBABILITY_,
-                                       FALSE_POSITIVE_PROBABILITY_);
+                                       FALSE_POSITIVE_PROBABILITY_,
+                                       PROJECTION_ANGLE_STEP);
     }
     catch (std::bad_alloc& ba)
     {
@@ -398,6 +409,7 @@ void CLikelihoodGrid::spin()
         occupancyGrid(sound_grid_, &sound_occupancy_grid_);
         sound_occupancy_grid_.header.stamp = ros::Time::now();
         sound_grid_pub_.publish(sound_occupancy_grid_);
+
     }
 
     //---------------------------------------------

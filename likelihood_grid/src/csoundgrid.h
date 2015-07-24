@@ -19,6 +19,7 @@ private:
     tf::TransformListener* tf_listener_;
     ros::Publisher grid_pub_;
     ros::Publisher prob_pub_;
+    ros::Publisher proj_pub_;
     Velocity_t velocity_;
     ros::Duration diff_time_;
     ros::Time last_time_;
@@ -34,6 +35,7 @@ private:
     std::vector<PolarPose> meas_;
     std::vector<bool> match_meas_;
     geometry_msgs::PoseArray prob_;
+    int probability_projection_step;
 
     void init();
     void initKF();
@@ -58,11 +60,13 @@ private:
     void publishOccupancyGrid();
     void passStates();
 
+    void publishProjection();
+
 
 public:
 
     CSoundGrid();
-    CSoundGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
+    CSoundGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener, int _probability_projection_step);
     ~CSoundGrid();
 
     void syncCallBack(const hark_msgs::HarkSourceConstPtr& sound_msg,

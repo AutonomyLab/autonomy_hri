@@ -1,7 +1,7 @@
 <launch>
 <arg name="use_encoder" value="true" />
-<arg name="leg_detection" value="true" />
-<arg name="torso_detection" value="true" />
+<arg name="leg_detection" value="false" />
+<arg name="torso_detection" value="false" />
 <arg name="sound_detection" value="false" />
 <arg name="gesture_detection" value="false" />
 <arg name="bayesian" value="false"/>
@@ -10,6 +10,7 @@
 <arg name="vision_node" value="true"/>
 <arg name="human_node" value="true"/>
 <arg name="test" value="false"/>
+<arg name="angle_step" value="1"/>
 
 <group if="$(arg bayesian)">
     <node pkg="likelihood_grid" type="likelihood_grid_node" name="likelihood_grid_node" output="screen" >
@@ -20,6 +21,7 @@
             <param name="LikelihoodGrid/grid_angle_max" value="3.14"/>
             <param name="LikelihoodGrid/grid_range_min" value="0.0"/>
             <param name="LikelihoodGrid/grid_range_max" value="10.0"/>
+            <param name="LikelihoodGrid/angle_step" value="$(arg angle_step)"/>
 
             <param name="LikelihoodGrid/update_rate" value="0.25"/>
 
@@ -92,18 +94,22 @@
 </group>
 
 <group if="$(arg leg_node)">
-        <node pkg="likelihood_grid" type="leg_grid_node" name="leg_grid_node" output="screen"/>
+        <node pkg="likelihood_grid" type="leg_grid_node" name="leg_grid_node" output="screen">
+            <param name="leg/projection_angle_step" value="$(arg angle_step)"/>
+            </node>
 </group>
 
 <group if="$(arg sound_node)">
         <node pkg="likelihood_grid" type="sound_grid_node" name="sound_grid_node" output="screen">
             <remap from="sound" to="HarkSource" />
+            <param name="sound/projection_angle_step" value="$(arg angle_step)"/>
         </node>
 </group>
 
 <group if="$(arg vision_node)">
         <node pkg="likelihood_grid" type="vision_grid_node" name="vision_grid_node" output="screen" >
             <remap from="torso" to="person_detection/people" />
+            <param name="vision/projection_angle_step" value="$(arg angle_step)"/>
         </node>
 </group>
 
@@ -112,6 +118,7 @@
             <param name="leg_enable" value="$(arg leg_node)"/>
             <param name="torso_enable" value="$(arg vision_node)"/>
             <param name="sound_enable" value="$(arg sound_node)"/>
+            <param name="human/projection_angle_step" value="$(arg angle_step)"/>
             <rosparam>
                 leg_weight: 2
                 sound_weight: 4

@@ -7,10 +7,11 @@ CVisionGrid::CVisionGrid()
 }
 
 
-CVisionGrid::CVisionGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
+CVisionGrid::CVisionGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener, int _probability_projection_step):
     n_(_n),
     tf_listener_(_tf_listener),
-    KFTracker_(2, 2, 2)
+    KFTracker_(2, 2, 2),
+    probability_projection_step(_probability_projection_step)
 {
     ROS_INFO("Constructing an instance of Vision Grid.");
     init();
@@ -63,7 +64,7 @@ void CVisionGrid::initGrid()
 
     try
     {
-        grid_ = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1);
+        grid_ = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1, probability_projection_step);
     } catch (std::bad_alloc& ba)
     {
         std::cerr << "In new Vision Grid: bad_alloc caught: " << ba.what() << '\n';
@@ -87,8 +88,9 @@ void CVisionGrid::init()
     initTfListener();
     initGrid();
 
-    grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("torso_grid",10);
-    prob_pub_ = n_.advertise<geometry_msgs::PoseArray>("torso_probability",10);
+    grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("torso/grid",10);
+    prob_pub_ = n_.advertise<geometry_msgs::PoseArray>("torso/probability",10);
+    proj_pub_ = n_.advertise<geometry_msgs::PoseArray>("torso/projection",10);
 
 }
 
@@ -346,6 +348,11 @@ void CVisionGrid::publishOccupancyGrid()
         grid_pub_.publish(grid_->occupancy_grid);
 }
 
+void CVisionGrid::publishProjection()
+{
+    if(proj_pub_.getNumSubscribers() > 0)
+        proj_pub_.publish(grid_->grid_projection);
+}
 
 void CVisionGrid::spin()
 {
@@ -358,7 +365,8 @@ void CVisionGrid::spin()
     grid_->updateGrid(1);
     publishProbability();
     publishOccupancyGrid();
-
+    grid_->projectGrid();
+    publishProjection();
 }
 
 void CVisionGrid::updateKF()

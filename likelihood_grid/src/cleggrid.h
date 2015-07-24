@@ -19,6 +19,7 @@ private:
     ros::Publisher grid_pub_;
     ros::Publisher predicted_leg_pub_;
     ros::Publisher prob_pub_;
+    ros::Publisher proj_pub_;    
     Velocity_t velocity_;
     ros::Duration diff_time_;
     ros::Time last_time_;
@@ -35,6 +36,7 @@ private:
 //    geometry_msgs::PoseArray legs_reading_;
     geometry_msgs::PoseArray filtered_legs_;
     geometry_msgs::PoseArray base_footprint_legs_;
+    int probability_projection_step;
 
     void init();
     void initKF();
@@ -53,6 +55,7 @@ private:
     void publishOccupancyGrid();
     void filterLegs();
     void keepLastLegs();
+    void publishProjection();
 
     bool transformToBase(const geometry_msgs::PoseArrayConstPtr& source,
                          geometry_msgs::PoseArray& target,
@@ -60,7 +63,7 @@ private:
 
 public:
 
-    CLegGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
+    CLegGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener, int _probability_projection_step);
     ~CLegGrid();
 
     /* TODO: use async callback */

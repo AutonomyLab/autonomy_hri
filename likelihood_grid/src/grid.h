@@ -93,6 +93,7 @@ private:
     FOV_t y_;
 
     ros::Time lk_;
+    int angle_bins;
 
     float cellsDistance(size_t c1, size_t c2);
     std::vector<LocalMaxima_t> old_lms_;
@@ -137,6 +138,9 @@ public:
     SensorFOV_t sensor_fov;
     nav_msgs::OccupancyGrid occupancy_grid;
     float max_probability_;
+    geometry_msgs::PoseArray grid_projection;
+    int projection_angle_step;
+
 
     std::vector<float> posterior;
     std::vector<float> prior;
@@ -156,7 +160,8 @@ public:
                   float_t map_resolution,
                   CellProbability_t _cell_probability,
                   float _target_detection_probability,
-                  float _false_positive_probability);
+                  float _false_positive_probability,
+                  int _projection_angle_step);
     CGrid();
     ~CGrid();
 
@@ -174,6 +179,7 @@ public:
     void trackMaxProbability();
     void updateGrid(int score);
     size_t maxProbCellIndex();
+    void projectGrid();
 
 
 };

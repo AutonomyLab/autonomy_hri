@@ -16,6 +16,7 @@ class CVisionGrid
     tf::TransformListener* tf_listener_;
     ros::Publisher grid_pub_;
     ros::Publisher prob_pub_;
+    ros::Publisher proj_pub_;       
     Velocity_t velocity_;
     ros::Duration diff_time_;
     ros::Time last_time_;
@@ -30,6 +31,7 @@ class CVisionGrid
     std::vector<bool> match_meas_;
     geometry_msgs::PoseArray prob_;
     ros::Time last_seen_torso_;
+    int probability_projection_step;
 
 
     void init();
@@ -48,12 +50,14 @@ class CVisionGrid
     void publishOccupancyGrid();
     void passStates();
     void KeepLastTorso();
+    void publishProjection();
+
 
 
 public:
 
     CVisionGrid();
-    CVisionGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener);
+    CVisionGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener, int _probability_projection_step);
     ~CVisionGrid();
 
     void syncCallBack(const autonomy_human::raw_detectionsConstPtr& torso_msg,

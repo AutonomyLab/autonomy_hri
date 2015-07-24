@@ -87,7 +87,8 @@ CGrid::CGrid(uint32_t map_size,
              float_t map_resolution,
              CellProbability_t _cell_probability,
              float _target_detection_probability,
-             float _false_positive_probability)
+             float _false_positive_probability,
+             int _projection_angle_step)
 {
     ROS_INFO("Constructing an instace of cartesian likelihood grid.");
     ROS_ASSERT(map_size % 2 == 0);
@@ -101,6 +102,7 @@ CGrid::CGrid(uint32_t map_size,
     cell_probability = _cell_probability;
     TARGET_DETECTION_PROBABILITY_ = _target_detection_probability;
     FALSE_DETECTION_PROBABILITY_ = _false_positive_probability;
+    projection_angle_step = _projection_angle_step;
 
     grid_size = map.height * map.width; // DEFAULT 6400
     sensor_fov = _sensor_fov;
@@ -183,6 +185,7 @@ CGrid::CGrid(uint32_t map_size,
     setOutFOVProbability(predicted_posterior_, cell_probability.unknown);
     setOutFOVProbability(predicted_true_likelihood_, cell_probability.unknown);
     setOutFOVProbability(predicted_false_likelihood_, cell_probability.unknown);
+
 }
 
 bool CGrid::sortByProbability(LocalMaxima_t &i, LocalMaxima_t &j){
@@ -326,9 +329,45 @@ void CGrid::updateGrid(int score)
     for(size_t i = 0; i < grid_size; i++)
     {
         occupancy_grid.data.push_back( (uint) 100 * score * posterior.at(i));
+
     }
 
     ROS_ASSERT(occupancy_grid.data.size() == grid_size);
+}
+
+void CGrid::projectGrid()
+{
+    int bin_size = 360 / projection_angle_step;
+    grid_projection.header.stamp = ros::Time::now();
+    grid_projection.header.frame_id = "base_footprint";
+
+    geometry_msgs::Pose pose;
+    if(!grid_projection.poses.empty()) grid_projection.poses.clear();
+
+    for(size_t i = 0; i < bin_size; i++)
+    {
+        pose.position.x = cos(i * M_PI / 180);
+        pose.position.y = sin(i * M_PI / 180);
+        pose.position.z = 0.0;
+        grid_projection.poses.push_back(pose);
+  
+    }
+
+    for(size_t i = 0; i < grid_size; i++)
+    {
+        float angle = map.cell.at(i).polar.angle * M_PI;
+        if(angle < 0) angle += 360;
+        angle_bins = floor((angle) / projection_angle_step);
+
+        float p = posterior.at(i);
+
+        if (grid_projection.poses.at(angle_bins).position.z <= p)
+        {
+            grid_projection.poses.at(angle_bins).position.z = p;
+
+        }
+    }
+
 }
 
 void CGrid::bayesOccupancyFilter()

@@ -108,6 +108,8 @@ private:
     int SENSITIVITY_;
     int MAP_SIZE_;
 
+    int PROJECTION_ANGLE_STEP;
+
     void init();
     bool transformToBase(geometry_msgs::PointStamped& source_point,
                          geometry_msgs::PointStamped& target_point,

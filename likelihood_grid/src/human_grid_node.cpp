@@ -29,7 +29,9 @@ int main(int argc, char** argv)
 
     ros::param::param("/human_grid_node/leg_weight", lw, 2.0);
     ros::param::get("/human_grid_node/leg_weight", lw);
-    CHumanGrid human_grid(n,lw, sw, tw);
+    int probability_projection_step;
+    ros::param::param("~/human/probability_projection_step",probability_projection_step , 1);
+    CHumanGrid human_grid(n,lw, sw, tw, probability_projection_step);
 
 
     ros::Subscriber leg_grid_sub = n.subscribe("leg_probability", 10,

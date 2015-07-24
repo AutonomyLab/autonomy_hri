@@ -2,10 +2,11 @@
 #define DEBUG false
 #define BASE_FOOTPRINT_FRAME false
 
-CLegGrid::CLegGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener):
+CLegGrid::CLegGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener, int _probability_projection_step):
     n_(_n),
     tf_listener_(_tf_listener),
-    KFTracker_(2, 2, 2)
+    KFTracker_(2, 2, 2),
+    probability_projection_step(_probability_projection_step)
 {
     ROS_INFO("Constructing an instance of Leg Grid.");
     init();
@@ -55,7 +56,7 @@ void CLegGrid::initGrid()
 
     try
     {
-        grid_ = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1);
+        grid_ = new CGrid(40, sfov, 0.5, cp, 0.9, 0.1, probability_projection_step);
     } catch (std::bad_alloc& ba)
     {
         std::cerr << "In new legGrid: bad_alloc caught: " << ba.what() << '\n';
@@ -80,9 +81,9 @@ void CLegGrid::init()
     initGrid();
 
     predicted_leg_pub_ = n_.advertise<geometry_msgs::PoseArray>("predicted_legs",10);
-    grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("leg_grid",10);
-    prob_pub_ = n_.advertise<geometry_msgs::PoseArray>("leg_probability",10);
-
+    grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("leg/grid",10);
+    prob_pub_ = n_.advertise<geometry_msgs::PoseArray>("leg/probability",10);
+    proj_pub_ = n_.advertise<geometry_msgs::PoseArray>("leg/projection",10);
 }
 
 void CLegGrid::callbackClear()
@@ -542,6 +543,12 @@ void CLegGrid::publishPredictedLegs()
         predicted_leg_pub_.publish(grid_->crtsn_array.predicted);
 }
 
+void CLegGrid::publishProjection()
+{
+    if(proj_pub_.getNumSubscribers() > 0)
+        proj_pub_.publish(grid_->grid_projection);
+}
+
 void CLegGrid::spin()
 {
     if(!grid_->polar_array.predicted.empty()) grid_->polar_array.predicted.clear();
@@ -554,6 +561,8 @@ void CLegGrid::spin()
     publishPredictedLegs();
     publishProbability();
     publishOccupancyGrid();
+    grid_->projectGrid();
+    publishProjection();
 }
 
 CLegGrid::~CLegGrid()

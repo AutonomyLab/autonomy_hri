@@ -17,10 +17,12 @@ int main(int argc, char** argv)
     ros::NodeHandle n;
     tf::TransformListener *tf_listener;
     int loop_rate;
+    int probability_projection_step;
+    ros::param::param("~/leg/probability_projection_step", probability_projection_step, 1);
     ros::param::param("~/loop_rate",loop_rate, 5);
     ros::Rate looprate(loop_rate);
 
-    CLegGrid leg_grid(n, tf_listener);
+    CLegGrid leg_grid(n, tf_listener, probability_projection_step);
 
 //    message_filters::Subscriber<geometry_msgs::PoseArray> legs_sub(n, "legs", 10);
 //    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "encoder", 10);

@@ -15,6 +15,7 @@ private:
     ros::Publisher human_grid_pub_;
     ros::Publisher highest_point_pub_;
     ros::Publisher local_maxima_pub_;
+    ros::Publisher proj_pub_;
 
     geometry_msgs::PoseArray leg_prob_;
     geometry_msgs::PoseArray sound_prob_;
@@ -46,7 +47,7 @@ private:
     nav_msgs::OccupancyGrid occupancy_grid_;
     geometry_msgs::PointStamped hp_;
     geometry_msgs::PointStamped tracked_hp_;
-
+    int probability_projection_step;
 
     CGrid* grid_;
 
@@ -60,12 +61,13 @@ private:
     void newState();
     void resetState();
     void calculateProbabilityThreshold();
+    void publishProjection();
 
 public:
 
     CHumanGrid();
-    CHumanGrid(ros::NodeHandle n);
-    CHumanGrid(ros::NodeHandle n, float lw, float sw, float tw);
+    CHumanGrid(ros::NodeHandle n, int probability_projection_step);
+    CHumanGrid(ros::NodeHandle n, float lw, float sw, float tw, int probability_projection_step);
     void integrateProbabilities();
 
     void legCallBack(const geometry_msgs::PoseArrayConstPtr& msg);
