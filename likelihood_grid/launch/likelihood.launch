@@ -1,8 +1,8 @@
 <launch>
 <arg name="use_encoder" value="true" />
-<arg name="leg_detection" value="false" />
-<arg name="torso_detection" value="false" />
-<arg name="sound_detection" value="false" />
+<arg name="leg_detection" value="true" />
+<arg name="torso_detection" value="true" />
+<arg name="sound_detection" value="true" />
 <arg name="gesture_detection" value="false" />
 <arg name="bayesian" value="false"/>
 <arg name="leg_node" value="true"/>
