@@ -355,7 +355,7 @@ void CGrid::projectGrid()
 
     for(size_t i = 0; i < grid_size; i++)
     {
-        float angle = map.cell.at(i).polar.angle * M_PI;
+        float angle = map.cell.at(i).polar.angle *180/ M_PI;
         if(angle < 0) angle += 360;
         angle_bins = floor((angle) / projection_angle_step);
 
