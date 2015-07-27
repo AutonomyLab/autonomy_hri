@@ -34,16 +34,16 @@ int main(int argc, char** argv)
     CHumanGrid human_grid(n,lw, sw, tw, probability_projection_step);
 
 
-    ros::Subscriber leg_grid_sub = n.subscribe("leg_probability", 10,
+    ros::Subscriber leg_grid_sub = n.subscribe("leg/probability", 10,
                                                &CHumanGrid::legCallBack,
                                                &human_grid);
 
-    ros::Subscriber sound_grid_sub = n.subscribe("sound_probability", 10,
+    ros::Subscriber sound_grid_sub = n.subscribe("sound/probability", 10,
                                                  &CHumanGrid::soundCallBack,
                                                  &human_grid);
 
 
-    ros::Subscriber torso_grid_sub = n.subscribe("torso_probability", 10,
+    ros::Subscriber torso_grid_sub = n.subscribe("torso/probability", 10,
                                                  &CHumanGrid::torsoCallBack,
                                                  &human_grid);
 
