@@ -14,18 +14,14 @@
 #include <miarn/feature_person.h>
 #include <angles/angles.h>
 #include "polarcord.h"
-
-
+#include <visualization_msgs/Marker.h>
 
 #define _USE_MATH_DEFINES
 #define FPS_BUF_SIZE 10
 // each pixel is 20x20 mm^2
 #define PIXEL_RATIO 20
-
-
 #define _USE_MATH_DEFINES
-#define M2MM_RATIO 1000.0
-
+#define M2MM_RATIO 1000.
 #define DEBUG true
 
 /********************************************************
@@ -86,10 +82,13 @@ void insertPoint(float r,
 ********************************************************/
 
 ros::Publisher leg_pub;
+ros::Publisher marker_pub;
 LaserFeatureX laserFeature;
 FeatureLegTracker featureLegTracker;
 geometry_msgs::PoseArray global_legs;
 sensor_msgs::LaserScan ldata;
+bool show_marker;
+double marker_scale;
 
 uint8_t segment_size(const LaserFeatureX::segment &seg){return (seg.end - seg.begin + 1);}
 
@@ -404,6 +403,40 @@ void publishLegs()
 
     publish_legs.header = ldata.header;
     leg_pub.publish(publish_legs);
+
+    // Publish Leg Markers
+
+    if(show_marker)
+    {
+        visualization_msgs::Marker marker;
+        geometry_msgs::Point p;
+
+        marker.header.frame_id = publish_legs.header.frame_id;
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "leg_markers";
+        marker.id = 0;
+        marker.type = visualization_msgs::Marker::SPHERE_LIST;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.pose.orientation.w = 1.0;
+        marker.scale.x = marker_scale;
+        marker.scale.y = marker_scale;
+        marker.scale.z = 0.25;
+        marker.color.r = 0.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0;
+        marker.lifetime = ros::Duration(0);
+
+        for(size_t i = 0; i < publish_legs.poses.size(); i++)
+        {
+            p.x = publish_legs.poses.at(i).position.x;
+            p.y = publish_legs.poses.at(i).position.y;
+            p.z = 0;
+            marker.points.push_back(p);
+        }
+
+        marker_pub.publish(marker);
+    }
 }
 
 void laser_cb(const sensor_msgs::LaserScan & msg)
@@ -462,6 +495,10 @@ int main(int argc, char **argv)
     ros::param::param("~/featureLegTracker/person_radius",person_radius,300.0);
     ROS_INFO("featureLegTracker/person_radius is set to %.2lf",person_radius);
 
+    ros::param::param("~/show_marker",show_marker,true);
+    ros::param::param("~/marker_scale",marker_scale,0.5);
+
+
     laserFeature.arc_min_aperture = arc_min_aperture;
     laserFeature.arc_max_aperture = arc_max_aperture;
     laserFeature.arc_std_max = arc_std_max;
@@ -492,6 +529,7 @@ int main(int argc, char **argv)
 
     ros::Subscriber laser_sub = n.subscribe("scan", 10, laser_cb);
     leg_pub = n.advertise<geometry_msgs::PoseArray>("legs",10);
+    marker_pub = n.advertise<visualization_msgs::Marker>("leg/marker", 1);
 
     while(ros::ok()){
 
