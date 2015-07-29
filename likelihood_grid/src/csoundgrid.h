@@ -38,6 +38,7 @@ private:
     geometry_msgs::PoseArray prob_;
     int probability_projection_step;
     visualization_msgs::MarkerArray marker_array;
+    double power_threshold;
 
     void init();
     void initKF();
@@ -69,7 +70,7 @@ private:
 public:
 
     CSoundGrid();
-    CSoundGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener, int _probability_projection_step);
+    CSoundGrid(ros::NodeHandle _n, tf::TransformListener* _tf_listener, int _probability_projection_step, float _power_threshold);
     ~CSoundGrid();
 
     void syncCallBack(const hark_msgs::HarkSourceConstPtr& sound_msg,

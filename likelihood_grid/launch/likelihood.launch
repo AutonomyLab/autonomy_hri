@@ -11,6 +11,7 @@
 <arg name="human_node" value="true"/>
 <arg name="test" value="false"/>
 <arg name="angle_step" value="1"/>
+<arg name="power_threshold" value="30.0"/>
 
 <group if="$(arg bayesian)">
     <node pkg="likelihood_grid" type="likelihood_grid_node" name="likelihood_grid_node" output="screen" >
@@ -103,6 +104,7 @@
         <node pkg="likelihood_grid" type="sound_grid_node" name="sound_grid_node" output="screen">
             <remap from="sound" to="HarkSource" />
             <param name="sound/projection_angle_step" value="$(arg angle_step)"/>
+            <param name="sound/power_threshold" value="$(arg power_threshold)"/>
         </node>
 </group>
 

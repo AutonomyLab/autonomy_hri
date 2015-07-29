@@ -7,11 +7,15 @@ CSoundGrid::CSoundGrid()
 }
 
 
-CSoundGrid::CSoundGrid(ros::NodeHandle _n, tf::TransformListener *_tf_listener,int _probability_projection_step):
-    n_(_n),
-    tf_listener_(_tf_listener),
-    KFTracker_(2, 2, 2),
-    probability_projection_step(_probability_projection_step)
+CSoundGrid::CSoundGrid(ros::NodeHandle _n,
+                    tf::TransformListener *_tf_listener,
+                    int _probability_projection_step,
+                    float _power_threshold):
+                    n_(_n),
+                    tf_listener_(_tf_listener),
+                    KFTracker_(2, 2, 2),
+                    probability_projection_step(_probability_projection_step),
+                    power_threshold(_power_threshold)
 {
     ROS_INFO("Constructing an instance of Sound Grid.");
     init();
@@ -147,7 +151,7 @@ void CSoundGrid::syncCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg,
 
     ss_reading_.assign(sound_msg->src.begin(), sound_msg->src.end());
 
-    rejectNotValidSoundSources(28.0);
+    rejectNotValidSoundSources(power_threshold);
 
     if(ss_reading_.empty())
     {
