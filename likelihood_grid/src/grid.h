@@ -19,6 +19,8 @@
 #include <autonomy_human/raw_detections.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include "polarcord.h"
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 float normalize(const float val, const float x_min, const float x_max, const float range_min, const float range_max);
 
@@ -140,7 +142,6 @@ public:
     float max_probability_;
     geometry_msgs::PoseArray grid_projection;
     int projection_angle_step;
-
 
     std::vector<float> posterior;
     std::vector<float> prior;

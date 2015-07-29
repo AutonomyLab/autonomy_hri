@@ -91,6 +91,7 @@ void CVisionGrid::init()
     grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("torso/grid",10);
     prob_pub_ = n_.advertise<geometry_msgs::PoseArray>("torso/probability",10);
     proj_pub_ = n_.advertise<geometry_msgs::PoseArray>("torso/projection",10);
+    marker_pub_ = n_.advertise<visualization_msgs::MarkerArray>("torso/marker",10);
 
 }
 
@@ -132,14 +133,49 @@ void CVisionGrid::syncCallBack(const autonomy_human::raw_detectionsConstPtr &tor
     if(torso_msg->detections.empty())
     {
         if(d.toSec() < 1.0)
+        {
             KeepLastTorso();
+            publishMarkers();
+        }
         return;
     }
     else
     {
         last_seen_torso_ = now;
         grid_->getPose(torso_msg);
+        publishMarkers();
     }
+}
+
+void CVisionGrid::publishMarkers()
+{
+    visualization_msgs::Marker marker;
+
+    marker.header.frame_id = "base_link";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "torso_markers";
+    marker.type = visualization_msgs::Marker::CYLINDER;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.5;
+    marker.scale.z = 1.8;
+    marker.color.r = 0.0f;
+    marker.color.g = 0.0f;
+    marker.color.b = 1.0f;
+    marker.color.a = 1.0;
+    marker.lifetime = ros::Duration(0.2);
+
+    if(!marker_array.markers.empty()) marker_array.markers.clear();
+
+    for (size_t i = 0; i < grid_->polar_array.current.size() ; i++ )
+    {
+        marker.id = i;
+        grid_->polar_array.current.at(i).toCart(marker.pose.position.x, marker.pose.position.y);
+        marker_array.markers.push_back(marker);
+    }
+
+    marker_pub_.publish(marker_array);    
 }
 
 void CVisionGrid::KeepLastTorso()

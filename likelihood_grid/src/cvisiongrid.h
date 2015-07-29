@@ -16,7 +16,8 @@ class CVisionGrid
     tf::TransformListener* tf_listener_;
     ros::Publisher grid_pub_;
     ros::Publisher prob_pub_;
-    ros::Publisher proj_pub_;       
+    ros::Publisher proj_pub_;
+    ros::Publisher marker_pub_;    
     Velocity_t velocity_;
     ros::Duration diff_time_;
     ros::Time last_time_;
@@ -32,7 +33,7 @@ class CVisionGrid
     geometry_msgs::PoseArray prob_;
     ros::Time last_seen_torso_;
     int probability_projection_step;
-
+    visualization_msgs::MarkerArray marker_array;
 
     void init();
     void initKF();
@@ -51,8 +52,7 @@ class CVisionGrid
     void passStates();
     void KeepLastTorso();
     void publishProjection();
-
-
+    void publishMarkers();
 
 public:
 
