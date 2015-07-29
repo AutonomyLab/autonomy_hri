@@ -189,7 +189,7 @@ void CHumanGrid::printFusedFeatures()
     if(hp_.point.z < probability_threshold_ + eps ){state = "NOT ENOUGH FEATURE";}
 //    else if(hp_.point.z < (torso_weight_/sum + eps)) {state = "TORSO";}
 //    else if(hp_.point.z < (sound_weight_/sum + eps)) {state = "SOUND";}
-    else if(hp_.point.z < ((leg_weight_ + torso_weight_)/sum + eps)) {state = "LEG + TROSO";}
+    else if(hp_.point.z < ((leg_weight_ + torso_weight_)/sum + eps)) {state = "LEG + TORSO";}
     else if(hp_.point.z < ((leg_weight_ + sound_weight_)/sum + eps)) {state = "LEG + SOUND";}
     else if(hp_.point.z < ((torso_weight_ + sound_weight_)/sum + eps)) {state = "SOUND + TORSO";}
     else {state = "ALL :)";}
