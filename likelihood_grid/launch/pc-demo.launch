@@ -1,12 +1,19 @@
+
 <launch>
+<arg name="bag-file" value="" />
+
     <include file="$(find likelihood_grid)/launch/likelihood.launch"/>
+
     <include file="$(find likelihood_grid)/launch/play_bag.launch">
-        <arg name="bag_file" value="/home/autolab/ros/bags/likelihood_grid/feb17/7.bag"/>
+        <arg name="bag_file" value="/home/autolab/bags/oth_testing_july10/tag_with_robot.bag"/>
     </include>
+
+    <node pkg="topic_tools" type="relay" name="relay_encoder" args="encoder husky/odom" />
 
     <node pkg="image_transport" type="republish" name="republish" args="compressed in:=/camera/front/rgb/image_color _image_transport:=compressed raw out:=/camera/front/rgb/image_color" output="screen">
     </node>
 
+    <!--<node pkg="image_view" type="image_view" name="image_view" args="image:=/person_detection/viz-->
     <param name="use_sim_time" value="true"/>
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find likelihood_grid)/cfg/rviz/demo.rviz"/>
 </launch>
