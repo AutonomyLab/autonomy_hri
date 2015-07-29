@@ -20,6 +20,7 @@ private:
     ros::Publisher grid_pub_;
     ros::Publisher prob_pub_;
     ros::Publisher proj_pub_;
+    ros::Publisher marker_pub_;
     Velocity_t velocity_;
     ros::Duration diff_time_;
     ros::Time last_time_;
@@ -36,6 +37,7 @@ private:
     std::vector<bool> match_meas_;
     geometry_msgs::PoseArray prob_;
     int probability_projection_step;
+    visualization_msgs::MarkerArray marker_array;
 
     void init();
     void initKF();
@@ -61,6 +63,7 @@ private:
     void passStates();
 
     void publishProjection();
+    void publishMarkers();
 
 
 public:

@@ -29,6 +29,7 @@ void CSoundGrid::init()
     grid_pub_ = n_.advertise<nav_msgs::OccupancyGrid>("sound/grid",10);
     prob_pub_ = n_.advertise<geometry_msgs::PoseArray>("sound/probability", 10);
     proj_pub_ = n_.advertise<geometry_msgs::PoseArray>("sound/projection",10);
+    marker_pub_ = n_.advertise<visualization_msgs::MarkerArray>("sound/marker",10);
 }
 
 
@@ -150,8 +151,9 @@ void CSoundGrid::syncCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg,
 
     if(ss_reading_.empty())
     {
-        if(d.toSec() < 5.0 )
+        if(d.toSec() < 5.0 ){
             keepLastSound();
+        }
         return;
     }
 
@@ -159,6 +161,7 @@ void CSoundGrid::syncCallBack(const hark_msgs::HarkSourceConstPtr &sound_msg,
     {
         last_heard_sound_ = now;
         addSoundSource();
+        publishMarkers();
     }
 }
 
@@ -178,6 +181,44 @@ void CSoundGrid::addSoundSource()
     }
 }
 
+
+void CSoundGrid::publishMarkers()
+{
+    visualization_msgs::Marker marker;
+
+    marker.header.frame_id = "base_link";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "sound_markers";
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.15;
+    marker.scale.z = 0.5;
+    marker.color.r = 1.0f;
+    marker.color.g = 0.0f;
+    marker.color.b = 0.0f;
+    marker.color.a = 1.0;
+    marker.lifetime = ros::Duration(0.2);
+    marker.points.resize(2);
+    marker.points[0].x = 0.0f;
+    marker.points[0].y = 0.0f;
+    marker.points[0].z = 0.0f;
+
+    if(!marker_array.markers.empty()) marker_array.markers.clear();
+
+    for(size_t i = 0; i < grid_->polar_array.current.size(); i++)
+    {
+            marker.points[1].x = 5.0 * cos(grid_->polar_array.current.at(i).angle);
+            marker.points[1].y = 5.0 * sin(grid_->polar_array.current.at(i).angle);
+            marker.points[1].z = 0.0f;
+            marker_array.markers.push_back(marker);
+    }
+    marker_pub_.publish(marker_array);
+}
 
 void CSoundGrid::addMirrorSoundSource()
 {
