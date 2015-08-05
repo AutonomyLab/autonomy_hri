@@ -27,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Image
 Visualization Manager:
   Class: ""
   Displays:
@@ -106,7 +106,7 @@ Visualization Manager:
       History Length: 1
       Name: PointStamped
       Radius: 0.75
-      Topic: /human/maximum_probability
+      Topic: /maximum_probability
       Value: true
     - Alpha: 1
       Class: rviz/Map
@@ -130,12 +130,12 @@ Visualization Manager:
     - Alpha: 0.6
       Class: rviz/PointStamped
       Color: 255; 0; 0
-      Enabled: false
+      Enabled: true
       History Length: 1
       Name: PointStamped
       Radius: 1.2
-      Topic: /maximum_probability
-      Value: false
+      Topic: /human/maximum_probability
+      Value: true
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /leg/marker
@@ -149,7 +149,7 @@ Visualization Manager:
       Marker Topic: /torso/marker
       Name: MarkerArray
       Namespaces:
-        {}
+        torso_markers: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -219,5 +219,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1215
-  X: 555
+  X: 535
   Y: 14
