@@ -221,7 +221,8 @@ void CSoundGrid::publishMarkers()
             marker.points[1].z = 0.0f;
             marker_array.markers.push_back(marker);
     }
-    marker_pub_.publish(marker_array);
+        if(marker_pub_.getNumSubscribers() > 0)
+            marker_pub_.publish(marker_array);
 }
 
 void CSoundGrid::addMirrorSoundSource()
