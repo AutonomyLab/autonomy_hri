@@ -18,7 +18,7 @@
 class CHumanTracker
 {
 public:
-  enum _trackingState
+  enum tracking_state_t
   {
     STATE_LOST = 0,
     STATE_DETECT = 1,
@@ -27,14 +27,14 @@ public:
     STATE_NUM = 4
   };
 
-  enum _gestureRegionIds
+  enum gesture_regions_ids_t
   {
     REG_TOPLEFT = 0,
     REG_TOPRIGHT = 1,
     REG_NUM = 2
   };
 
-  enum _stablizationMethods
+  enum stabilization_methods_t
   {
     STABLIZE_OFF = 0,
     STABLIZE_MEDIAN,
@@ -43,52 +43,52 @@ public:
   };
 
 private:
-  int32_t iWidth;
-  int32_t iHeight;
+  int32_t image_width_;
+  int32_t image_height_;
   //ros::NodeHandle node;
-  cv::Mat rawFrame;
-  cv::Rect searchROI;
-  cv::Rect flowROI;
-  cv::Mat rawFramGray;
-  cv::Mat prevRawFrameGray;
+  cv::Mat frame_raw_;
+  cv::Rect search_roi_;
+  cv::Rect flow_roi_;
+  cv::Mat frame_raw_gray_;
+  cv::Mat frame_raw_gray_prev_;
 
   // Face Tracker
-  cv::KalmanFilter KFTracker;
-  cv::KalmanFilter MLSearch; // Maximum Likelihood Search for multiple faces
-  cv::Mat state; // x,y,xdot,ydot,w,h
-  cv::Mat measurement;
-  float pCovScalar;
-  float mCovScalar;
+  cv::KalmanFilter kf_tracker_;
+  cv::KalmanFilter ml_search_; // Maximum Likelihood Search for multiple faces
+  cv::Mat state_; // x,y,xdot,ydot,w,h
+  cv::Mat measurement_;
+  float p_cov_scalar_;
+  float m_cov_scalar_;
 
   // State Machine
-  int32_t stateCounter;
-  int32_t initialScoreMin;
-  int32_t minDetectFrames;
-  int32_t minRejectFrames;
-  float maxRejectCov;
-  cv::Size minFaceSize;
-  cv::Size maxFaceSize;
+  int32_t state_counter_;
+  int32_t initial_score_min_;
+  int32_t min_detect_frames_;
+  int32_t min_reject_frames_;
+  float max_reject_cov_;
+  cv::Size min_face_size_;
+  cv::Size max_face_size_;
 
   // Histograms (Skin)
-  cv::MatND faceHist;
-  int32_t hbins;
-  int32_t sbins;
-  cv::Mat skin;
-  cv::Mat skinPrior;
-  cv::Mat flow;
-  cv::Mat flowMag;
+  cv::MatND face_hist_;
+  int32_t hbins_;
+  int32_t sbins_;
+  cv::Mat skin_;
+  cv::Mat skin_prior_;
+  cv::Mat flow_;
+  cv::Mat flow_mag_;
 
   // Optical Flow
-  int32_t minFlow;
+  int32_t min_flow_;
 
   //Time measurements
-  ros::Time tStart;
-  ros::Time tFaceStart;
-  ros::Time tSkinStart;
-  ros::Time tFlowStart;
-  ros::Time tEnd;
+  ros::Time t_start_;
+  ros::Time t_face_start_;
+  ros::Time t_skin_start_;
+  ros::Time t_flow_start_;
+  ros::Time t_end_;
 
-  std::string strStates[4];
+  std::string str_states_[4];
 
   /*
    * Bit 0: Original Image
@@ -97,43 +97,43 @@ private:
      * Bit 3: Histogram
    * Bit 4: Optical Flow
    */
-  uint8_t debugLevel;
-  bool profileHackEnabled;
-  bool skinEnabled;
-  bool gestureEnabled;
+  uint8_t debug_level_;
+  bool profile_hack_enabled_;
+  bool skin_enabled_;
+  bool gesture_enabled_;
 
   // C API is needed for score
   // But let's add smart pointers
-  cv::Ptr<CvHaarClassifierCascade> cascade;
-  cv::Ptr<CvHaarClassifierCascade> cascadeProfile;
+  cv::Ptr<CvHaarClassifierCascade> cascade_;
+  cv::Ptr<CvHaarClassifierCascade> cascade_profile_;
 
-  void copyKalman(const cv::KalmanFilter& src, cv::KalmanFilter& dest);
-  void resetKalmanFilter();
-  void initMats();
-  void resetMats();
-  void generateRegionHistogram(cv::Mat& region, cv::MatND &hist, bool vis = true);
-  void histFilter(cv::Mat& region, cv::Mat& post, cv::Mat& prior, cv::MatND& hist,  bool vis = true);
-  void detectAndTrackFace();
-  void trackSkin();
-  void calcOpticalFlow();
-  void draw();
-  void safeRect(cv::Rect &r, cv::Rect &boundry);
-  void safeRectToImage(cv::Rect &r, const double fx = 1.0, const double fy = 1.0);
+  void CopyKalman(const cv::KalmanFilter& src, cv::KalmanFilter& dest);
+  void ResetKalmanFilter();
+  void InitMats();
+  void ResetMats();
+  void GenerateRegionHistogram(cv::Mat& region, cv::MatND &hist, bool vis = true);
+  void HistFilter(cv::Mat& region, cv::Mat& post, cv::Mat& prior, cv::MatND& hist,  bool vis = true);
+  void DetectAndTrackFace();
+  void TrackSkin();
+  void CalcOpticalFlow();
+  void Draw();
+  void SafeRect(cv::Rect &r, cv::Rect &boundry);
+  void SafeRectToImage(cv::Rect &r, const double fx = 1.0, const double fy = 1.0);
 
   // Temp
-  CvAvgComp MLFace;
-  std::string frame_id;
+  CvAvgComp ml_face_;
+  std::string frame_id_;
 
   // We need C API to get score
   // Let's use OpenCV Smart Pointers to old data structures
-  cv::Ptr<CvMemStorage> storage;
-  cv::Ptr<CvMemStorage> storageProfile;
+  cv::Ptr<CvMemStorage> storage_;
+  cv::Ptr<CvMemStorage> storage_profile_;
 
-  ros::Publisher& facePub;
-  ros::Publisher& allDetectionsPub;
-  image_transport::Publisher& debugPub;
-  image_transport::Publisher& skinPub;
-  image_transport::Publisher& opticalPub;
+  ros::Publisher& face_pub_;
+  ros::Publisher& all_detections_pub_;
+  image_transport::Publisher& debug_pub_;
+  image_transport::Publisher& skin_pub_;
+  image_transport::Publisher& optical_pub_;
 
 public:
   CHumanTracker(std::string &cascadeFile, std::string &cascadeFileProfile,
@@ -145,33 +145,33 @@ public:
                 ros::Publisher& _facePub, ros::Publisher& _allDetectionsPub,
                 image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub);
 
-  void publish();
+  void Publish();
   ~CHumanTracker();
-  void visionCallback(const sensor_msgs::ImageConstPtr& frame);
-  void reset();
-  float calcMedian(cv::Mat &m, int nbins, float minVal, float maxVal, cv::InputArray mask = cv::noArray());
+  void VisionCallback(const sensor_msgs::ImageConstPtr& frame);
+  void Reset();
+  float CalcMedian(cv::Mat &m, int nbins, float minVal, float maxVal, cv::InputArray mask = cv::noArray());
 
-  bool isInited;
-  cv::Mat debugFrame;
-  cv::Mat skinFrame;
-  cv::Mat opticalFrame;
+  bool is_inited_;
+  cv::Mat frame_debug_;
+  cv::Mat frame_skin_;
+  cv::Mat frame_optical_;
 
-  std::vector<cv::Rect> faces;
-  int32_t faceScore;
-  cv::Rect beleif;
-  _trackingState trackingState;
-  bool isFaceInCurrentFrame;
+  std::vector<cv::Rect> faces_;
+  int32_t face_score_;
+  cv::Rect beleif_;
+  tracking_state_t tracking_state_;
+  bool is_face_in_current_frame_;
 
-  bool shouldPublish;
-  uint32_t stablization;
+  bool should_publish_;
+  uint32_t stab_;
 
   /*
    * Drone Point of View, Face in center
    * 0 : Top left
    * 1 : Top right
    */
-  cv::Rect gestureRegion[2];
-  float flowScoreInRegion[2];
+  cv::Rect gesture_region_[2];
+  float flow_score_in_region_[2];
 
 };
 
@@ -186,62 +186,62 @@ CHumanTracker::CHumanTracker(std::string &cascadeFile, std::string &cascadeFileP
                              unsigned short int _debugLevel, unsigned int _stablization,
                              ros::Publisher& _facePub, ros::Publisher& _allDetectionsPub,
                              image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub)
-  : KFTracker(6, 4, 0)
-  , MLSearch(6, 4, 0)
-  , pCovScalar(_pCov)
-  , mCovScalar(_mCov)
-  , stateCounter(0)
-  , initialScoreMin(_initialScoreMin)
-  , minDetectFrames(_initialDetectFrames)
-  , minRejectFrames(_initialRejectFrames)
-  , maxRejectCov(6.0)
-  , minFaceSize(_minFaceSizeW, _minFaceSizeH)
-  , maxFaceSize(_maxFaceSizeW, _maxFaceSizeH)
-  , hbins(15)
-  , sbins(16)
-  , minFlow(_minFlow)
-  , debugLevel(_debugLevel)
-  , profileHackEnabled(_profileHackEnabled)
-  , skinEnabled(_skinEnabled)
-  , gestureEnabled(_gestureEnabled)
-  , storage(cvCreateMemStorage(0))
-  , storageProfile(cvCreateMemStorage(0))
-  , facePub(_facePub)
-  , allDetectionsPub(_allDetectionsPub)
-  , debugPub(_debugPub)
-  , skinPub(_skinPub)
-  , opticalPub(_opticalPub)
-  , isInited(false)
-  , trackingState(STATE_LOST)
-  , shouldPublish(false)
-  , stablization(_stablization)
+  : kf_tracker_(6, 4, 0)
+  , ml_search_(6, 4, 0)
+  , p_cov_scalar_(_pCov)
+  , m_cov_scalar_(_mCov)
+  , state_counter_(0)
+  , initial_score_min_(_initialScoreMin)
+  , min_detect_frames_(_initialDetectFrames)
+  , min_reject_frames_(_initialRejectFrames)
+  , max_reject_cov_(6.0)
+  , min_face_size_(_minFaceSizeW, _minFaceSizeH)
+  , max_face_size_(_maxFaceSizeW, _maxFaceSizeH)
+  , hbins_(15)
+  , sbins_(16)
+  , min_flow_(_minFlow)
+  , debug_level_(_debugLevel)
+  , profile_hack_enabled_(_profileHackEnabled)
+  , skin_enabled_(_skinEnabled)
+  , gesture_enabled_(_gestureEnabled)
+  , storage_(cvCreateMemStorage(0))
+  , storage_profile_(cvCreateMemStorage(0))
+  , face_pub_(_facePub)
+  , all_detections_pub_(_allDetectionsPub)
+  , debug_pub_(_debugPub)
+  , skin_pub_(_skinPub)
+  , optical_pub_(_opticalPub)
+  , is_inited_(false)
+  , tracking_state_(STATE_LOST)
+  , should_publish_(false)
+  , stab_(_stablization)
 {
 
-  strStates[0] = "NOFACE";
-  strStates[1] = "DETECT";
-  strStates[2] = "TRACKG";
-  strStates[3] = "REJECT";
+  str_states_[0] = "NOFACE";
+  str_states_[1] = "DETECT";
+  str_states_[2] = "TRACKG";
+  str_states_[3] = "REJECT";
 
-  cascade = (CvHaarClassifierCascade*) cvLoad(cascadeFile.c_str(), 0, 0, 0);
-  if (cascade.empty())
+  cascade_ = (CvHaarClassifierCascade*) cvLoad(cascadeFile.c_str(), 0, 0, 0);
+  if (cascade_.empty())
   {
     ROS_ERROR("Problem loading cascade file %s", cascadeFile.c_str());
   }
 
-  if (profileHackEnabled)
+  if (profile_hack_enabled_)
   {
-    cascadeProfile = (CvHaarClassifierCascade*) cvLoad(cascadeFileProfile.c_str(), 0, 0, 0);
-    if (cascade.empty())
+    cascade_profile_ = (CvHaarClassifierCascade*) cvLoad(cascadeFileProfile.c_str(), 0, 0, 0);
+    if (cascade_.empty())
     {
       ROS_ERROR("Problem loading profile cascade file %s", cascadeFileProfile.c_str());
     }
   }
 
-  isFaceInCurrentFrame = false;
+  is_face_in_current_frame_ = false;
 
 }
 
-void CHumanTracker::publish()
+void CHumanTracker::Publish()
 {
   autonomy_human::human msg;
   autonomy_human::raw_detections faces_msg;
@@ -250,89 +250,89 @@ void CHumanTracker::publish()
   sensor_msgs::Image im;
   cvi.header.frame_id = "image";
 
-  if ((facePub.getNumSubscribers() > 0) &&
+  if ((face_pub_.getNumSubscribers() > 0) &&
       (
-        (trackingState == CHumanTracker::STATE_TRACK) ||
-        (trackingState == CHumanTracker::STATE_REJECT)
+        (tracking_state_ == CHumanTracker::STATE_TRACK) ||
+        (tracking_state_ == CHumanTracker::STATE_REJECT)
       ))
   {
     msg.header.stamp = ros::Time::now();
-    msg.header.frame_id = frame_id;
-    msg.numFaces = faces.size();
-    msg.faceScore = faceScore;
-    msg.faceROI.x_offset = beleif.x;
-    msg.faceROI.y_offset = beleif.y;
-    msg.faceROI.width = beleif.width;
-    msg.faceROI.height = beleif.height;
-    if (gestureEnabled)
+    msg.header.frame_id = frame_id_;
+    msg.numFaces = faces_.size();
+    msg.faceScore = face_score_;
+    msg.faceROI.x_offset = beleif_.x;
+    msg.faceROI.y_offset = beleif_.y;
+    msg.faceROI.width = beleif_.width;
+    msg.faceROI.height = beleif_.height;
+    if (gesture_enabled_)
     {
       for (int i = 0; i < 2; i++)
-        msg.flowScore[i] = flowScoreInRegion[i];
+        msg.flowScore[i] = flow_score_in_region_[i];
     }
-    facePub.publish(msg);
+    face_pub_.publish(msg);
   }
 
 
-  if (allDetectionsPub.getNumSubscribers() > 0)
+  if (all_detections_pub_.getNumSubscribers() > 0)
   {
     faces_msg.header.stamp = ros::Time::now();
-    faces_msg.header.frame_id = frame_id;
+    faces_msg.header.frame_id = frame_id_;
 
-    for (size_t i = 0; i < faces.size(); i++)
+    for (size_t i = 0; i < faces_.size(); i++)
     {
       sensor_msgs::RegionOfInterest tmp_human;
-      tmp_human.x_offset = faces[i].x;
-      tmp_human.y_offset = faces[i].y;
-      tmp_human.width = faces[i].width;
-      tmp_human.height = faces[i].height;
+      tmp_human.x_offset = faces_[i].x;
+      tmp_human.y_offset = faces_[i].y;
+      tmp_human.width = faces_[i].width;
+      tmp_human.height = faces_[i].height;
       faces_msg.detections.push_back(tmp_human);
     }
 
-    allDetectionsPub.publish(faces_msg);
+    all_detections_pub_.publish(faces_msg);
   }
 
   if (
-    (debugPub.getNumSubscribers() > 0) &&
-    (shouldPublish) &&
-    ((debugLevel & 0x02) == 0x02) &&
-    (isInited)
+    (debug_pub_.getNumSubscribers() > 0) &&
+    (should_publish_) &&
+    ((debug_level_ & 0x02) == 0x02) &&
+    (is_inited_)
   )
   {
     cvi.header.stamp = ros::Time::now();
     cvi.encoding = "bgr8";
-    cvi.image = debugFrame;
+    cvi.image = frame_debug_;
     cvi.toImageMsg(im);
-    debugPub.publish(im);
+    debug_pub_.publish(im);
   }
 
   if (
-    (skinPub.getNumSubscribers() > 0) &&
-    (shouldPublish) &&
-    ((debugLevel & 0x04) == 0x04) &&
-    (isInited) &&
-    (skinEnabled)
+    (skin_pub_.getNumSubscribers() > 0) &&
+    (should_publish_) &&
+    ((debug_level_ & 0x04) == 0x04) &&
+    (is_inited_) &&
+    (skin_enabled_)
   )
   {
     cvi.header.stamp = ros::Time::now();
     cvi.encoding = "mono8";
-    cvi.image = skinFrame;
+    cvi.image = frame_skin_;
     cvi.toImageMsg(im);
-    skinPub.publish(im);
+    skin_pub_.publish(im);
   }
 
   if (
-    (opticalPub.getNumSubscribers() > 0) &&
-    (shouldPublish) &&
-    ((debugLevel & 0x10) == 0x10) &&
-    (isInited) &&
-    (gestureEnabled)
+    (optical_pub_.getNumSubscribers() > 0) &&
+    (should_publish_) &&
+    ((debug_level_ & 0x10) == 0x10) &&
+    (is_inited_) &&
+    (gesture_enabled_)
   )
   {
     cvi.header.stamp = ros::Time::now();
     cvi.encoding = "bgr8";
-    cvi.image = opticalFrame;
+    cvi.image = frame_optical_;
     cvi.toImageMsg(im);
-    opticalPub.publish(im);
+    optical_pub_.publish(im);
   }
 }
 
@@ -341,7 +341,7 @@ CHumanTracker::~CHumanTracker()
   ;
 }
 
-void CHumanTracker::copyKalman(const cv::KalmanFilter& src, cv::KalmanFilter& dest)
+void CHumanTracker::CopyKalman(const cv::KalmanFilter& src, cv::KalmanFilter& dest)
 {
   dest.measurementNoiseCov = src.measurementNoiseCov.clone();
   dest.controlMatrix = src.controlMatrix.clone();
@@ -355,51 +355,51 @@ void CHumanTracker::copyKalman(const cv::KalmanFilter& src, cv::KalmanFilter& de
   dest.transitionMatrix = src.transitionMatrix.clone();
 }
 
-void CHumanTracker::reset()
+void CHumanTracker::Reset()
 {
-  trackingState = STATE_LOST;
-  searchROI = cv::Rect(cv::Point(0, 0), cv::Point(iWidth, iHeight));
+  tracking_state_ = STATE_LOST;
+  search_roi_ = cv::Rect(cv::Point(0, 0), cv::Point(image_width_, image_height_));
 
   // x,y,xdot,ydot,w,h
-  state = cv::Mat::zeros(6, 1, CV_32F);
+  state_ = cv::Mat::zeros(6, 1, CV_32F);
 
   // x,y,w,h
-  measurement = cv::Mat::zeros(4, 1, CV_32F);
+  measurement_ = cv::Mat::zeros(4, 1, CV_32F);
 
-  isFaceInCurrentFrame = false;
+  is_face_in_current_frame_ = false;
 
   for (int i = 0; i < 2; i++)
-    flowScoreInRegion[i] = 0.0;
+    flow_score_in_region_[i] = 0.0;
 
-  initMats();
-  resetMats();
-  resetKalmanFilter();
+  InitMats();
+  ResetMats();
+  ResetKalmanFilter();
 }
 
-void CHumanTracker::initMats()
+void CHumanTracker::InitMats()
 {
-  skin = cv::Mat::zeros(iHeight, iWidth, CV_32F);
-  skinPrior = cv::Mat::zeros(iHeight, iWidth, CV_32F);
-  faceHist = cv::Mat::zeros(hbins, sbins, CV_32F);
-  skinFrame = cv::Mat::zeros(iHeight, iWidth, CV_8UC1);
-  opticalFrame = cv::Mat::zeros(iHeight, iWidth, CV_8UC3);
-  flow = cv::Mat::zeros(iHeight, iWidth, CV_32FC2);
-  flowMag = cv::Mat::zeros(iHeight, iWidth, CV_32F);
+  skin_ = cv::Mat::zeros(image_height_, image_width_, CV_32F);
+  skin_prior_ = cv::Mat::zeros(image_height_, image_width_, CV_32F);
+  face_hist_ = cv::Mat::zeros(hbins_, sbins_, CV_32F);
+  frame_skin_ = cv::Mat::zeros(image_height_, image_width_, CV_8UC1);
+  frame_optical_ = cv::Mat::zeros(image_height_, image_width_, CV_8UC3);
+  flow_ = cv::Mat::zeros(image_height_, image_width_, CV_32FC2);
+  flow_mag_ = cv::Mat::zeros(image_height_, image_width_, CV_32F);
 }
 
-void CHumanTracker::resetMats()
+void CHumanTracker::ResetMats()
 {
-  skinPrior = cv::Scalar::all(1.0 / (iWidth * iHeight));
-  skin = cv::Scalar::all(1.0 / (skin.rows * skin.cols));
-  faceHist = cv::Scalar::all(1.0 / (faceHist.rows * faceHist.cols));
+  skin_prior_ = cv::Scalar::all(1.0 / (image_width_ * image_height_));
+  skin_ = cv::Scalar::all(1.0 / (skin_.rows * skin_.cols));
+  face_hist_ = cv::Scalar::all(1.0 / (face_hist_.rows * face_hist_.cols));
 }
-void CHumanTracker::resetKalmanFilter()
+void CHumanTracker::ResetKalmanFilter()
 {
-  measurement.setTo(cv::Scalar(0));
+  measurement_.setTo(cv::Scalar(0));
 
   // The system model is very naive. The small effect of xdot and ydot
   // on x and y are intentional (it is 0 now)
-  KFTracker.transitionMatrix = (cv::Mat_<float>(6, 6)
+  kf_tracker_.transitionMatrix = (cv::Mat_<float>(6, 6)
                                 <<
                                 1, 0, 0, 0, 0, 0,
                                 0, 1, 0, 0, 0, 0,
@@ -409,7 +409,7 @@ void CHumanTracker::resetKalmanFilter()
                                 0, 0, 0, 0, 0, 1
                                );
 
-  KFTracker.measurementMatrix = (cv::Mat_<float>(4, 6)
+  kf_tracker_.measurementMatrix = (cv::Mat_<float>(4, 6)
                                  <<
                                  1, 0, 0, 0, 0, 0,
                                  0, 1, 0, 0, 0, 0,
@@ -417,20 +417,20 @@ void CHumanTracker::resetKalmanFilter()
                                  0, 0, 0, 0, 0, 1
                                 );
 
-  KFTracker.statePre = (cv::Mat_<float>(6, 1) << 0, 0, 0, 0, 0, 0);
-  KFTracker.statePost = (cv::Mat_<float>(6, 1) << 0, 0, 0, 0, 0, 0);
+  kf_tracker_.statePre = (cv::Mat_<float>(6, 1) << 0, 0, 0, 0, 0, 0);
+  kf_tracker_.statePost = (cv::Mat_<float>(6, 1) << 0, 0, 0, 0, 0, 0);
 
-  setIdentity(KFTracker.errorCovPre, cv::Scalar_<float>::all(1e2));
-  setIdentity(KFTracker.errorCovPost, cv::Scalar_<float>::all(1e2));
-  setIdentity(KFTracker.processNoiseCov, cv::Scalar_<float>::all(pCovScalar));
-  setIdentity(KFTracker.measurementNoiseCov, cv::Scalar_<float>::all(mCovScalar));
+  setIdentity(kf_tracker_.errorCovPre, cv::Scalar_<float>::all(1e2));
+  setIdentity(kf_tracker_.errorCovPost, cv::Scalar_<float>::all(1e2));
+  setIdentity(kf_tracker_.processNoiseCov, cv::Scalar_<float>::all(p_cov_scalar_));
+  setIdentity(kf_tracker_.measurementNoiseCov, cv::Scalar_<float>::all(m_cov_scalar_));
 
-  copyKalman(KFTracker, MLSearch);
+  CopyKalman(kf_tracker_, ml_search_);
 
 
 }
 
-float CHumanTracker::calcMedian(cv::Mat &m, int nbins, float minVal, float maxVal, cv::InputArray mask)
+float CHumanTracker::CalcMedian(cv::Mat &m, int nbins, float minVal, float maxVal, cv::InputArray mask)
 {
   cv::MatND hist;
   int hsize[1];
@@ -459,7 +459,7 @@ float CHumanTracker::calcMedian(cv::Mat &m, int nbins, float minVal, float maxVa
   return median;
 }
 
-void CHumanTracker::safeRect(cv::Rect& r, cv::Rect& boundry)
+void CHumanTracker::SafeRect(cv::Rect& r, cv::Rect& boundry)
 {
   r.x = std::max<int>(r.x, boundry.x);
   r.y = std::max<int>(r.y, boundry.y);
@@ -472,13 +472,13 @@ void CHumanTracker::safeRect(cv::Rect& r, cv::Rect& boundry)
   r.height = p2.y - r.y;
 }
 
-void CHumanTracker::safeRectToImage(cv::Rect& r, const double fx, const double fy)
+void CHumanTracker::SafeRectToImage(cv::Rect& r, const double fx, const double fy)
 {
-  cv::Rect safety(0, 0, iWidth * fx, iHeight * fy);
-  safeRect(r, safety);
+  cv::Rect safety(0, 0, image_width_ * fx, image_height_ * fy);
+  SafeRect(r, safety);
 }
 
-void CHumanTracker::generateRegionHistogram(cv::Mat& region, cv::MatND &hist, bool vis)
+void CHumanTracker::GenerateRegionHistogram(cv::Mat& region, cv::MatND &hist, bool vis)
 {
   cv::MatND prior = hist.clone();
 
@@ -502,16 +502,16 @@ void CHumanTracker::generateRegionHistogram(cv::Mat& region, cv::MatND &hist, bo
 //  namedWindow( "Face Mask", 1 );
 //  imshow( "Face Mask", mask * 255 );
 
-  int histSize[] = {hbins, sbins};
+  int histSize[] = {hbins_, sbins_};
   float hranges[] = {0, 180};
   float sranges[] = {0, 256};
   const float* ranges[] = { hranges, sranges};
   int channels[] = {0, 1};
   calcHist(&hsv, 1, channels, mask, hist, 2, histSize, ranges, true, false);
 
-  for (int h = 0; h < hbins; h++)
+  for (int h = 0; h < hbins_; h++)
   {
-    for (int s = 0; s < sbins; s++)
+    for (int s = 0; s < sbins_; s++)
     {
       hist.at<float>(h, s) = (0.99 * prior.at<float>(h, s)) + (0.01 * hist.at<float>(h, s));
     }
@@ -527,10 +527,10 @@ void CHumanTracker::generateRegionHistogram(cv::Mat& region, cv::MatND &hist, bo
     cv::normalize(hist, visHist, 255.0, 0.00, cv::NORM_MINMAX);
 
     int scale = 10;
-    cv::Mat histImg = cv::Mat::zeros(sbins * scale, hbins * scale, CV_8UC3);
-    for (int h = 0; h < hbins; h++)
+    cv::Mat histImg = cv::Mat::zeros(sbins_ * scale, hbins_ * scale, CV_8UC3);
+    for (int h = 0; h < hbins_; h++)
     {
-      for (int s = 0; s < sbins; s++)
+      for (int s = 0; s < sbins_; s++)
       {
         float binVal = visHist.at<float>(h, s);
         int intensity = cvRound(binVal);///maxVal);
@@ -541,7 +541,7 @@ void CHumanTracker::generateRegionHistogram(cv::Mat& region, cv::MatND &hist, bo
       }
     }
 
-    if ((debugLevel & 0x08) == 0x08)
+    if ((debug_level_ & 0x08) == 0x08)
     {
       cv::namedWindow("H-S Histogram", 1);
       cv::imshow("H-S Histogram", histImg);
@@ -550,7 +550,7 @@ void CHumanTracker::generateRegionHistogram(cv::Mat& region, cv::MatND &hist, bo
   }
 }
 
-void CHumanTracker::histFilter(cv::Mat& region, cv::Mat& post, cv::Mat& prior, cv::MatND& hist,  bool vis)
+void CHumanTracker::HistFilter(cv::Mat& region, cv::Mat& post, cv::Mat& prior, cv::MatND& hist,  bool vis)
 {
   int _w = region.cols;
   int _h = region.rows;
@@ -560,8 +560,8 @@ void CHumanTracker::histFilter(cv::Mat& region, cv::Mat& post, cv::Mat& prior, c
   {
     for (int c = 0; c < _w; c++)
     {
-      int hue_bin = cvFloor(image.at<cv::Vec3b>(r, c)[0] / (180.0 / (float) hbins));
-      int sat_bin = cvFloor(image.at<cv::Vec3b>(r, c)[1] / (256.0 / (float) sbins));
+      int hue_bin = cvFloor(image.at<cv::Vec3b>(r, c)[0] / (180.0 / (float) hbins_));
+      int sat_bin = cvFloor(image.at<cv::Vec3b>(r, c)[1] / (256.0 / (float) sbins_));
 
       float z = hist.at<float>(hue_bin, sat_bin);
       post.at<float>(r, c) = (0.7 * z) + (0.3 * prior.at<float>(r, c));
@@ -580,15 +580,15 @@ void CHumanTracker::histFilter(cv::Mat& region, cv::Mat& post, cv::Mat& prior, c
   //prior = post.clone();
 }
 
-void CHumanTracker::detectAndTrackFace()
+void CHumanTracker::DetectAndTrackFace()
 {
   static ros::Time probe;
 
   // Do ROI
-  debugFrame = rawFrame.clone();
-  cv::Mat img =  this->rawFrame(searchROI);
+  frame_debug_ = frame_raw_.clone();
+  cv::Mat img =  this->frame_raw_(search_roi_);
 
-  faces.clear();
+  faces_.clear();
   std::ostringstream txtstr;
   const static cv::Scalar colors[] =  { CV_RGB(0, 0, 255),
                                     CV_RGB(0, 128, 255),
@@ -613,126 +613,126 @@ void CHumanTracker::detectAndTrackFace()
 
   CvMat _image = frame;
 
-  if (!storage.empty())
+  if (!storage_.empty())
   {
-    cvClearMemStorage(storage);
+    cvClearMemStorage(storage_);
   }
-  CvSeq* _objects = cvHaarDetectObjects(&_image, cascade, storage,
-                                        1.2, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
+  CvSeq* _objects = cvHaarDetectObjects(&_image, cascade_, storage_,
+                                        1.2, initial_score_min_, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_SCALE_IMAGE, min_face_size_, max_face_size_);
 
   std::vector<CvAvgComp> vecAvgComp;
   cv::Seq<CvAvgComp>(_objects).copyTo(vecAvgComp);
 
   // End of using C API
 
-  isFaceInCurrentFrame = (vecAvgComp.size() > 0);
+  is_face_in_current_frame_ = (vecAvgComp.size() > 0);
 
   // This is a hack
   bool isProfileFace = false;
-  if ((profileHackEnabled) && (!isFaceInCurrentFrame) && ((trackingState == STATE_REJECT) || (trackingState == STATE_REJECT)))
+  if ((profile_hack_enabled_) && (!is_face_in_current_frame_) && ((tracking_state_ == STATE_REJECT) || (tracking_state_ == STATE_REJECT)))
   {
     ROS_DEBUG("Using Profile Face hack ...");
 
-    if (!storageProfile.empty())
+    if (!storage_profile_.empty())
     {
-      cvClearMemStorage(storageProfile);
+      cvClearMemStorage(storage_profile_);
     }
-    CvSeq* _objectsProfile = cvHaarDetectObjects(&_image, cascadeProfile, storageProfile,
-                             1.2, initialScoreMin, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_SCALE_IMAGE, minFaceSize, maxFaceSize);
+    CvSeq* _objectsProfile = cvHaarDetectObjects(&_image, cascade_profile_, storage_profile_,
+                             1.2, initial_score_min_, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_SCALE_IMAGE, min_face_size_, max_face_size_);
     vecAvgComp.clear();
     cv::Seq<CvAvgComp>(_objectsProfile).copyTo(vecAvgComp);
-    isFaceInCurrentFrame = (vecAvgComp.size() > 0);
-    if (isFaceInCurrentFrame)
+    is_face_in_current_frame_ = (vecAvgComp.size() > 0);
+    if (is_face_in_current_frame_)
     {
       ROS_DEBUG("The hack seems to work!");
     }
     isProfileFace = true;
   }
 
-  if (trackingState == STATE_LOST)
+  if (tracking_state_ == STATE_LOST)
   {
-    if (isFaceInCurrentFrame)
+    if (is_face_in_current_frame_)
     {
-      stateCounter++;
-      trackingState = STATE_DETECT;
+      state_counter_++;
+      tracking_state_ = STATE_DETECT;
     }
   }
 
-  if (trackingState == STATE_DETECT)
+  if (tracking_state_ == STATE_DETECT)
   {
-    if (isFaceInCurrentFrame)
+    if (is_face_in_current_frame_)
     {
-      stateCounter++;
+      state_counter_++;
     }
     else
     {
-      stateCounter = 0;
-      trackingState = STATE_LOST;
+      state_counter_ = 0;
+      tracking_state_ = STATE_LOST;
     }
 
-    if (stateCounter > minDetectFrames)
+    if (state_counter_ > min_detect_frames_)
     {
-      stateCounter = 0;
-      trackingState = STATE_TRACK;
+      state_counter_ = 0;
+      tracking_state_ = STATE_TRACK;
     }
 
   }
 
-  if (trackingState == STATE_TRACK)
+  if (tracking_state_ == STATE_TRACK)
   {
-    if (!isFaceInCurrentFrame)
+    if (!is_face_in_current_frame_)
     {
-      trackingState = STATE_REJECT;
+      tracking_state_ = STATE_REJECT;
     }
   }
 
-  if (trackingState == STATE_REJECT)
+  if (tracking_state_ == STATE_REJECT)
   {
     float covNorm = sqrt(
-                      pow(KFTracker.errorCovPost.at<float>(0, 0), 2) +
-                      pow(KFTracker.errorCovPost.at<float>(1, 1), 2)
+                      pow(kf_tracker_.errorCovPost.at<float>(0, 0), 2) +
+                      pow(kf_tracker_.errorCovPost.at<float>(1, 1), 2)
                     );
 
-    if (!isFaceInCurrentFrame)
+    if (!is_face_in_current_frame_)
     {
-      stateCounter++;
+      state_counter_++;
     }
     else
     {
-      stateCounter = 0;
-      trackingState = STATE_TRACK;
+      state_counter_ = 0;
+      tracking_state_ = STATE_TRACK;
     }
 
-    if ((stateCounter > minRejectFrames) && (covNorm > maxRejectCov))
+    if ((state_counter_ > min_reject_frames_) && (covNorm > max_reject_cov_))
     {
-      trackingState = STATE_LOST;
-      stateCounter = 0;
-      resetKalmanFilter();
-      reset();
+      tracking_state_ = STATE_LOST;
+      state_counter_ = 0;
+      ResetKalmanFilter();
+      Reset();
     }
   }
 
-  if ((trackingState == STATE_TRACK) || (trackingState == STATE_REJECT))
+  if ((tracking_state_ == STATE_TRACK) || (tracking_state_ == STATE_REJECT))
   {
     bool updateFaceHist = false;
     // This is important:
 
-    KFTracker.transitionMatrix.at<float>(0, 2) = dt;
-    KFTracker.transitionMatrix.at<float>(1, 3) = dt;
+    kf_tracker_.transitionMatrix.at<float>(0, 2) = dt;
+    kf_tracker_.transitionMatrix.at<float>(1, 3) = dt;
 
-    cv::Mat pred = KFTracker.predict();
+    cv::Mat pred = kf_tracker_.predict();
 
-    if (isFaceInCurrentFrame)
+    if (is_face_in_current_frame_)
     {
       //std::cout << vecAvgComp.size() << " detections in image " << std::endl;
       float minCovNorm = 1e24;
       int i = 0;
       for (std::vector<CvAvgComp>::const_iterator rr = vecAvgComp.begin(); rr != vecAvgComp.end(); rr++, i++)
       {
-        copyKalman(KFTracker, MLSearch);
+        CopyKalman(kf_tracker_, ml_search_);
         CvRect r = rr->rect;
-        r.x += searchROI.x;
-        r.y += searchROI.y;
+        r.x += search_roi_.x;
+        r.y += search_roi_.y;
         double nr = rr->neighbors;
         cv::Point center;
         cv::Scalar color = colors[i % 8];
@@ -740,84 +740,84 @@ void CHumanTracker::detectAndTrackFace()
         float normFaceScore = 1.0 - (nr / 40.0);
         if (normFaceScore > 1.0) normFaceScore = 1.0;
         if (normFaceScore < 0.0) normFaceScore = 0.0;
-        setIdentity(MLSearch.measurementNoiseCov, cv::Scalar_<float>::all(normFaceScore));
+        setIdentity(ml_search_.measurementNoiseCov, cv::Scalar_<float>::all(normFaceScore));
 
         center.x = cvRound(r.x + r.width * 0.5);
         center.y = cvRound(r.y + r.height * 0.5);
 
-        measurement.at<float>(0) = r.x;
-        measurement.at<float>(1) = r.y;
-        measurement.at<float>(2) = r.width;
-        measurement.at<float>(3) = r.height;
+        measurement_.at<float>(0) = r.x;
+        measurement_.at<float>(1) = r.y;
+        measurement_.at<float>(2) = r.width;
+        measurement_.at<float>(3) = r.height;
 
-        MLSearch.correct(measurement);
+        ml_search_.correct(measurement_);
 
         float covNorm = sqrt(
-                          pow(MLSearch.errorCovPost.at<float>(0, 0), 2) +
-                          pow(MLSearch.errorCovPost.at<float>(1, 1), 2)
+                          pow(ml_search_.errorCovPost.at<float>(0, 0), 2) +
+                          pow(ml_search_.errorCovPost.at<float>(1, 1), 2)
                         );
 
         if (covNorm < minCovNorm)
         {
           minCovNorm = covNorm;
-          MLFace = *rr;
+          ml_face_ = *rr;
         }
 
 //                if ((debugLevel & 0x02) == 0x02)
 //                {
-        rectangle(debugFrame, center - cv::Point(r.width * 0.5, r.height * 0.5),
+        rectangle(frame_debug_, center - cv::Point(r.width * 0.5, r.height * 0.5),
                   center + cv::Point(r.width * 0.5, r.height * 0.5), color);
 
         txtstr.str("");
         txtstr << "   Sc:" << rr->neighbors << " S:" << r.width << "x" << r.height;
 
-        cv::putText(debugFrame, txtstr.str(), center, cv::FONT_HERSHEY_PLAIN, 1, color);
+        cv::putText(frame_debug_, txtstr.str(), center, cv::FONT_HERSHEY_PLAIN, 1, color);
 //                }
       }
 
       // TODO: I'll fix this shit
-      cv::Rect r(MLFace.rect);
-      r.x += searchROI.x;
-      r.y += searchROI.y;
-      faces.push_back(r);
-      double nr = MLFace.neighbors;
-      faceScore = nr;
-      if (isProfileFace) faceScore = 0.0;
+      cv::Rect r(ml_face_.rect);
+      r.x += search_roi_.x;
+      r.y += search_roi_.y;
+      faces_.push_back(r);
+      double nr = ml_face_.neighbors;
+      face_score_ = nr;
+      if (isProfileFace) face_score_ = 0.0;
       float normFaceScore = 1.0 - (nr / 40.0);
       if (normFaceScore > 1.0) normFaceScore = 1.0;
       if (normFaceScore < 0.0) normFaceScore = 0.0;
-      setIdentity(KFTracker.measurementNoiseCov, cv::Scalar_<float>::all(normFaceScore));
-      measurement.at<float>(0) = r.x;
-      measurement.at<float>(1) = r.y;
-      measurement.at<float>(2) = r.width;
-      measurement.at<float>(3) = r.height;
-      KFTracker.correct(measurement);
+      setIdentity(kf_tracker_.measurementNoiseCov, cv::Scalar_<float>::all(normFaceScore));
+      measurement_.at<float>(0) = r.x;
+      measurement_.at<float>(1) = r.y;
+      measurement_.at<float>(2) = r.width;
+      measurement_.at<float>(3) = r.height;
+      kf_tracker_.correct(measurement_);
 
       // We see a face
       updateFaceHist = true;
     }
     else
     {
-      KFTracker.statePost = KFTracker.statePre;
-      KFTracker.errorCovPost = KFTracker.errorCovPre;
+      kf_tracker_.statePost = kf_tracker_.statePre;
+      kf_tracker_.errorCovPost = kf_tracker_.errorCovPre;
     }
 
     // TODO: MOVE THIS
-    for (unsigned int k = 0; k < faces.size(); k++)
+    for (unsigned int k = 0; k < faces_.size(); k++)
     {
-      rectangle(debugFrame, faces.at(k), CV_RGB(128, 128, 128));
+      rectangle(frame_debug_, faces_.at(k), CV_RGB(128, 128, 128));
     }
 
-    beleif.x = std::max<int>(KFTracker.statePost.at<float>(0), 0);
-    beleif.y = std::max<int>(KFTracker.statePost.at<float>(1), 0);
-    beleif.width = std::min<int>(KFTracker.statePost.at<float>(4), iWidth - beleif.x);
-    beleif.height = std::min<int>(KFTracker.statePost.at<float>(5), iHeight - beleif.y);
+    beleif_.x = std::max<int>(kf_tracker_.statePost.at<float>(0), 0);
+    beleif_.y = std::max<int>(kf_tracker_.statePost.at<float>(1), 0);
+    beleif_.width = std::min<int>(kf_tracker_.statePost.at<float>(4), image_width_ - beleif_.x);
+    beleif_.height = std::min<int>(kf_tracker_.statePost.at<float>(5), image_height_ - beleif_.y);
 
     cv::Point belCenter;
-    belCenter.x = beleif.x + (beleif.width * 0.5);
-    belCenter.y = beleif.y + (beleif.height * 0.5);
+    belCenter.x = beleif_.x + (beleif_.width * 0.5);
+    belCenter.y = beleif_.y + (beleif_.height * 0.5);
 
-    if ((debugLevel & 0x02) == 0x02)
+    if ((debug_level_ & 0x02) == 0x02)
     {
       txtstr.str("");
 //            txtstr << "P:" << std::setprecision(3) << faceUncPos << " S:" << beleif.width << "x" << beleif.height;
@@ -836,7 +836,7 @@ void CHumanTracker::detectAndTrackFace()
     //searchROI.height = y2 - searchROI.y;
 
 
-    if ((updateFaceHist) && (skinEnabled))
+    if ((updateFaceHist) && (skin_enabled_))
     {
       //updateFaceHist is true when we see a real face (not all the times)
       cv::Rect samplingWindow;
@@ -844,16 +844,16 @@ void CHumanTracker::detectAndTrackFace()
 //            samplingWindow.y = beleif.y + (0.1 * beleif.height);
 //            samplingWindow.width = beleif.width * 0.5;
 //            samplingWindow.height = beleif.height * 0.9;
-      samplingWindow.x = measurement.at<float>(0) + (0.25 * measurement.at<float>(2));
-      samplingWindow.y = measurement.at<float>(1) + (0.10 * measurement.at<float>(3));
-      samplingWindow.width = measurement.at<float>(2) * 0.5;
-      samplingWindow.height = measurement.at<float>(3) * 0.9;
-      if ((debugLevel & 0x04) == 0x04)
+      samplingWindow.x = measurement_.at<float>(0) + (0.25 * measurement_.at<float>(2));
+      samplingWindow.y = measurement_.at<float>(1) + (0.10 * measurement_.at<float>(3));
+      samplingWindow.width = measurement_.at<float>(2) * 0.5;
+      samplingWindow.height = measurement_.at<float>(3) * 0.9;
+      if ((debug_level_ & 0x04) == 0x04)
       {
-        rectangle(debugFrame, samplingWindow, CV_RGB(255, 0, 0));
+        rectangle(frame_debug_, samplingWindow, CV_RGB(255, 0, 0));
       }
-      cv::Mat _face = rawFrame(samplingWindow);
-      generateRegionHistogram(_face, faceHist);
+      cv::Mat _face = frame_raw_(samplingWindow);
+      GenerateRegionHistogram(_face, face_hist_);
     }
 
 
@@ -871,42 +871,42 @@ void CHumanTracker::detectAndTrackFace()
 //  dt =  ((double) getTickCount() - t) / ((double) getTickFrequency()); // In Seconds
 }
 
-void CHumanTracker::trackSkin()
+void CHumanTracker::TrackSkin()
 {
 
   bool perform =
-    (skinEnabled) &&
+    (skin_enabled_) &&
     (
-      (trackingState == STATE_TRACK) ||
-      (trackingState == STATE_REJECT)
+      (tracking_state_ == STATE_TRACK) ||
+      (tracking_state_ == STATE_REJECT)
     );
 
   if (perform)
   {
-    histFilter(rawFrame, skin, skinPrior, faceHist, false);
-    const double sum_skin = sum(skin)[0];
-    skin *= (1.0 / sum_skin);
-    skinPrior = skin.clone();
-    if ((debugLevel & 0x04) == 0x04)
+    HistFilter(frame_raw_, skin_, skin_prior_, face_hist_, false);
+    const double sum_skin = sum(skin_)[0];
+    skin_ *= (1.0 / sum_skin);
+    skin_prior_ = skin_.clone();
+    if ((debug_level_ & 0x04) == 0x04)
     {
       cv::Mat visSkin;
-      cv::normalize(skin, visSkin, 1.0, 0.0, cv::NORM_MINMAX);
-      visSkin.convertTo(skinFrame, CV_8UC1, 255.0, 0.0);
+      cv::normalize(skin_, visSkin, 1.0, 0.0, cv::NORM_MINMAX);
+      visSkin.convertTo(frame_skin_, CV_8UC1, 255.0, 0.0);
     }
   }
 }
 
-void CHumanTracker::calcOpticalFlow()
+void CHumanTracker::CalcOpticalFlow()
 {
   static bool first = true;
   static bool firstCancel = true;
   static cv::Rect prevFaceRect;
 
   bool perform =
-    (gestureEnabled) &&
+    (gesture_enabled_) &&
     (
-      (trackingState == STATE_TRACK) ||
-      (trackingState == STATE_REJECT)
+      (tracking_state_ == STATE_TRACK) ||
+      (tracking_state_ == STATE_REJECT)
     );
 
   if (!perform) return;
@@ -914,33 +914,33 @@ void CHumanTracker::calcOpticalFlow()
   cv::Mat rawFrameResized;
   const double fx = 0.5;
   const double fy = 0.5;
-  cv::resize(rawFrame, rawFrameResized, cv::Size(), fx, fy,  cv::INTER_LINEAR);
+  cv::resize(frame_raw_, rawFrameResized, cv::Size(), fx, fy,  cv::INTER_LINEAR);
 
   if (first)
   {
     first = false;
-    cvtColor(rawFrameResized, prevRawFrameGray, CV_BGR2GRAY);
+    cvtColor(rawFrameResized, frame_raw_gray_prev_, CV_BGR2GRAY);
     return;
   }
 
   cv::Point belCenter;
-  belCenter.x = (fx * beleif.x) + (fx * beleif.width * 0.5);
-  belCenter.y = (fy * beleif.y) + (fy * beleif.height * 0.5);
+  belCenter.x = (fx * beleif_.x) + (fx * beleif_.width * 0.5);
+  belCenter.y = (fy * beleif_.y) + (fy * beleif_.height * 0.5);
 
   //‌ FlowRoi is now not being used to filter out any region, it is a placeholder
   // changed by Jake
-  flowROI.x = std::max<int>(belCenter.x - fx * KFTracker.statePost.at<float>(4) / 1.5, 0);
-  flowROI.y = std::max<int>(belCenter.y - fy * KFTracker.statePost.at<float>(5), 0);
-  int x2 = std::min<int>(belCenter.x + fx * KFTracker.statePost.at<float>(4) * 1.5, iWidth);
-  int y2 = std::min<int>(belCenter.y + fy * KFTracker.statePost.at<float>(4) * 0, iHeight);
-  flowROI.width = x2 - flowROI.x;
-  flowROI.height = y2 - flowROI.y;
+  flow_roi_.x = std::max<int>(belCenter.x - fx * kf_tracker_.statePost.at<float>(4) / 1.5, 0);
+  flow_roi_.y = std::max<int>(belCenter.y - fy * kf_tracker_.statePost.at<float>(5), 0);
+  int x2 = std::min<int>(belCenter.x + fx * kf_tracker_.statePost.at<float>(4) * 1.5, image_width_);
+  int y2 = std::min<int>(belCenter.y + fy * kf_tracker_.statePost.at<float>(4) * 0, image_height_);
+  flow_roi_.width = x2 - flow_roi_.x;
+  flow_roi_.height = y2 - flow_roi_.y;
 
-  cvtColor(rawFrameResized, rawFramGray, CV_BGR2GRAY);
+  cvtColor(rawFrameResized, frame_raw_gray_, CV_BGR2GRAY);
 
   // TODO: Optimization here
-  cv::Mat _i1 = prevRawFrameGray;//(flowROI);
-  cv::Mat _i2 = rawFramGray;//(flowROI);
+  cv::Mat _i1 = frame_raw_gray_prev_;//(flowROI);
+  cv::Mat _i2 = frame_raw_gray_;//(flowROI);
 
   int flags = 0;//OPTFLOW_USE_INITIAL_FLOW;
   if (firstCancel)
@@ -948,9 +948,9 @@ void CHumanTracker::calcOpticalFlow()
     flags = 0;
     firstCancel = false;
   }
-  cv::calcOpticalFlowFarneback(_i1, _i2 , flow, 0.5, 3, 10, 3, 9, 1.9, flags); //OPTFLOW_USE_INITIAL_FLOW);
+  cv::calcOpticalFlowFarneback(_i1, _i2 , flow_, 0.5, 3, 10, 3, 9, 1.9, flags); //OPTFLOW_USE_INITIAL_FLOW);
   std::vector<cv::Mat> flowChannels;
-  cv::split(flow, flowChannels);
+  cv::split(flow_, flowChannels);
 
   // This mask is very important because zero-valued elements
   // Should not be taken into account
@@ -963,22 +963,22 @@ void CHumanTracker::calcOpticalFlow()
   bitwise_and(maskX, maskY, maskFull);
 
   // Gesture regions update
-  gestureRegion[REG_TOPLEFT].x = flowROI.x;
-  gestureRegion[REG_TOPLEFT].y = flowROI.y + (0.5 * flowROI.height);
-  gestureRegion[REG_TOPLEFT].width = 0.5 * (flowROI.width - (fx * beleif.width));
-  gestureRegion[REG_TOPLEFT].height = flowROI.height;
+  gesture_region_[REG_TOPLEFT].x = flow_roi_.x;
+  gesture_region_[REG_TOPLEFT].y = flow_roi_.y + (0.5 * flow_roi_.height);
+  gesture_region_[REG_TOPLEFT].width = 0.5 * (flow_roi_.width - (fx * beleif_.width));
+  gesture_region_[REG_TOPLEFT].height = flow_roi_.height;
 
   // changed by Jake
   //gestureRegion[REG_TOPRIGHT].x = gestureRegion[REG_TOPLEFT].x + gestureRegion[REG_TOPLEFT].width + (fx * beleif.width);
-  int _d = belCenter.x - (gestureRegion[REG_TOPLEFT].x + gestureRegion[REG_TOPLEFT].width);
-  gestureRegion[REG_TOPRIGHT].x = belCenter.x + _d;
-  gestureRegion[REG_TOPRIGHT].y = gestureRegion[REG_TOPLEFT].y;
-  gestureRegion[REG_TOPRIGHT].width = gestureRegion[REG_TOPLEFT].width;
-  gestureRegion[REG_TOPRIGHT].height = gestureRegion[REG_TOPLEFT].height;
+  int _d = belCenter.x - (gesture_region_[REG_TOPLEFT].x + gesture_region_[REG_TOPLEFT].width);
+  gesture_region_[REG_TOPRIGHT].x = belCenter.x + _d;
+  gesture_region_[REG_TOPRIGHT].y = gesture_region_[REG_TOPLEFT].y;
+  gesture_region_[REG_TOPRIGHT].width = gesture_region_[REG_TOPLEFT].width;
+  gesture_region_[REG_TOPRIGHT].height = gesture_region_[REG_TOPLEFT].height;
 
   // Safety check to downsampled image size
-  safeRectToImage(gestureRegion[REG_TOPLEFT], fx, fy);
-  safeRectToImage(gestureRegion[REG_TOPRIGHT], fx, fy);
+  SafeRectToImage(gesture_region_[REG_TOPLEFT], fx, fy);
+  SafeRectToImage(gesture_region_[REG_TOPRIGHT], fx, fy);
 
   // Cancel Ego Motion & Face bias As much As possible
   int _row = 0;
@@ -988,10 +988,10 @@ void CHumanTracker::calcOpticalFlow()
   std::vector<cv::Point2f> prev_stab;
   cv::Mat homography = cv::Mat::eye(3, 3, CV_32F);
 
-  magnitude(flowChannels[0], flowChannels[1], flowMag);
+  magnitude(flowChannels[0], flowChannels[1], flow_mag_);
 
 //    ROS_INFO("Sum Mag Before: %6.f", sum(flowMag)[0]);
-  if (stablization == STABLIZE_MEDIAN)
+  if (stab_ == STABLIZE_MEDIAN)
   {
 
 //    // The possible hand regions are not sampled for flow compenstation
@@ -1000,8 +1000,8 @@ void CHumanTracker::calcOpticalFlow()
     cv::Mat maskAugmentedX = cv::Mat::ones(maskX.rows, maskX.cols, CV_8UC1);;
     cv::Mat maskAugmentedY = cv::Mat::ones(maskY.rows, maskY.cols, CV_8UC1);;
 
-    cv::rectangle(maskRegions, gestureRegion[REG_TOPLEFT].tl(), gestureRegion[REG_TOPLEFT].br(), 0, CV_FILLED);
-    cv::rectangle(maskRegions, gestureRegion[REG_TOPRIGHT].tl(), gestureRegion[REG_TOPRIGHT].br(), 0, CV_FILLED);
+    cv::rectangle(maskRegions, gesture_region_[REG_TOPLEFT].tl(), gesture_region_[REG_TOPLEFT].br(), 0, CV_FILLED);
+    cv::rectangle(maskRegions, gesture_region_[REG_TOPRIGHT].tl(), gesture_region_[REG_TOPRIGHT].br(), 0, CV_FILLED);
 
     double minX, minY, maxX, maxY;
     float medX = 0.0;
@@ -1017,7 +1017,7 @@ void CHumanTracker::calcOpticalFlow()
     {
       try
       {
-        medX = calcMedian(flowChannels[0], 25, minX, maxX, maskAugmentedX);
+        medX = CalcMedian(flowChannels[0], 25, minX, maxX, maskAugmentedX);
       }
       catch (cv::Exception &e)
       {
@@ -1026,7 +1026,7 @@ void CHumanTracker::calcOpticalFlow()
 
       try
       {
-        medY = calcMedian(flowChannels[1], 25, minY, maxY, maskAugmentedY);
+        medY = CalcMedian(flowChannels[1], 25, minY, maxY, maskAugmentedY);
       }
       catch (cv::Exception &e)
       {
@@ -1045,14 +1045,14 @@ void CHumanTracker::calcOpticalFlow()
       cv::add(flowChannels[1], cv::Scalar::all(-medY), flowChannels[1], maskY);
     }
 //        // Face Bias
-    if (trackingState == STATE_TRACK)
+    if (tracking_state_ == STATE_TRACK)
     {
-      cv::Rect fROI = faces.at(0);
+      cv::Rect fROI = faces_.at(0);
       fROI.x *= fx;
       fROI.y *= fy;
       fROI.width *= fx;
       fROI.height *= fy;
-      safeRectToImage(fROI, fx, fy);
+      SafeRectToImage(fROI, fx, fy);
 
       cv::Mat faceFlowWindowX = flowChannels[0](fROI);
       cv::Mat faceFlowWindowY = flowChannels[1](fROI);
@@ -1065,8 +1065,8 @@ void CHumanTracker::calcOpticalFlow()
       {
         try
         {
-          medX = calcMedian(faceFlowWindowX, 25, minX, maxX, faceMaskX);
-          medY = calcMedian(faceFlowWindowY, 25, minY, maxY, faceMaskY);
+          medX = CalcMedian(faceFlowWindowX, 25, minX, maxX, faceMaskX);
+          medY = CalcMedian(faceFlowWindowY, 25, minY, maxY, faceMaskY);
 
           // Now we want to cancel motion only in the interesting regions
           maskRegions = 1 - maskRegions;
@@ -1083,7 +1083,7 @@ void CHumanTracker::calcOpticalFlow()
       }
     }
   }
-  else if (stablization == STABLIZE_HOMOGRAPHY)
+  else if (stab_ == STABLIZE_HOMOGRAPHY)
   {
 //        Mat maskRegions = Mat::ones(maskX.rows, maskX.cols, CV_8UC1);
 //        Mat maskAugmentedX = Mat::ones(maskX.rows, maskX.cols, CV_8UC1);;
@@ -1098,12 +1098,12 @@ void CHumanTracker::calcOpticalFlow()
 //        Mat maskFullAugmented;
 //        bitwise_and(maskAugmentedX, maskAugmentedY, maskFullAugmented);
 
-    for (_row = 0; _row < flow.rows; _row += 1)
+    for (_row = 0; _row < flow_.rows; _row += 1)
     {
-      for (_col = 0; _col < flow.cols; _col += 1)
+      for (_col = 0; _col < flow_.cols; _col += 1)
       {
         if (maskFull.at<uchar>(_row, _col) == 0) continue;
-        const cv::Point2f& prev_point = (1.0 / fx) * (cv::Point2f(_col, _row) - flow.at<cv::Point2f>(_row, _col));
+        const cv::Point2f& prev_point = (1.0 / fx) * (cv::Point2f(_col, _row) - flow_.at<cv::Point2f>(_row, _col));
         const cv::Point2f& curr_point = (1.0 / fx) * cv::Point2f(_col, _row);
         prev.push_back(prev_point);
         curr.push_back(curr_point);
@@ -1156,16 +1156,16 @@ void CHumanTracker::calcOpticalFlow()
       ROS_WARN("Findhomography failed with %s", e.what());
     }
   }
-  magnitude(flowChannels[0], flowChannels[1], flowMag);
+  magnitude(flowChannels[0], flowChannels[1], flow_mag_);
 
 
-  if (skinEnabled)
+  if (skin_enabled_)
   {
     cv::Mat skin_small;
-    cv::resize(skin, skin_small, cv::Size(0, 0), fx, fy);
+    cv::resize(skin_, skin_small, cv::Size(0, 0), fx, fy);
     cv::normalize(skin_small, skin_small, 1.0, 0.0, cv::NORM_MINMAX);
     cv::Mat skin_mask = skin_small > 0.7;
-    cv::multiply(flowMag, skin_mask, flowMag, 1.0, CV_32FC1);
+    cv::multiply(flow_mag_, skin_mask, flow_mag_, 1.0, CV_32FC1);
   }
   else
   {
@@ -1181,81 +1181,81 @@ void CHumanTracker::calcOpticalFlow()
   cv::Rect r;
 
   //std::swap(prevRawFrameGray, rawFramGray);
-  prevRawFrameGray = rawFramGray.clone();
+  frame_raw_gray_prev_ = frame_raw_gray_.clone();
 
   for (int i = 0; i < 2; i++)
   {
 
-    cv::Rect reg = gestureRegion[i];
-    reg.x = gestureRegion[i].x;// - flowROI.x;
-    reg.y = gestureRegion[i].y;// - flowROI.y;
+    cv::Rect reg = gesture_region_[i];
+    reg.x = gesture_region_[i].x;// - flowROI.x;
+    reg.y = gesture_region_[i].y;// - flowROI.y;
 
     float sFlow = 0.0;
-    if (skinEnabled)
+    if (skin_enabled_)
     {
-      sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ?
-              mean(flowMag(reg), maskFull(reg))[0] : 0.0;
+      sFlow = ((gesture_region_[i].width > 0) && (gesture_region_[i].height > 0)) ?
+              mean(flow_mag_(reg), maskFull(reg))[0] : 0.0;
     }
     else
     {
       // Threshold and mean over thresholded values
-      sFlow = ((gestureRegion[i].width > 0) && (gestureRegion[i].height > 0)) ?
-              mean(flowMag(reg), (flowMag(reg) > minFlow))[0] : 0.0;
+      sFlow = ((gesture_region_[i].width > 0) && (gesture_region_[i].height > 0)) ?
+              mean(flow_mag_(reg), (flow_mag_(reg) > min_flow_))[0] : 0.0;
     }
 
 
     //flowScoreInRegion[i] = (0.5 * flowScoreInRegion[i]) + (0.5 * sFlow);
     // No filtering should be done here
-    flowScoreInRegion[i] = sFlow;
+    flow_score_in_region_[i] = sFlow;
   }
 
   // Visulization
-  if ((debugLevel & 0x10) == 0x10)
+  if ((debug_level_ & 0x10) == 0x10)
   {
     std::vector<cv::Mat> channels;
     split(rawFrameResized, channels);
 
     // HSV Color Space
     // Red to blue specterum is between 0->120 degrees (Red:0, Blue:120)
-    flowMag.convertTo(channels[0], CV_8UC1, 10);
+    flow_mag_.convertTo(channels[0], CV_8UC1, 10);
     channels[0] = cv::Scalar::all(255) - channels[0];
     //flowMag = 120 - flowMag;
     channels[1] = cv::Scalar::all(255.0);
     channels[2] = _i2;//Scalar::all(255.0);
-    merge(channels, opticalFrame);
-    cvtColor(opticalFrame, opticalFrame, CV_HSV2BGR);
+    merge(channels, frame_optical_);
+    cvtColor(frame_optical_, frame_optical_, CV_HSV2BGR);
     if (false) //(stablization == STABLIZE_HOMOGRAPHY) {
     {
       for (unsigned int i = 0; i < prev.size(); i++)
       {
-        line(debugFrame, prev[i], curr[i], CV_RGB(0, 255, 0));
+        line(frame_debug_, prev[i], curr[i], CV_RGB(0, 255, 0));
         //            line(debugFrame, prev_stab[i], curr[i], CV_RGB(255,0,0));
         //            circle(opticalFrame, curr[i], 1, CV_RGB(255,255,255));
       }
     }
   }
 
-  if ((debugLevel & 0x02) == 0x02)
+  if ((debug_level_ & 0x02) == 0x02)
   {
-    if (stablization == STABLIZE_HOMOGRAPHY)
-      cv::warpPerspective(debugFrame, debugFrame, homography, cv::Size(debugFrame.cols, debugFrame.rows), cv::WARP_INVERSE_MAP);
+    if (stab_ == STABLIZE_HOMOGRAPHY)
+      cv::warpPerspective(frame_debug_, frame_debug_, homography, cv::Size(frame_debug_.cols, frame_debug_.rows), cv::WARP_INVERSE_MAP);
     //cv::warpAffine(debugFrame, debugFrame, homography(Rect(0,0,3,2)), Size(debugFrame.cols, debugFrame.rows), cv::WARP_INVERSE_MAP);
 
     //rectangle(debugFrame, Rect(flowROI.x / fx, flowROI.y / fy, flowROI.width / fx, flowROI.height / fy), CV_RGB(255, 0, 0));
     for (int i = 0; i < 2; i++)
     {
       // Only for visualization
-      gestureRegion[i].x /= fx;
-      gestureRegion[i].y /= fy;
-      gestureRegion[i].width /= fx;
-      gestureRegion[i].height /= fy;
+      gesture_region_[i].x /= fx;
+      gesture_region_[i].y /= fy;
+      gesture_region_[i].width /= fx;
+      gesture_region_[i].height /= fy;
 
       std::stringstream txtstr;
-      rectangle(debugFrame, gestureRegion[i], CV_RGB(0, 0, 0));
+      rectangle(frame_debug_, gesture_region_[i], CV_RGB(0, 0, 0));
       cv::Point2d center;
-      center.x = gestureRegion[i].x + gestureRegion[i].width / 2;
-      center.y = gestureRegion[i].y + gestureRegion[i].height / 2;
-      txtstr << std::fixed << std::setprecision(3) << flowScoreInRegion[i];
+      center.x = gesture_region_[i].x + gesture_region_[i].width / 2;
+      center.y = gesture_region_[i].y + gesture_region_[i].height / 2;
+      txtstr << std::fixed << std::setprecision(3) << flow_score_in_region_[i];
 //      putText(debugFrame, txtstr.str(), center, FONT_HERSHEY_PLAIN, 1, CV_RGB(0,0,255));
     }
   }
@@ -1264,19 +1264,19 @@ void CHumanTracker::calcOpticalFlow()
 
 }
 
-void CHumanTracker::draw()
+void CHumanTracker::Draw()
 {
   return ;
 }
 
-void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
+void CHumanTracker::VisionCallback(const sensor_msgs::ImageConstPtr& frame)
 {
-  tStart = ros::Time::now();
+  t_start_ = ros::Time::now();
   cv_bridge::CvImagePtr cv_ptr;
   try
   {
-    frame_id = frame->header.frame_id;
-    shouldPublish = true;
+    frame_id_ = frame->header.frame_id;
+    should_publish_ = true;
     cv_ptr = cv_bridge::toCvCopy(frame, sensor_msgs::image_encodings::BGR8);
   }
   catch (cv_bridge::Exception& e)
@@ -1285,30 +1285,30 @@ void CHumanTracker::visionCallback(const sensor_msgs::ImageConstPtr& frame)
     return;
   }
 
-  if (isInited == false)
+  if (is_inited_ == false)
   {
     // Get Image Info from the first frame
-    isInited = true;
-    iWidth = cv_ptr->image.cols;
-    iHeight = cv_ptr->image.rows;
-    ROS_INFO("Image size is %d x %d", iWidth, iHeight);
-    reset();
+    is_inited_ = true;
+    image_width_ = cv_ptr->image.cols;
+    image_height_ = cv_ptr->image.rows;
+    ROS_INFO("Image size is %d x %d", image_width_, image_height_);
+    Reset();
   }
 
   //TODO: Check clone
-  this->rawFrame = cv_ptr->image;
+  this->frame_raw_ = cv_ptr->image;
 
-  tFaceStart = ros::Time::now();
-  detectAndTrackFace();
+  t_face_start_ = ros::Time::now();
+  DetectAndTrackFace();
 
-  tSkinStart = ros::Time::now();
-  trackSkin();
+  t_skin_start_ = ros::Time::now();
+  TrackSkin();
 
-  tFlowStart = ros::Time::now();
-  calcOpticalFlow();
+  t_flow_start_ = ros::Time::now();
+  CalcOpticalFlow();
 
-  publish();
-  tEnd = ros::Time::now();
+  Publish();
+  t_end_ = ros::Time::now();
 
 }
 
@@ -1407,7 +1407,7 @@ int main(int argc, char **argv)
                              p_debugMode, p_stablization,
                              facePub, allDetectionsPub, debugPub, skinPub, opticalPub);
 
-  image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 1, &CHumanTracker::visionCallback, &humanTracker);
+  image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 1, &CHumanTracker::VisionCallback, &humanTracker);
 
   ROS_INFO("Starting Autonomy Human ...");
 
