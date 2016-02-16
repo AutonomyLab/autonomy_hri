@@ -38,8 +38,8 @@ generate_messages(
 catkin_package(
   #INCLUDE_DIRS include
   #LIBRARIES autonomy_human
-  CATKIN_DEPENDS cv_bridge geometry_msgs image_transport roscpp std_msgs
-  DEPENDS system_lib opencv3 message_runtime
+  CATKIN_DEPENDS cv_bridge geometry_msgs image_transport roscpp std_msgs message_runtime
+  DEPENDS system_lib opencv3
 )
 
 
@@ -51,10 +51,9 @@ include_directories(include
 add_executable(autonomy_human src/autonomy_human.cpp)
 add_dependencies(autonomy_human ${autonomy_human_EXPORTED_TARGETS})
 
- target_link_libraries(autonomy_human
-   ${catkin_LIBRARIES}
-    ${OpenCV_LIBRARIES}
- )
-
+target_link_libraries(autonomy_human
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+)
 
 roslint_cpp()

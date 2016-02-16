@@ -1,0 +1,1 @@
+NOTE: Do not update to OpenCV 3 cascades since they are incompatible with the old C API

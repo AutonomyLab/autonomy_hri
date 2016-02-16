@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="run_republish" default="false" />
+  <arg name="output" default="screen" />
+  <arg name="param_file" default="$(find autonomy_human)/config/autonomy_human.yaml" />
+  <arg name="input_topic" default="camera/image_raw" />
+  <arg name="debug_mode" default="1" />
+
+  <group if="$(arg run_republish)">
+    <node pkg="image_transport" name="republish" type="republish" args="compressed in:=$(arg input_topic) raw out:=$(arg input_topic) image_transport:=compressed" />
+  </group>
+
+  <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="$(arg output)" cwd="node" launch-prefix="">
+    <rosparam command="load" file="$(arg param_file)" />
+    <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascade_frontalface_default.xml" />
+    <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
+    <param name="debug_mode" value="$(arg debug_mode)" />
+    <remap from="camera/image_raw" to="$(arg input_topic)" />
+  </node>
+</launch>

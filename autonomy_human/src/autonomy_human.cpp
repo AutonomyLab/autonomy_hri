@@ -1,3 +1,5 @@
+#include <sys/stat.h>
+
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
@@ -222,18 +224,28 @@ CHumanTracker::CHumanTracker(std::string &cascadeFile, std::string &cascadeFileP
   str_states_[2] = "TRACKG";
   str_states_[3] = "REJECT";
 
-  cascade_ = (CvHaarClassifierCascade*) cvLoad(cascadeFile.c_str(), 0, 0, 0);
-  if (cascade_.empty())
+  struct stat stat_buffer;
+  const bool c_exists = (stat(cascadeFile.c_str(), &stat_buffer) == 0);
+
+  if (c_exists)
   {
-    ROS_ERROR("Problem loading cascade file %s", cascadeFile.c_str());
+    cascade_ = (CvHaarClassifierCascade*) cvLoad(cascadeFile.c_str(), 0, 0, 0);
+  }
+
+  if (!c_exists || cascade_.empty())
+  {
+    ROS_FATAL("Problem loading cascade file %s", cascadeFile.c_str());
   }
 
   if (profile_hack_enabled_)
   {
-    cascade_profile_ = (CvHaarClassifierCascade*) cvLoad(cascadeFileProfile.c_str(), 0, 0, 0);
-    if (cascade_.empty())
+    const bool c_exists = (stat(cascadeFileProfile.c_str(), &stat_buffer) == 0);
+    if (c_exists)
+      cascade_profile_ = (CvHaarClassifierCascade*) cvLoad(cascadeFileProfile.c_str(), 0, 0, 0);
+
+    if (!c_exists || cascade_.empty())
     {
-      ROS_ERROR("Problem loading profile cascade file %s", cascadeFileProfile.c_str());
+      ROS_FATAL("Problem loading profile cascade file %s", cascadeFileProfile.c_str());
     }
   }
 
@@ -1393,31 +1405,25 @@ int main(int argc, char **argv)
    */
 
 
-  ros::Publisher facePub = n.advertise<autonomy_human::human>("human", 5);
-  ros::Publisher allDetectionsPub = n.advertise<autonomy_human::raw_detections>("raw_detections", 5);
-  image_transport::Publisher debugPub = it.advertise("output_rgb_debug", 1);
-  image_transport::Publisher skinPub = it.advertise("output_rgb_skin", 1);
-  image_transport::Publisher opticalPub = it.advertise("output_rgb_optical", 1);
+  ros::Publisher facePub = n.advertise<autonomy_human::human>("human/human", 5);
+  ros::Publisher allDetectionsPub = n.advertise<autonomy_human::raw_detections>("human/raw_detections", 5);
+  image_transport::Publisher debugPub = it.advertise("human/debug/image_raw", 1);
+  image_transport::Publisher skinPub = it.advertise("human/skin/image_raw", 1);
+  image_transport::Publisher opticalPub = it.advertise("human/optical/image_raw", 1);
 
-  CHumanTracker humanTracker(p_xmlFile, p_xmlFileProfile,
-                             p_pCov, p_mCov,
-                             p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
-                             p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
-                             p_profileFaceEnabled, p_skinEnabled, p_gestureEnabled,
-                             p_debugMode, p_stablization,
-                             facePub, allDetectionsPub, debugPub, skinPub, opticalPub);
+  CHumanTracker human_tracker(p_xmlFile, p_xmlFileProfile,
+                              p_pCov, p_mCov,
+                              p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
+                              p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
+                              p_profileFaceEnabled, p_skinEnabled, p_gestureEnabled,
+                              p_debugMode, p_stablization,
+                              facePub, allDetectionsPub, debugPub, skinPub, opticalPub);
 
-  image_transport::Subscriber visionSub = it.subscribe("input_rgb_image", 1, &CHumanTracker::VisionCallback, &humanTracker);
+  image_transport::Subscriber visionSub = it.subscribe("camera/image_raw", 10, &CHumanTracker::VisionCallback, &human_tracker);
 
   ROS_INFO("Starting Autonomy Human ...");
 
-  ros::Rate loopRate(30);
-
-  while (ros::ok())
-  {
-    ros::spinOnce();
-    loopRate.sleep();
-  }
+  ros::spin();
 
   return 0;
 }
