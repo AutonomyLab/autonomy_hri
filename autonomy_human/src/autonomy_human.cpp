@@ -787,7 +787,6 @@ void CHumanTracker::DetectAndTrackFace()
 //                }
       }
 
-      // TODO: I'll fix this shit
       cv::Rect r(ml_face_.rect);
       r.x += search_roi_.x;
       r.y += search_roi_.y;
@@ -940,10 +939,11 @@ void CHumanTracker::CalcOpticalFlow()
   belCenter.y = (fy * beleif_.y) + (fy * beleif_.height * 0.5);
 
   //‌ FlowRoi is now not being used to filter out any region, it is a placeholder
-  // changed by Jake
-  flow_roi_.x = std::max<int>(belCenter.x - fx * kf_tracker_.statePost.at<float>(4) / 1.5, 0);
-  flow_roi_.y = std::max<int>(belCenter.y - fy * kf_tracker_.statePost.at<float>(5), 0);
-  int x2 = std::min<int>(belCenter.x + fx * kf_tracker_.statePost.at<float>(4) * 1.5, image_width_);
+  // changed by Jake (745083b132aa4bfd8f77cb7c7aa1453348535920)
+  // changed back by to hri_in_the_sky values by mani
+  flow_roi_.x = std::max<int>(belCenter.x - fx * kf_tracker_.statePost.at<float>(4) * 4.0, 0);
+  flow_roi_.y = std::max<int>(belCenter.y - fy * kf_tracker_.statePost.at<float>(5) * 3.0, 0);
+  int x2 = std::min<int>(belCenter.x + fx * kf_tracker_.statePost.at<float>(4) * 4, image_width_);
   int y2 = std::min<int>(belCenter.y + fy * kf_tracker_.statePost.at<float>(4) * 0, image_height_);
   flow_roi_.width = x2 - flow_roi_.x;
   flow_roi_.height = y2 - flow_roi_.y;
@@ -980,10 +980,11 @@ void CHumanTracker::CalcOpticalFlow()
   gesture_region_[REG_TOPLEFT].width = 0.5 * (flow_roi_.width - (fx * beleif_.width));
   gesture_region_[REG_TOPLEFT].height = flow_roi_.height;
 
-  // changed by Jake
-  //gestureRegion[REG_TOPRIGHT].x = gestureRegion[REG_TOPLEFT].x + gestureRegion[REG_TOPLEFT].width + (fx * beleif.width);
-  int _d = belCenter.x - (gesture_region_[REG_TOPLEFT].x + gesture_region_[REG_TOPLEFT].width);
-  gesture_region_[REG_TOPRIGHT].x = belCenter.x + _d;
+  // changed by Jake (745083b132aa4bfd8f77cb7c7aa1453348535920)
+  // changed back by to hri_in_the_sky values by mani
+  gesture_region_[REG_TOPRIGHT].x = gesture_region_[REG_TOPLEFT].x + gesture_region_[REG_TOPLEFT].width + (fx * beleif_.width);
+//  int _d = belCenter.x - (gesture_region_[REG_TOPLEFT].x + gesture_region_[REG_TOPLEFT].width);
+//  gesture_region_[REG_TOPRIGHT].x = belCenter.x + _d;
   gesture_region_[REG_TOPRIGHT].y = gesture_region_[REG_TOPLEFT].y;
   gesture_region_[REG_TOPRIGHT].width = gesture_region_[REG_TOPLEFT].width;
   gesture_region_[REG_TOPRIGHT].height = gesture_region_[REG_TOPLEFT].height;
