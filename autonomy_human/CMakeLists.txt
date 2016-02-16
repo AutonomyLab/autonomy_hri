@@ -11,7 +11,16 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
-find_package(OpenCV)
+set(CUSTOM_OPENCV_DIR "/home/autolab/opencv/opencv-3.1.0/install")
+find_package(OpenCV 3 REQUIRED PATHS ${CUSTOM_OPENCV_DIR} NO_DEFAULT_PATH)
+message(STATUS "OpenCV Includes: ${OpenCV_INCLUDE_DIRS}")
+message(STATUS "OpenCV Libraries: ${OpenCV_LIBRARIES}")
+message(STATUS "OpenCV Libs: ${OpenCV_LIBS}")
+message(STATUS "OpenCV Lib dir: ${OpenCV_LIB_DIR}")
+
+
+# or
+# find_package(OpenCV)
 
 add_message_files(
    FILES
@@ -29,7 +38,7 @@ catkin_package(
   #INCLUDE_DIRS include
   #LIBRARIES autonomy_human
   CATKIN_DEPENDS cv_bridge geometry_msgs image_transport roscpp std_msgs
-  DEPENDS system_lib opencv message_runtime
+  DEPENDS system_lib opencv3 message_runtime
 )
 
 

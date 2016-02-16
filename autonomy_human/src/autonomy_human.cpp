@@ -398,7 +398,7 @@ void CHumanTracker::resetKalmanFilter()
 
     // The system model is very naive. The small effect of xdot and ydot
     // on x and y are intentional (it is 0 now)
-    KFTracker.transitionMatrix = * (Mat_<float>(6,6)
+    KFTracker.transitionMatrix = (Mat_<float>(6,6)
 			<<
             1,0,0,0,0,0,
             0,1,0,0,0,0,
@@ -408,7 +408,7 @@ void CHumanTracker::resetKalmanFilter()
 			0,0,0,0,0,1
 			);
 
-    KFTracker.measurementMatrix = *(Mat_<float>(4,6)
+    KFTracker.measurementMatrix = (Mat_<float>(4,6)
 			<<
 			1,0,0,0,0,0,
 			0,1,0,0,0,0,
@@ -416,8 +416,8 @@ void CHumanTracker::resetKalmanFilter()
 			0,0,0,0,0,1
 			);
 
-    KFTracker.statePre = *(Mat_<float>(6,1) << 0,0,0,0,0,0);
-    KFTracker.statePost = *(Mat_<float>(6,1) << 0,0,0,0,0,0);
+    KFTracker.statePre = (Mat_<float>(6,1) << 0,0,0,0,0,0);
+    KFTracker.statePost = (Mat_<float>(6,1) << 0,0,0,0,0,0);
 
     setIdentity(KFTracker.errorCovPre, Scalar_<float>::all(1e2));
     setIdentity(KFTracker.errorCovPost, Scalar_<float>::all(1e2));
