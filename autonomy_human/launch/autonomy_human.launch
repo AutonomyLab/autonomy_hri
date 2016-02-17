@@ -4,7 +4,8 @@
   <arg name="output" default="screen" />
   <arg name="param_file" default="$(find autonomy_human)/config/autonomy_human.yaml" />
   <arg name="input_topic" default="camera/image_raw" />
-  <arg name="debug_mode" default="1" />
+  <arg name="debug_mode" default="2" />
+  <arg name="start_paused" default="false" />
 
   <group if="$(arg run_republish)">
     <node pkg="image_transport" name="republish" type="republish" args="compressed in:=$(arg input_topic) raw out:=$(arg input_topic) image_transport:=compressed" />
@@ -15,6 +16,7 @@
     <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascade_frontalface_default.xml" />
     <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
     <param name="debug_mode" value="$(arg debug_mode)" />
+    <param name="start_paused" value="$(arg start_paused)" />
     <remap from="camera/image_raw" to="$(arg input_topic)" />
   </node>
 </launch>

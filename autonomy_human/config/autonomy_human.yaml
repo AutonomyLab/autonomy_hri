@@ -1,4 +1,5 @@
 profile_hack_enabled: false
+flowstablize_mode: 1
 skin_enabled: false
 gesture_enabled: false
 initial_min_score: 5
@@ -9,5 +10,8 @@ min_face_width: 9
 min_face_height: 12
 max_face_width: 90
 max_face_height: 120
+meas_cov: 1.0
+proc_cov: 0.05
 debug_mode: 2
+start_paused: false
 

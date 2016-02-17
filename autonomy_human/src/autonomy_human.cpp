@@ -6,6 +6,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/RegionOfInterest.h>
 #include <std_msgs/Header.h>
+#include <std_msgs/Bool.h>
 
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -45,6 +46,7 @@ public:
   };
 
 private:
+  bool is_enabled_;
   int32_t image_width_;
   int32_t image_height_;
   //ros::NodeHandle node;
@@ -138,7 +140,7 @@ private:
   image_transport::Publisher& optical_pub_;
 
 public:
-  CHumanTracker(std::string &cascadeFile, std::string &cascadeFileProfile,
+  CHumanTracker(const bool enabled, std::string &cascadeFile, std::string &cascadeFileProfile,
                 float _pCov, float _mCov,
                 int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                 int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
@@ -149,6 +151,8 @@ public:
 
   void Publish();
   ~CHumanTracker();
+
+  void EnableCallback(const std_msgs::BoolConstPtr& enable);
   void VisionCallback(const sensor_msgs::ImageConstPtr& frame);
   void Reset();
   float CalcMedian(cv::Mat &m, int nbins, float minVal, float maxVal, cv::InputArray mask = cv::noArray());
@@ -180,7 +184,7 @@ public:
 //
 // KFTracker = new KalmanFilter(6, 4, 0);
 // MLSearch = new KalmanFilter(6, 4, 0);
-CHumanTracker::CHumanTracker(std::string &cascadeFile, std::string &cascadeFileProfile,
+CHumanTracker::CHumanTracker(const bool enabled, std::string &cascadeFile, std::string &cascadeFileProfile,
                              float _pCov, float _mCov,
                              int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                              int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
@@ -188,7 +192,8 @@ CHumanTracker::CHumanTracker(std::string &cascadeFile, std::string &cascadeFileP
                              unsigned short int _debugLevel, unsigned int _stablization,
                              ros::Publisher& _facePub, ros::Publisher& _allDetectionsPub,
                              image_transport::Publisher& _debugPub, image_transport::Publisher& _skinPub, image_transport::Publisher& _opticalPub)
-  : kf_tracker_(6, 4, 0)
+  : is_enabled_(enabled)
+  , kf_tracker_(6, 4, 0)
   , ml_search_(6, 4, 0)
   , p_cov_scalar_(_pCov)
   , m_cov_scalar_(_mCov)
@@ -262,25 +267,44 @@ void CHumanTracker::Publish()
   sensor_msgs::Image im;
   cvi.header.frame_id = "image";
 
-  if ((face_pub_.getNumSubscribers() > 0) &&
-      (
+  if  (
         (tracking_state_ == CHumanTracker::STATE_TRACK) ||
         (tracking_state_ == CHumanTracker::STATE_REJECT)
-      ))
+      )
   {
     msg.header.stamp = ros::Time::now();
     msg.header.frame_id = frame_id_;
     msg.numFaces = faces_.size();
     msg.faceScore = face_score_;
-    msg.faceROI.x_offset = beleif_.x;
-    msg.faceROI.y_offset = beleif_.y;
-    msg.faceROI.width = beleif_.width;
-    msg.faceROI.height = beleif_.height;
-    if (gesture_enabled_)
+
+    if (
+        (tracking_state_ == CHumanTracker::STATE_TRACK) ||
+        (tracking_state_ == CHumanTracker::STATE_REJECT)
+        )
     {
-      for (int i = 0; i < 2; i++)
-        msg.flowScore[i] = flow_score_in_region_[i];
+      msg.status = autonomy_human::human::STATUS_TRACKING;
+      msg.faceROI.x_offset = beleif_.x;
+      msg.faceROI.y_offset = beleif_.y;
+      msg.faceROI.width = beleif_.width;
+      msg.faceROI.height = beleif_.height;
+
+      if (gesture_enabled_)
+      {
+        for (int i = 0; i < 2; i++)
+          msg.flowScore[i] = flow_score_in_region_[i];
+      }
     }
+    else
+    {
+      msg.status = (is_inited_) ? autonomy_human::human::STATUS_LOST : autonomy_human::human::STATUS_UNKNOWN;
+      msg.faceROI.x_offset = 0;
+      msg.faceROI.y_offset = 0;
+      msg.faceROI.width = 0;
+      msg.faceROI.height = 0;
+      for (int i = 0; i < 2; i++)
+        msg.flowScore[i] = 0;
+    }
+
     face_pub_.publish(msg);
   }
 
@@ -831,12 +855,13 @@ void CHumanTracker::DetectAndTrackFace()
     if ((debug_level_ & 0x02) == 0x02)
     {
       txtstr.str("");
-//            txtstr << "P:" << std::setprecision(3) << faceUncPos << " S:" << beleif.width << "x" << beleif.height;
-//            putText(debugFrame, txtstr.str(), belCenter + Point(0, 50), FONT_HERSHEY_PLAIN, 2, CV_RGB(255,0,0));
+//      txtstr << "P:" << std::setprecision(3) << faceUncPos << " S:" << beleif.width << "x" << beleif.height;
+//      cv::putText(debugFrame, txtstr.str(), belCenter + Point(0, 50), cv::FONT_HERSHEY_PLAIN, 2, CV_RGB(255,0,0));
 
-//            circle(debugFrame, belCenter, belRad, CV_RGB(255,0,0));
-//            circle(debugFrame, belCenter, (belRad - faceUncPos < 0) ? 0 : (belRad - faceUncPos), CV_RGB(255,255,0));
-//            circle(debugFrame, belCenter, belRad + faceUncPos, CV_RGB(255,0,255));
+      cv::rectangle(frame_debug_, beleif_, CV_RGB(0, 255, 255), 2);
+//      cv::circle(frame_debug_, belCenter, belRad, CV_RGB(255,0,0));
+//      cv::circle(frame_debug_, belCenter, (belRad - faceUncPos < 0) ? 0 : (belRad - faceUncPos), CV_RGB(255,255,0));
+//      cv::circle(frame_debug_, belCenter, belRad + faceUncPos, CV_RGB(255,0,255));
     }
 
     //searchROI.x = max<int>(belCenter.x - KFTracker.statePost.at<float>(4) * 2, 0);
@@ -1282,121 +1307,139 @@ void CHumanTracker::Draw()
   return ;
 }
 
+void CHumanTracker::EnableCallback(const std_msgs::BoolConstPtr & enable)
+{
+  const bool& en = enable->data;
+
+  ROS_INFO_STREAM("[BEH] Human Request: " << (en ? "Enable" : "Disable"));
+
+  if (!is_enabled_ && en)
+  {
+    Reset();
+    is_enabled_ = true;
+  }
+
+  if (is_enabled_ && !en)
+  {
+    Reset();
+    is_enabled_ = false;
+  }
+}
+
 void CHumanTracker::VisionCallback(const sensor_msgs::ImageConstPtr& frame)
 {
   t_start_ = ros::Time::now();
-  cv_bridge::CvImagePtr cv_ptr;
-  try
+  if (is_enabled_)
   {
-    frame_id_ = frame->header.frame_id;
-    should_publish_ = true;
-    cv_ptr = cv_bridge::toCvCopy(frame, sensor_msgs::image_encodings::BGR8);
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+      frame_id_ = frame->header.frame_id;
+      should_publish_ = true;
+      cv_ptr = cv_bridge::toCvCopy(frame, sensor_msgs::image_encodings::BGR8);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+      ROS_ERROR("[HUM] Error converting the input image: %s", e.what());
+      return;
+    }
+
+    if (is_inited_ == false)
+    {
+      // Get Image Info from the first frame
+      is_inited_ = true;
+      image_width_ = cv_ptr->image.cols;
+      image_height_ = cv_ptr->image.rows;
+      ROS_INFO("[HUM] Image size is %d x %d", image_width_, image_height_);
+      Reset();
+    }
+
+    //TODO: Check clone
+    this->frame_raw_ = cv_ptr->image;
+
+    t_face_start_ = ros::Time::now();
+    DetectAndTrackFace();
+
+    t_skin_start_ = ros::Time::now();
+    TrackSkin();
+
+    t_flow_start_ = ros::Time::now();
+    CalcOpticalFlow();
+
+    Publish();
   }
-  catch (cv_bridge::Exception& e)
-  {
-    ROS_ERROR("Error converting the input image: %s", e.what());
-    return;
-  }
 
-  if (is_inited_ == false)
-  {
-    // Get Image Info from the first frame
-    is_inited_ = true;
-    image_width_ = cv_ptr->image.cols;
-    image_height_ = cv_ptr->image.rows;
-    ROS_INFO("Image size is %d x %d", image_width_, image_height_);
-    Reset();
-  }
-
-  //TODO: Check clone
-  this->frame_raw_ = cv_ptr->image;
-
-  t_face_start_ = ros::Time::now();
-  DetectAndTrackFace();
-
-  t_skin_start_ = ros::Time::now();
-  TrackSkin();
-
-  t_flow_start_ = ros::Time::now();
-  CalcOpticalFlow();
-
-  Publish();
   t_end_ = ros::Time::now();
 
 }
 
+template<class T>
+inline void get_param(const ros::NodeHandle& nh,
+                      const std::string& param_name, T& var, const T default_value)
+{
+  nh.param(param_name, var, default_value);
+  ROS_INFO_STREAM("[HUM] Param " << param_name << " : " << var);
+}
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "autonomy_human");
   ros::NodeHandle n;
+  ros::NodeHandle n_priv("~");
   image_transport::ImageTransport it(n);
 
   std::string p_xmlFile, p_xmlFileProfile;
 
   if (false == ros::param::get("~cascade_file", p_xmlFile))
   {
-    ROS_FATAL("No cascade file provided, use `cascade_file` param to set it.");
+    ROS_FATAL("[HUM] No cascade file provided, use `cascade_file` param to set it.");
     ros::shutdown();
     exit(1);
   }
   else
   {
-    ROS_INFO("Cascade file: %s", p_xmlFile.c_str());
+    ROS_INFO("[HUM] Cascade file: %s", p_xmlFile.c_str());
   }
 
   bool p_profileFaceEnabled;
   ros::param::param("~profile_hack_enabled", p_profileFaceEnabled, false);
-  ROS_INFO("Profile Face Hack is %s", p_profileFaceEnabled ? "Enabled" : "Disabled");
+  ROS_INFO("[HUM] Profile Face Hack is %s", p_profileFaceEnabled ? "Enabled" : "Disabled");
 
   if ((false == ros::param::get("~cascade_profile_file", p_xmlFileProfile)) && (p_profileFaceEnabled))
   {
-    ROS_FATAL("No profile cascade file provided, use `cascade_profile_file` param to set it.");
+    ROS_FATAL("[HUM] No profile cascade file provided, use `cascade_profile_file` param to set it.");
     ros::shutdown();
     exit(2);
   }
   else
   {
-    ROS_INFO("Profile Cascade file: %s", p_xmlFileProfile.c_str());
+    ROS_INFO("[HUM] Profile Cascade file: %s", p_xmlFileProfile.c_str());
   }
 
-
-
   bool p_skinEnabled;
-  ros::param::param("~skin_enabled", p_skinEnabled, false);
-  ROS_INFO("Skin Segmentation is %s", p_skinEnabled ? "Enabled" : "Disabled");
-
   bool p_gestureEnabled;
-  ros::param::param("~gesture_enabled", p_gestureEnabled, false);
-  ROS_INFO("Gesture Recognition is %s", p_gestureEnabled ? "Enabled" : "Disabled");
-
   int p_stablization;
-  ros::param::param("~flowstablize_mode", p_stablization, 0);
-  ROS_INFO("Flow Stablization is %d", p_stablization);
-
   int  p_debugMode;
-  ros::param::param("~debug_mode", p_debugMode, 0x02);
-  ROS_INFO("Debug mode is %x", p_debugMode);
-
   int p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow;
-  ros::param::param("~initial_min_score", p_initialScoreMin, 5);
-  ros::param::param("~initial_detect_frames", p_initialDetectFrames, 6);
-  ros::param::param("~initial_reject_frames", p_initialRejectFrames, 6);
-  ros::param::param("~min_flow", p_minFlow, 10);
-
-
   int p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH;
-  ros::param::param("~min_face_width", p_minFaceSizeW, 12);
-  ros::param::param("~min_face_height", p_minFaceSizeH, 18);
-  ros::param::param("~max_face_width", p_maxFaceSizeW, 60);
-  ros::param::param("~max_face_height", p_maxFaceSizeH, 80);
-
   double p_mCov, p_pCov;
-  ros::param::param("~meas_cov", p_mCov, 1.0);
-  ros::param::param("~proc_cov", p_pCov, 0.05);
+  bool p_start_paused;
 
-
-
+  get_param<bool>(n_priv, "gesture_enabled", p_gestureEnabled, false);
+  get_param<bool>(n_priv, "skin_enabled", p_skinEnabled, false);
+  get_param<int>(n_priv, "flowstablize_mode", p_stablization, 1);
+  get_param<int>(n_priv, "debug_mode", p_debugMode, 0x02);
+  get_param<int>(n_priv, "initial_min_score", p_initialScoreMin, 5);
+  get_param<int>(n_priv, "initial_detect_frames", p_initialDetectFrames, 6);
+  get_param<int>(n_priv, "initial_reject_frames", p_initialRejectFrames, 6);
+  get_param<int>(n_priv, "min_flow", p_minFlow, 10);
+  get_param<int>(n_priv, "min_face_width", p_minFaceSizeW, 12);
+  get_param<int>(n_priv, "min_face_height", p_minFaceSizeH, 18);
+  get_param<int>(n_priv, "max_face_width", p_maxFaceSizeW, 60);
+  get_param<int>(n_priv, "max_face_height", p_maxFaceSizeH, 80);
+  get_param<double>(n_priv, "meas_cov", p_mCov, 1.0);
+  get_param<double>(n_priv, "proc_cov", p_pCov, 0.05);
+  get_param<bool>(n_priv, "start_paused", p_start_paused, false);
 
   /**
    * The queue size seems to be very important in this project
@@ -1405,14 +1448,13 @@ int main(int argc, char **argv)
    * additive delays.
    */
 
-
   ros::Publisher facePub = n.advertise<autonomy_human::human>("human/human", 5);
   ros::Publisher allDetectionsPub = n.advertise<autonomy_human::raw_detections>("human/raw_detections", 5);
   image_transport::Publisher debugPub = it.advertise("human/debug/image_raw", 1);
   image_transport::Publisher skinPub = it.advertise("human/skin/image_raw", 1);
   image_transport::Publisher opticalPub = it.advertise("human/optical/image_raw", 1);
 
-  CHumanTracker human_tracker(p_xmlFile, p_xmlFileProfile,
+  CHumanTracker human_tracker(p_start_paused, p_xmlFile, p_xmlFileProfile,
                               p_pCov, p_mCov,
                               p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
                               p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
@@ -1420,9 +1462,14 @@ int main(int argc, char **argv)
                               p_debugMode, p_stablization,
                               facePub, allDetectionsPub, debugPub, skinPub, opticalPub);
 
+  ros::Subscriber enableSub = n.subscribe("human/enable", 10, &CHumanTracker::EnableCallback, &human_tracker);
   image_transport::Subscriber visionSub = it.subscribe("camera/image_raw", 10, &CHumanTracker::VisionCallback, &human_tracker);
 
-  ROS_INFO("Starting Autonomy Human ...");
+  ROS_INFO("[HUM] Starting Autonomy Human ...");
+  if (p_start_paused)
+  {
+    ROS_WARN("[HUM] Starting paused!");
+  }
 
   ros::spin();
 
