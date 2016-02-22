@@ -848,9 +848,9 @@ void CHumanTracker::DetectAndTrackFace()
     beleif_.width = std::min<int>(kf_tracker_.statePost.at<float>(4), image_width_ - beleif_.x);
     beleif_.height = std::min<int>(kf_tracker_.statePost.at<float>(5), image_height_ - beleif_.y);
 
-    cv::Point belCenter;
-    belCenter.x = beleif_.x + (beleif_.width * 0.5);
-    belCenter.y = beleif_.y + (beleif_.height * 0.5);
+    cv::Point bel_center;
+    bel_center.x = beleif_.x + (beleif_.width * 0.5);
+    bel_center.y = beleif_.y + (beleif_.height * 0.5);
 
     if ((debug_level_ & 0x02) == 0x02)
     {
@@ -864,12 +864,12 @@ void CHumanTracker::DetectAndTrackFace()
 //      cv::circle(frame_debug_, belCenter, belRad + faceUncPos, CV_RGB(255,0,255));
     }
 
-    //searchROI.x = max<int>(belCenter.x - KFTracker.statePost.at<float>(4) * 2, 0);
-    //searchROI.y = max<int>(belCenter.y - KFTracker.statePost.at<float>(5) * 2, 0);
-    //int x2 = min<int>(belCenter.x + KFTracker.statePost.at<float>(4) * 2, iWidth);
-    //int y2 = min<int>(belCenter.y + KFTracker.statePost.at<float>(4) * 2, iHeight);
-    //searchROI.width = x2 - searchROI.x;
-    //searchROI.height = y2 - searchROI.y;
+    search_roi_.x = std::max<int>(bel_center.x - kf_tracker_.statePost.at<float>(4) * 2, 0);
+    search_roi_.y = std::max<int>(bel_center.y - kf_tracker_.statePost.at<float>(5) * 2, 0);
+    int x2 = std::min<int>(bel_center.x + kf_tracker_.statePost.at<float>(4) * 2, image_width_);
+    int y2 = std::min<int>(bel_center.y + kf_tracker_.statePost.at<float>(4) * 2, image_height_);
+    search_roi_.width = x2 - search_roi_.x;
+    search_roi_.height = y2 - search_roi_.y;
 
 
     if ((updateFaceHist) && (skin_enabled_))
