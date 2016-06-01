@@ -12,8 +12,15 @@ find_package(catkin REQUIRED COMPONENTS
   roslint
 )
 
-set(CUSTOM_OPENCV_DIR "/home/autolab/opencv/opencv-3.1.0/install")
-find_package(OpenCV 3 REQUIRED PATHS ${CUSTOM_OPENCV_DIR} NO_DEFAULT_PATH)
+cmake_policy(SET CMP0046 OLD)
+
+# Force using custom openCV
+#set(CUSTOM_OPENCV_DIR "/home/autolab/opencv/opencv-3.1.0/install")
+#find_package(OpenCV 3 REQUIRED PATHS ${CUSTOM_OPENCV_DIR} NO_DEFAULT_PATH)
+
+# Use system's openCV 3.x
+find_package(OpenCV 3 REQUIRED )
+
 message(STATUS "OpenCV Includes: ${OpenCV_INCLUDE_DIRS}")
 message(STATUS "OpenCV Libraries: ${OpenCV_LIBRARIES}")
 message(STATUS "OpenCV Libs: ${OpenCV_LIBS}")
