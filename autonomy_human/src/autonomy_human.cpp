@@ -969,7 +969,7 @@ void CHumanTracker::CalcOpticalFlow()
   flow_roi_.x = std::max<int>(belCenter.x - fx * kf_tracker_.statePost.at<float>(4) * 4.0, 0);
   flow_roi_.y = std::max<int>(belCenter.y - fy * kf_tracker_.statePost.at<float>(5) * 3.0, 0);
   int x2 = std::min<int>(belCenter.x + fx * kf_tracker_.statePost.at<float>(4) * 4, image_width_);
-  int y2 = std::min<int>(belCenter.y + fy * kf_tracker_.statePost.at<float>(4) * 0, image_height_);
+  int y2 = std::min<int>(belCenter.y + fy * kf_tracker_.statePost.at<float>(5) * 3, image_height_);
   flow_roi_.width = x2 - flow_roi_.x;
   flow_roi_.height = y2 - flow_roi_.y;
 
