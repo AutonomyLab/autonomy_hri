@@ -287,11 +287,26 @@ void CHumanTracker::Publish()
       msg.faceROI.y_offset = beleif_.y;
       msg.faceROI.width = beleif_.width;
       msg.faceROI.height = beleif_.height;
-
       if (gesture_enabled_)
       {
         for (int i = 0; i < 2; i++)
+        {
           msg.flowScore[i] = flow_score_in_region_[i];
+          if( i)
+          {
+            msg.rightHROI.x_offset = gesture_region_[i].x;
+            msg.rightHROI.y_offset = gesture_region_[i].y;
+            msg.rightHROI.width = gesture_region_[i].width;
+            msg.rightHROI.height = gesture_region_[i].height;
+          }
+          else
+          {
+            msg.leftHROI.x_offset = gesture_region_[i].x;
+            msg.leftHROI.y_offset = gesture_region_[i].y;
+            msg.leftHROI.width = gesture_region_[i].width;
+            msg.leftHROI.height = gesture_region_[i].height;
+          }
+        }
       }
     }
     else
