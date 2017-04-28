@@ -42,18 +42,21 @@ catkin_package(
   DEPENDS opencv3
 )
 
-
 include_directories(include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
 
-add_executable(autonomy_human src/autonomy_human.cpp)
+# we require the dlib cmake files for this
+include(dlib/cmake)
+
+add_executable(autonomy_human src/autonomy_human.cpp src/face_pose_estimator.cpp)
 add_dependencies(autonomy_human ${autonomy_human_EXPORTED_TARGETS})
 
 target_link_libraries(autonomy_human
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
+  dlib::dlib
 )
 
 roslint_cpp()

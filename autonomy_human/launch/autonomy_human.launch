@@ -15,6 +15,7 @@
     <rosparam command="load" file="$(arg param_file)" />
     <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascade_frontalface_default.xml" />
     <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
+    <param name="landmarks_file" value="$(find autonomy_human)/landmarks/shape_predictor_68_face_landmarks.dat" />
     <param name="debug_mode" value="$(arg debug_mode)" />
     <param name="start_paused" value="$(arg start_paused)" />
     <remap from="camera/image_raw" to="$(arg input_topic)" />

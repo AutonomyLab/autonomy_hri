@@ -4,6 +4,7 @@
     <node pkg="autonomy_human" name="autonomy_human" type="autonomy_human" output="screen" cwd="node" >
         <param name="cascade_file" value="$(find autonomy_human)/cascades/haarcascade_frontalface_alt.xml" />
         <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
+        <param name="landmarks_file" value="$(find autonomy_human)/landmarks/shape_predictor_68_face_landmarks.dat" />
         <param name="profile_hack_enabled" value="false" />
         <param name="skin_enabled" value="false" />
         <param name="gesture_enabled" value="true" />
@@ -37,6 +38,7 @@
         <param name="image_height" type="int" value="480" />
         <param name="camera_frame_id" type="string" value="cam" />
         <param name="video_device" type="string" value="/dev/video0" />
+        <param name="pixel_format" value="yuyv" />
      </node>
     </group>
 </launch>

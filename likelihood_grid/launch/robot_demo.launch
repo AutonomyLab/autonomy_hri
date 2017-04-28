@@ -1,7 +1,0 @@
-<launch>
-    <include file="$(find likelihood_grid)/launch/likelihood.launch"/>
-    <include file="/etc/ros/hydro/husky-core.d/disabled/oth_behavior.launch"/>
-</launch>
-
-
-

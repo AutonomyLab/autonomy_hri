@@ -18,6 +18,8 @@
 #include "autonomy_human/human.h"
 #include "autonomy_human/raw_detections.h"
 
+#include "face_pose_estimator.hpp"
+
 class CHumanTracker
 {
 public:
@@ -63,6 +65,9 @@ private:
   cv::Mat measurement_;
   float p_cov_scalar_;
   float m_cov_scalar_;
+
+  // Face pose estimator object
+  FacePoseEstimator *facePoseEstimator;
 
   // State Machine
   int32_t state_counter_;
@@ -140,7 +145,7 @@ private:
   image_transport::Publisher& optical_pub_;
 
 public:
-  CHumanTracker(const bool enabled, std::string &cascadeFile, std::string &cascadeFileProfile,
+  CHumanTracker(const bool enabled, std::string &cascadeFile, std::string &cascadeFileProfile, std::string &landmarksFile,
                 float _pCov, float _mCov,
                 int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                 int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
@@ -184,7 +189,7 @@ public:
 //
 // KFTracker = new KalmanFilter(6, 4, 0);
 // MLSearch = new KalmanFilter(6, 4, 0);
-CHumanTracker::CHumanTracker(const bool enabled, std::string &cascadeFile, std::string &cascadeFileProfile,
+CHumanTracker::CHumanTracker(const bool enabled, std::string &cascadeFile, std::string &cascadeFileProfile, std::string &landmarksFile,
                              float _pCov, float _mCov,
                              int _minFaceSizeW, int _minFaceSizeH, int _maxFaceSizeW, int _maxFaceSizeH,
                              int _initialScoreMin, int _initialDetectFrames, int _initialRejectFrames, int _minFlow,
@@ -256,6 +261,7 @@ CHumanTracker::CHumanTracker(const bool enabled, std::string &cascadeFile, std::
 
   is_face_in_current_frame_ = false;
 
+  facePoseEstimator = new FacePoseEstimator(landmarksFile);
 }
 
 void CHumanTracker::Publish()
@@ -845,6 +851,11 @@ void CHumanTracker::DetectAndTrackFace()
 
       // We see a face
       updateFaceHist = true;
+
+      // at this point, we know that there is a face---let's perform pose
+      // estimation on it now
+      cv::Mat rotation;
+      facePoseEstimator -> estimatePoseFiltered(img, frame_debug_, ml_face_.rect, rotation);
     }
     else
     {
@@ -1403,7 +1414,7 @@ int main(int argc, char **argv)
   ros::NodeHandle n_priv("~");
   image_transport::ImageTransport it(n);
 
-  std::string p_xmlFile, p_xmlFileProfile;
+  std::string p_xmlFile, p_xmlFileProfile, landmarksFile;
 
   if (false == ros::param::get("~cascade_file", p_xmlFile))
   {
@@ -1429,6 +1440,18 @@ int main(int argc, char **argv)
   else
   {
     ROS_INFO("[HUM] Profile Cascade file: %s", p_xmlFileProfile.c_str());
+  }
+
+  // load up our landmarks file
+  if(false == ros::param::get("~landmarks_file", landmarksFile))
+  {
+      ROS_FATAL("[HUM] No landmarks file provided, use 'landmarks_file' param to set it.");
+      ros::shutdown();
+      exit(1);
+  }
+  else
+  {
+      ROS_INFO("[HUM] Landmarks file: %s", landmarksFile.c_str());
   }
 
   bool p_skinEnabled;
@@ -1469,7 +1492,7 @@ int main(int argc, char **argv)
   image_transport::Publisher skinPub = it.advertise("human/skin/image_raw", 1);
   image_transport::Publisher opticalPub = it.advertise("human/optical/image_raw", 1);
 
-  CHumanTracker human_tracker(p_start_paused, p_xmlFile, p_xmlFileProfile,
+  CHumanTracker human_tracker(p_start_paused, p_xmlFile, p_xmlFileProfile, landmarksFile,
                               p_pCov, p_mCov,
                               p_minFaceSizeW, p_minFaceSizeH, p_maxFaceSizeW, p_maxFaceSizeH,
                               p_initialScoreMin, p_initialDetectFrames, p_initialRejectFrames, p_minFlow,
@@ -1490,4 +1513,3 @@ int main(int argc, char **argv)
 
   return 0;
 }
-

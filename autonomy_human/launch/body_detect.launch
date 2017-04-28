@@ -5,6 +5,7 @@
         <param name="cascade_file" value="/home/autolab/Downloads/OpenCV-2.4.3/data/haarcascades/haarcascade_mcs_upperbody.xml" />
 -->
         <param name="cascade_profile_file" value="$(find autonomy_human)/cascades/haarcascade_profileface.xml" />
+        <param name="landmarks_file" value="$(find autonomy_human)/landmarks/shape_predictor_68_face_landmarks.dat" />
         <param name="profile_hack_enabled" value="false" />
         <param name="skin_enabled" value="false" />
         <param name="gesture_enabled" value="false" />
