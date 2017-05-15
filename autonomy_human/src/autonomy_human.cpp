@@ -294,17 +294,17 @@ void CHumanTracker::Publish()
           msg.flowScore[i] = flow_score_in_region_[i];
           if( i)
           {
-            msg.rightHROI.x_offset = gesture_region_[i].x;
-            msg.rightHROI.y_offset = gesture_region_[i].y;
-            msg.rightHROI.width = gesture_region_[i].width;
-            msg.rightHROI.height = gesture_region_[i].height;
-          }
-          else
-          {
             msg.leftHROI.x_offset = gesture_region_[i].x;
             msg.leftHROI.y_offset = gesture_region_[i].y;
             msg.leftHROI.width = gesture_region_[i].width;
             msg.leftHROI.height = gesture_region_[i].height;
+          }
+          else
+          {
+            msg.rightHROI.x_offset = gesture_region_[i].x;
+            msg.rightHROI.y_offset = gesture_region_[i].y;
+            msg.rightHROI.width = gesture_region_[i].width;
+            msg.rightHROI.height = gesture_region_[i].height;
           }
         }
       }
@@ -981,9 +981,9 @@ void CHumanTracker::CalcOpticalFlow()
   //‌ FlowRoi is now not being used to filter out any region, it is a placeholder
   // changed by Jake (745083b132aa4bfd8f77cb7c7aa1453348535920)
   // changed back by to hri_in_the_sky values by mani
-  flow_roi_.x = std::max<int>(belCenter.x - fx * kf_tracker_.statePost.at<float>(4) * 4.0, 0);
+  flow_roi_.x = std::max<int>(belCenter.x - fx * kf_tracker_.statePost.at<float>(4) * 3.0, 0);
   flow_roi_.y = std::max<int>(belCenter.y - fy * kf_tracker_.statePost.at<float>(5) * 3.0, 0);
-  int x2 = std::min<int>(belCenter.x + fx * kf_tracker_.statePost.at<float>(4) * 4, image_width_);
+  int x2 = std::min<int>(belCenter.x + fx * kf_tracker_.statePost.at<float>(4) * 3, image_width_);
   int y2 = std::min<int>(belCenter.y + fy * kf_tracker_.statePost.at<float>(4) * 0, image_height_);
   flow_roi_.width = x2 - flow_roi_.x;
   flow_roi_.height = y2 - flow_roi_.y;
