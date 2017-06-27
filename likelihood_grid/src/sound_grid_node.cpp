@@ -12,41 +12,41 @@ using namespace message_filters;
 
 int main(int argc, char** argv)
 {
-    ros::init(argc,argv,"sound_grid_node");
-    ros::NodeHandle n;
-    tf::TransformListener *tf_listener;
-    int loop_rate;
-    int probability_projection_step;
-    double power_threshold;
-    ros::param::param("~/loop_rate",loop_rate, 5);
-    ros::param::param("~/sound/probability_projection_step",probability_projection_step , 1);
-    ros::param::param("~/sound/power_threshold",power_threshold , 25.0);
-    ros::Rate looprate(loop_rate);
+  ros::init(argc, argv, "sound_grid_node");
+  ros::NodeHandle n;
+  tf::TransformListener *tf_listener;
+  int loop_rate;
+  int probability_projection_step;
+  double power_threshold;
+  ros::param::param("~/loop_rate", loop_rate, 5);
+  ros::param::param("~/sound/probability_projection_step", probability_projection_step, 1);
+  ros::param::param("~/sound/power_threshold", power_threshold, 25.0);
+  ros::Rate looprate(loop_rate);
 
-    CSoundGrid sound_grid(n, tf_listener, probability_projection_step, power_threshold);
+  CSoundGrid sound_grid(n, tf_listener, probability_projection_step, power_threshold);
 
-    message_filters::Subscriber<hark_msgs::HarkSource> sound_sub(n, "sound", 10);
-    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "husky/odom", 10);
+  message_filters::Subscriber<hark_msgs::HarkSource> sound_sub(n, "sound", 10);
+  message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "husky/odom", 10);
 
-    typedef sync_policies::ApproximateTime <hark_msgs::HarkSource,
-            nav_msgs::Odometry> MySyncPolicy;
+  typedef sync_policies::ApproximateTime <hark_msgs::HarkSource,
+          nav_msgs::Odometry> MySyncPolicy;
 
-    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), sound_sub, encoder_sub);
-    sync.registerCallback(boost::bind(&CSoundGrid::syncCallBack,
-                                      &sound_grid, _1, _2));
+  Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), sound_sub, encoder_sub);
+  sync.registerCallback(boost::bind(&CSoundGrid::syncCallBack,
+                                    &sound_grid, _1, _2));
 
 
-    while (ros::ok())
-    {
-        sound_grid.spin();
+  while (ros::ok())
+  {
+    sound_grid.spin();
 
-        if(looprate.cycleTime() > looprate.expectedCycleTime())
-            ROS_ERROR("Sound Grid: It is taking too long! %f", looprate.cycleTime().toSec());
-        if(!looprate.sleep())
-            ROS_ERROR("Not enough time left");
+    if (looprate.cycleTime() > looprate.expectedCycleTime())
+      ROS_ERROR("Sound Grid: It is taking too long! %f", looprate.cycleTime().toSec());
+    if (!looprate.sleep())
+      ROS_ERROR("Not enough time left");
 
-        ros::spinOnce();
-    }
+    ros::spinOnce();
+  }
 
-    return 0;
+  return 0;
 }

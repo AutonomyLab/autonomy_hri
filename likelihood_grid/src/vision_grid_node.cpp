@@ -13,39 +13,39 @@ using namespace message_filters;
 
 int main(int argc, char** argv)
 {
-    ros::init(argc,argv,"vision_grid_node");
-    ros::NodeHandle n;
-    tf::TransformListener *tf_listener;
-    int loop_rate;
-    int probability_projection_step;
-    ros::param::param("~/vision/probability_projection_step",probability_projection_step , 1);
-    ros::param::param("~/loop_rate",loop_rate, 5);
-    ros::Rate looprate(loop_rate);
+  ros::init(argc, argv, "vision_grid_node");
+  ros::NodeHandle n;
+  tf::TransformListener *tf_listener;
+  int loop_rate;
+  int probability_projection_step;
+  ros::param::param("~/vision/probability_projection_step", probability_projection_step, 1);
+  ros::param::param("~/loop_rate", loop_rate, 5);
+  ros::Rate looprate(loop_rate);
 
-    CVisionGrid vision_grid(n, tf_listener, probability_projection_step);
+  CVisionGrid vision_grid(n, tf_listener, probability_projection_step);
 
-    message_filters::Subscriber<autonomy_human::raw_detections> vision_sub(n, "torso", 10);
-    message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "husky/odom", 10);
+  message_filters::Subscriber<autonomy_human::raw_detections> vision_sub(n, "torso", 10);
+  message_filters::Subscriber<nav_msgs::Odometry> encoder_sub(n, "husky/odom", 10);
 
-    typedef sync_policies::ApproximateTime <autonomy_human::raw_detections,
-            nav_msgs::Odometry> MySyncPolicy;
+  typedef sync_policies::ApproximateTime <autonomy_human::raw_detections,
+          nav_msgs::Odometry> MySyncPolicy;
 
-    Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), vision_sub, encoder_sub);
-    sync.registerCallback(boost::bind(&CVisionGrid::syncCallBack,
-                                      &vision_grid, _1, _2));
+  Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), vision_sub, encoder_sub);
+  sync.registerCallback(boost::bind(&CVisionGrid::syncCallBack,
+                                    &vision_grid, _1, _2));
 
 
-    while (ros::ok())
-    {
-        vision_grid.spin();
+  while (ros::ok())
+  {
+    vision_grid.spin();
 
-        if(looprate.cycleTime() > looprate.expectedCycleTime())
-            ROS_ERROR("Sound Grid: It is taking too long! %f", looprate.cycleTime().toSec());
-        if(!looprate.sleep())
-            ROS_ERROR("Not enough time left");
+    if (looprate.cycleTime() > looprate.expectedCycleTime())
+      ROS_ERROR("Sound Grid: It is taking too long! %f", looprate.cycleTime().toSec());
+    if (!looprate.sleep())
+      ROS_ERROR("Not enough time left");
 
-        ros::spinOnce();
-    }
+    ros::spinOnce();
+  }
 
-    return 0;
+  return 0;
 }
