@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   message_generation
   roslint
+  yolo2
 )
 
 set(CUSTOM_OPENCV_DIR "/home/autolab/opencv/opencv-3.1.0/install")

@@ -7,6 +7,7 @@
 #include <sensor_msgs/RegionOfInterest.h>
 #include <std_msgs/Header.h>
 #include <std_msgs/Bool.h>
+#include <yolo2/ImageDetections.h>
 
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -63,6 +64,7 @@ private:
   cv::Mat measurement_;
   float p_cov_scalar_;
   float m_cov_scalar_;
+  std::vector<CvAvgComp> vecAvgComp;
 
   // State Machine
   int32_t state_counter_;
@@ -153,6 +155,7 @@ public:
   ~CHumanTracker();
 
   void EnableCallback(const std_msgs::BoolConstPtr& enable);
+  void HandsAndFacesCallback(const yolo2::ImageDetectionsConstPtr &detections);
   void VisionCallback(const sensor_msgs::ImageConstPtr& frame);
   void Reset();
   float CalcMedian(cv::Mat &m, int nbins, float minVal, float maxVal, cv::InputArray mask = cv::noArray());
@@ -634,12 +637,12 @@ void CHumanTracker::HistFilter(cv::Mat& region, cv::Mat& post, cv::Mat& prior, c
 void CHumanTracker::DetectAndTrackFace()
 {
   static ros::Time probe;
-
-  // Do ROI
+//
+//  // Do ROI
   frame_debug_ = frame_raw_.clone();
   cv::Mat img =  this->frame_raw_(search_roi_);
-
-  faces_.clear();
+//
+//  faces_.clear();
   std::ostringstream txtstr;
   const static cv::Scalar colors[] =  { CV_RGB(0, 0, 255),
                                     CV_RGB(0, 128, 255),
@@ -650,56 +653,56 @@ void CHumanTracker::DetectAndTrackFace()
                                     CV_RGB(255, 0, 0),
                                     CV_RGB(255, 0, 255)
                                   } ;
-  cv::Mat gray;
-  cv::Mat frame(cvRound(img.rows), cvRound(img.cols), CV_8UC1);
-  cv::cvtColor(img, gray, CV_BGR2GRAY);
-  cv::resize(gray, frame, frame.size(), 0, 0, cv::INTER_LINEAR);
-  //equalizeHist( frame, frame );
-
-  // This if for internal usage
+//  cv::Mat gray;
+//  cv::Mat frame(cvRound(img.rows), cvRound(img.cols), CV_8UC1);
+//  cv::cvtColor(img, gray, CV_BGR2GRAY);
+//  cv::resize(gray, frame, frame.size(), 0, 0, cv::INTER_LINEAR);
+//  //equalizeHist( frame, frame );
+//
+//  // This if for internal usage
   const ros::Time _n = ros::Time::now();
   double dt = (_n - probe).toSec();
-  probe = _n;
-
-
-  CvMat _image = frame;
-
-  if (!storage_.empty())
-  {
-    cvClearMemStorage(storage_);
-  }
-  CvSeq* _objects = cvHaarDetectObjects(&_image, cascade_, storage_,
-                                        1.2, initial_score_min_, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_SCALE_IMAGE, min_face_size_, max_face_size_);
-
-  std::vector<CvAvgComp> vecAvgComp;
-  cv::Seq<CvAvgComp>(_objects).copyTo(vecAvgComp);
-
+//  probe = _n;
+//
+//
+//  CvMat _image = frame;
+//
+//  if (!storage_.empty())
+//  {
+//    cvClearMemStorage(storage_);
+//  }
+//  CvSeq* _objects = cvHaarDetectObjects(&_image, cascade_, storage_,
+//                                        1.2, initial_score_min_, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_SCALE_IMAGE, min_face_size_, max_face_size_);
+//
+//  std::vector<CvAvgComp> vecAvgComp;
+//  cv::Seq<CvAvgComp>(_objects).copyTo(vecAvgComp);
+//
   // End of using C API
 
   is_face_in_current_frame_ = (vecAvgComp.size() > 0);
 
   // This is a hack
-  bool isProfileFace = false;
-  if ((profile_hack_enabled_) && (!is_face_in_current_frame_) && ((tracking_state_ == STATE_REJECT) || (tracking_state_ == STATE_REJECT)))
-  {
-    ROS_DEBUG("Using Profile Face hack ...");
-
-    if (!storage_profile_.empty())
-    {
-      cvClearMemStorage(storage_profile_);
-    }
-    CvSeq* _objectsProfile = cvHaarDetectObjects(&_image, cascade_profile_, storage_profile_,
-                             1.2, initial_score_min_, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_SCALE_IMAGE, min_face_size_, max_face_size_);
-    vecAvgComp.clear();
-    cv::Seq<CvAvgComp>(_objectsProfile).copyTo(vecAvgComp);
-    is_face_in_current_frame_ = (vecAvgComp.size() > 0);
-    if (is_face_in_current_frame_)
-    {
-      ROS_DEBUG("The hack seems to work!");
-    }
-    isProfileFace = true;
-  }
-
+//  bool isProfileFace = false;
+//  if ((profile_hack_enabled_) && (!is_face_in_current_frame_) && ((tracking_state_ == STATE_REJECT) || (tracking_state_ == STATE_REJECT)))
+//  {
+//    ROS_DEBUG("Using Profile Face hack ...");
+//
+//    if (!storage_profile_.empty())
+//    {
+//      cvClearMemStorage(storage_profile_);
+//    }
+//    CvSeq* _objectsProfile = cvHaarDetectObjects(&_image, cascade_profile_, storage_profile_,
+//                             1.2, initial_score_min_, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_SCALE_IMAGE, min_face_size_, max_face_size_);
+//    vecAvgComp.clear();
+//    cv::Seq<CvAvgComp>(_objectsProfile).copyTo(vecAvgComp);
+//    is_face_in_current_frame_ = (vecAvgComp.size() > 0);
+//    if (is_face_in_current_frame_)
+//    {
+//      ROS_DEBUG("The hack seems to work!");
+//    }
+//    isProfileFace = true;
+//  }
+//
   if (tracking_state_ == STATE_LOST)
   {
     if (is_face_in_current_frame_)
@@ -782,8 +785,8 @@ void CHumanTracker::DetectAndTrackFace()
       {
         CopyKalman(kf_tracker_, ml_search_);
         CvRect r = rr->rect;
-        r.x += search_roi_.x;
-        r.y += search_roi_.y;
+//        r.x += search_roi_.x;
+//        r.y += search_roi_.y;
         double nr = rr->neighbors;
         cv::Point center;
         cv::Scalar color = colors[i % 8];
@@ -827,12 +830,12 @@ void CHumanTracker::DetectAndTrackFace()
       }
 
       cv::Rect r(ml_face_.rect);
-      r.x += search_roi_.x;
-      r.y += search_roi_.y;
+      //r.x += search_roi_.x;
+      //r.y += search_roi_.y;
       faces_.push_back(r);
       double nr = ml_face_.neighbors;
       face_score_ = nr;
-      if (isProfileFace) face_score_ = 0.0;
+      //if (isProfileFace) face_score_ = 0.0;
       float normFaceScore = 1.0 - (nr / 40.0);
       if (normFaceScore > 1.0) normFaceScore = 1.0;
       if (normFaceScore < 0.0) normFaceScore = 0.0;
@@ -853,15 +856,15 @@ void CHumanTracker::DetectAndTrackFace()
     }
 
     // TODO: MOVE THIS
-    for (unsigned int k = 0; k < faces_.size(); k++)
-    {
-      rectangle(frame_debug_, faces_.at(k), CV_RGB(128, 128, 128));
-    }
+  //  for (unsigned int k = 0; k < faces_.size(); k++)
+  //  {
+  //    rectangle(frame_debug_, faces_.at(k), CV_RGB(128, 128, 128));
+  //  }
 
     beleif_.x = std::max<int>(kf_tracker_.statePost.at<float>(0), 0);
     beleif_.y = std::max<int>(kf_tracker_.statePost.at<float>(1), 0);
-    beleif_.width = std::min<int>(kf_tracker_.statePost.at<float>(4), image_width_ - beleif_.x);
-    beleif_.height = std::min<int>(kf_tracker_.statePost.at<float>(5), image_height_ - beleif_.y);
+    beleif_.width = vecAvgComp.begin()->rect.width;//std::min<int>(kf_tracker_.statePost.at<float>(4), image_width_ - beleif_.x);
+    beleif_.height = vecAvgComp.begin()->rect.height;//std::min<int>(kf_tracker_.statePost.at<float>(5), image_height_ - beleif_.y);
 
     cv::Point bel_center;
     bel_center.x = beleif_.x + (beleif_.width * 0.5);
@@ -1341,6 +1344,26 @@ void CHumanTracker::EnableCallback(const std_msgs::BoolConstPtr & enable)
   }
 }
 
+void CHumanTracker::HandsAndFacesCallback(const yolo2::ImageDetectionsConstPtr &detections)
+{
+  vecAvgComp.clear();
+  //ROS_INFO_STREAM( "detections :" << detections.get()->detections.size() );
+  for( int i = 0; i < detections.get()->detections.size(); i++)
+  { 
+    if( detections.get()->detections[i].class_id == 1)
+    {
+      CvAvgComp face;
+      face.neighbors = 30;
+      face.rect.x = detections.get()->detections[i].roi.x_offset;
+      face.rect.y = detections.get()->detections[i].roi.y_offset;
+      face.rect.width = detections.get()->detections[i].roi.width;
+      face.rect.height = detections.get()->detections[i].roi.height;
+      //ROS_INFO_STREAM( "Rect :" << face.rect.x << " " << face.rect.y << " " << face.rect.width << " " << face.rect.height );
+      vecAvgComp.push_back( face);
+    }
+  } 
+}
+
 void CHumanTracker::VisionCallback(const sensor_msgs::ImageConstPtr& frame)
 {
   t_start_ = ros::Time::now();
@@ -1478,6 +1501,7 @@ int main(int argc, char **argv)
                               facePub, allDetectionsPub, debugPub, skinPub, opticalPub);
 
   ros::Subscriber enableSub = n.subscribe("human/enable", 10, &CHumanTracker::EnableCallback, &human_tracker);
+  ros::Subscriber hanfsAndFacesSub = n.subscribe("/vision/yolo2/detections", 10, &CHumanTracker::HandsAndFacesCallback, &human_tracker);
   image_transport::Subscriber visionSub = it.subscribe("camera/image_raw", 10, &CHumanTracker::VisionCallback, &human_tracker);
 
   ROS_INFO("[HUM] Starting Autonomy Human ...");
