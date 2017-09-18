@@ -39,7 +39,7 @@ catkin_package(
   #INCLUDE_DIRS include
   #LIBRARIES autonomy_human
   CATKIN_DEPENDS cv_bridge geometry_msgs image_transport roscpp std_msgs message_runtime
-  DEPENDS opencv3
+  DEPENDS
 )
 
 
